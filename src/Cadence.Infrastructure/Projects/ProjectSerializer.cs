@@ -47,7 +47,7 @@ public sealed class ProjectSerializer
         ArgumentNullException.ThrowIfNull(document);
         var project = document.Project;
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, NewLine = "\n" }))
         {
             writer.WriteStartObject();
             writer.WriteString("format", FormatName);
