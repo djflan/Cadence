@@ -62,7 +62,8 @@ Cadence/
 ├── README.md
 ├── global.json
 ├── docs/
-│   └── adr/            Architecture decision records
+│   ├── adr/            Architecture decision records
+│   └── midi-files.md   Standard MIDI File behavior and diagnostics
 └── src/
     ├── Cadence.slnx
     ├── SubModules/

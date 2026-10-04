@@ -1,0 +1,83 @@
+# Standard MIDI File support
+
+Cadence reads and writes Standard MIDI Files (SMF) formats 0, 1, and 2. A MIDI file is an interchange
+format, not a Cadence project: importing turns it into a sequence, and exporting writes a sequence
+back out. Both steps report anything that could not be carried over exactly.
+
+## Reading
+
+`SmfReader` never modifies its input and treats every file as untrusted. Limits are applied before
+anything is allocated or parsed:
+
+| Limit | Default |
+| ----- | ------- |
+| File size | 64 MiB |
+| Tracks | 4096 |
+| Events (whole file) | 10,000,000 |
+| One meta or SysEx payload | 1 MiB |
+
+A file that has no `MThd` header, has an unsupported format or timing division, or exceeds a limit
+fails with `SmfFormatException`. Damage *inside* a track (truncation, invalid bytes) stops reading
+that track only; the events read before the damage are kept, and a diagnostic says what happened.
+
+## Importing
+
+- **Notes** are paired first-in, first-out per channel and note number. Note-on with velocity 0
+  counts as a release with release velocity 0.
+- **Tempo, time signature, and markers** from any track become the sequence's tempo map, meter map,
+  and markers. Track names at tick 0 become track names. In a format 1 file, a first track that
+  holds only conductor data is absorbed and its name becomes the title.
+- **SMPTE-timed files** keep one tick per file tick; Cadence picks a resolution and a constant tempo
+  that reproduce the original timing (29.97 fps drop-frame included).
+- **SysEx**: complete messages become SysEx events. Packets split across several events, `F7` escape
+  events, and malformed SysEx are kept as raw bytes with their original timing.
+- **Everything else** (text, lyrics, copyright, key signature, port, sequencer-specific, unknown
+  meta types) is preserved as meta events and written back on export.
+- **Text** is decoded as UTF-8 when valid, otherwise Latin-1.
+
+## Exporting
+
+Export always writes format 1 with running status: a conductor track (title, time signatures,
+tempo changes, markers) followed by one track per sequence track. Simultaneous events are written in
+Cadence's canonical order (ADR 0003), so a release always precedes a retrigger on the same tick.
+Text is written as UTF-8.
+
+## Diagnostics
+
+Each diagnostic has a stable code. Repeats of a code in the same track are folded into one entry
+with a count.
+
+| Code | Severity | Meaning |
+| ---- | -------- | ------- |
+| SMF001 | Info | Header longer than six bytes; extra bytes ignored |
+| SMF002 | Warning | Header track count differs from the tracks found |
+| SMF003 | Warning | A chunk is shorter than its declared length |
+| SMF004 | Warning | Unrecognized bytes after the last chunk were ignored |
+| SMF005 | Info | A non-track chunk was preserved but not interpreted |
+| SMF006 | Warning | A track has no end-of-track event |
+| SMF007 | Warning | Data after end-of-track was ignored |
+| SMF008 | Warning | A malformed event ended reading of its track |
+| SMF009 | Info | Running status continued across a meta or SysEx event |
+| SMF010 | Warning | A format 0 file contains more than one track |
+| SMF100 | Info | SMPTE timing was converted to PPQN and a constant tempo |
+| SMF101 | Info | A note-off with no matching note-on was kept as a raw message |
+| SMF102 | Warning | A note with no release was ended at the end of its track |
+| SMF103 | Warning | A zero-length note was lengthened to one tick |
+| SMF104 | Warning | A malformed tempo event was kept raw and not applied |
+| SMF105 | Warning | A malformed or unrepresentable time signature was kept raw and not applied |
+| SMF106 | Info | Non-standard metronome settings in a time signature were not kept |
+| SMF107 | Info | Split, escaped, or malformed SysEx was kept as raw bytes |
+| SMF108 | Warning | Format 2 patterns were imported as simultaneous tracks |
+| SMF109 | Info | Conductor events outside the first track were applied globally |
+| SMF110 | Info | A MIDI port assignment was kept but does not affect routing |
+| SMF111 | Warning | Tempo events in an SMPTE file were dropped |
+| SMF112 | Warning | A track name was shortened to 256 characters |
+| SMF200 | Info | Mute/solo state cannot be stored in a MIDI file |
+| SMF201 | Info | Non-ASCII names were written as UTF-8 |
+
+## Known limitations
+
+- Byte-exact reproduction of an imported file is not a goal: export uses canonical event order,
+  running status, and standard metronome settings.
+- A track's end-of-track position is not kept; exported tracks end at their last event.
+- RIFF-wrapped (`.rmi`) files are not yet recognized.

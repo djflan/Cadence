@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+    <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
