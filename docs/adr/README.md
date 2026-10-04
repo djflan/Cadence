@@ -7,6 +7,8 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | --- | ----- | ------ |
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
 | [0002](0002-build-and-test-conventions.md) | Build and test conventions | Accepted |
+| [0003](0003-deterministic-event-ordering.md) | Deterministic ordering of simultaneous events | Accepted |
+| [0004](0004-musical-time-representation.md) | Musical time representation | Accepted |
 
 ## Template
 
