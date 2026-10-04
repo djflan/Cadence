@@ -1,0 +1,36 @@
+name: Device profile request
+description: Request or propose a profile for an instrument, module, or software synth.
+labels: [device-profile]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Profiles may only contain redistributable facts. Please read [profiles/README.md](https://github.com/djflan/Cadence/blob/main/profiles/README.md) first. Do not attach manual scans, voice lists copied from vendor documentation, firmware, or ROM data.
+  - type: input
+    id: instrument
+    attributes:
+      label: Instrument
+      placeholder: Yamaha MU128
+    validations:
+      required: true
+  - type: dropdown
+    id: standard
+    attributes:
+      label: Closest standard
+      options:
+        - GM
+        - GM2
+        - XG
+        - GS
+        - Other or proprietary
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Where can the interface facts be verified? Link public documentation where possible.
+  - type: checkboxes
+    id: hardware
+    attributes:
+      label: Testing
+      options:
+        - label: I own this instrument and can test a draft profile on it.

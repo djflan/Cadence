@@ -1,5 +1,7 @@
 # Cadence
 
+[![CI](https://github.com/djflan/Cadence/actions/workflows/ci.yml/badge.svg)](https://github.com/djflan/Cadence/actions/workflows/ci.yml)
+
 Cadence is a modern, open-source, cross-platform MIDI workstation built for musicians who use real instruments.
 
 It is initially focused on excellent Yamaha XG and QY100 workflows, while its architecture is deliberately broader: Cadence can describe what an instrument understands independently from where MIDI is sent. A track can therefore use a device profile with physical hardware, a virtual MIDI port, a network destination, or a compatible software instrument.
@@ -68,6 +70,7 @@ C or C++ components may be introduced where native MIDI APIs or measured high-re
 
 ```text
 Cadence/
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
 ├── global.json
@@ -153,16 +156,7 @@ screen-reader support has not yet been verified.
 
 ## Contributing
 
-Cadence welcomes focused contributions to sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing.
-
-Before contributing:
-
-1. Read the architectural principle above and the decision records in `docs/adr/`.
-2. Keep device profiles independent from MIDI endpoint implementations.
-3. Include tests that do not require contributors to own specific hardware.
-4. Identify hardware behavior that was simulated rather than physically verified.
-5. Include provenance for profile data and only submit material you have the right to redistribute.
-6. Do not contribute vendor logos, manual scans, firmware, ROM content, proprietary binaries, or copied vendor artwork/text.
+Cadence welcomes focused contributions to sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 Compatibility names must be used factually and must not imply vendor affiliation, certification, sponsorship, or endorsement.
 
