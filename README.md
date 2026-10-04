@@ -11,7 +11,7 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track to a device profile and an output independently, play it back with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Platform MIDI adapters and note editing are next.
+Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track to a device profile and an output independently, play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows and Linux MIDI adapters and note editing are next.
 
 ## Goals
 
@@ -104,7 +104,9 @@ dotnet run --project src/Cadence.Desktop
 ```
 
 Without any hardware, route tracks to **Cadence Monitor** and watch the messages in the MIDI
-monitor panel. A demo song is included in `samples/cadence-demo.mid`.
+monitor panel, or route to **Cadence Out** and select it as the input of a software synth or DAW.
+A demo song is included in `samples/cadence-demo.mid`. Hardware checks are listed in
+[docs/hardware-test-plan.md](docs/hardware-test-plan.md).
 
 | Action | Shortcut |
 | ------ | -------- |
