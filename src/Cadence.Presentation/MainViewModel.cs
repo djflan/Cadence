@@ -740,6 +740,28 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AddMessage(MessageSeverity.Info, "Panic", "Sent All Notes Off, All Sound Off, and sustain off on every channel of every output.");
     }
 
+    /// <summary>
+    /// Moves everything on a track in time (dragging its region in the arrangement), or with
+    /// <paramref name="copy"/> repeats it shifted, as one undo step.
+    /// </summary>
+    public void MoveTrackContent(TrackViewModel track, long deltaTicks, bool copy)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (Project.Sequence.FindTrack(track.Id) is not { Events.IsEmpty: false } content || deltaTicks == 0)
+        {
+            return;
+        }
+
+        if (copy)
+        {
+            Execute(ProjectCommands.AddEvents(track.Id, "Copy Region", EventEdits.Copy(content.Events, deltaTicks)));
+        }
+        else
+        {
+            Execute(ProjectCommands.ReplaceEvents(track.Id, "Move Region", EventEdits.Move(content.Events, deltaTicks, 0)));
+        }
+    }
+
     /// <summary>Sets the loop (cycle) range, or turns it off with null, e.g. from the ruler.</summary>
     public void SetLoop(TickRange? loop) => Execute(ProjectCommands.SetLoop(loop));
 

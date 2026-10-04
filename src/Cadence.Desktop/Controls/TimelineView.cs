@@ -7,6 +7,7 @@ using Cadence.Application.Recording;
 using Cadence.Desktop.Theme;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
 
 namespace Cadence.Desktop.Controls;
 
@@ -36,6 +37,13 @@ public sealed class TimelineView : Control
     private static readonly IBrush RecordNote = new SolidColorBrush(Palette.Lighten(Palette.Record, 0.35));
     private static readonly IBrush RegionText = new SolidColorBrush(Color.Parse("#141416"));
     private static readonly Typeface RegionFace = new("Inter", FontStyle.Normal, FontWeight.SemiBold);
+
+    // Region drag state
+    private int _dragLane = -1;
+    private Point _dragPress;
+    private long _dragDelta;
+    private bool _dragCopy;
+    private bool _dragging;
 
     static TimelineView()
     {
@@ -101,6 +109,9 @@ public sealed class TimelineView : Control
 
     /// <summary>Raised with the lane index when a lane is double-clicked.</summary>
     public event EventHandler<int>? LaneDoubleClicked;
+
+    /// <summary>Raised when a region is dragged sideways: the lane, the snapped shift in ticks, and whether to copy.</summary>
+    public event EventHandler<(int Lane, long DeltaTicks, bool Copy)>? RegionDragged;
 
     public double TickToX(long tick) => Project is { } p ? TimeGrid.TickToX(tick, p.Sequence, PixelsPerQuarter) : 0;
 
@@ -179,26 +190,117 @@ public sealed class TimelineView : Control
             else
             {
                 LaneClicked?.Invoke(this, (lane, e.KeyModifiers));
+                if (RegionExtent(project.Sequence, project.Sequence.Tracks[lane]) is var (start, end)
+                    && point.Position.X >= TickToX(start) && point.Position.X <= TickToX(end))
+                {
+                    _dragLane = lane;
+                    _dragPress = point.Position;
+                    _dragDelta = 0;
+                    _dragCopy = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+                    _dragging = false;
+                    e.Pointer.Capture(this);
+                }
             }
 
             e.Handled = true;
         }
     }
 
-    private void DrawRegion(DrawingContext context, Sequence sequence, Track track, int lane, double left, double right)
+    protected override void OnPointerMoved(PointerEventArgs e)
     {
-        if (track.Events.IsEmpty)
+        base.OnPointerMoved(e);
+        if (_dragLane < 0 || Project is not { } project || !ReferenceEquals(e.Pointer.Captured, this))
         {
             return;
         }
 
+        var x = e.GetPosition(this).X;
+        _dragging |= Math.Abs(x - _dragPress.X) > 4;
+        if (_dragging && RegionExtent(project.Sequence, project.Sequence.Tracks[_dragLane]) is var (start, _))
+        {
+            var raw = (long)Math.Round((x - _dragPress.X) * project.Sequence.Ppqn.TicksPerQuarterNote / PixelsPerQuarter);
+            var target = Math.Max(0, SnapRegion(project.Sequence, start + raw));
+            _dragDelta = target - start;
+            Cursor = new Cursor(_dragCopy ? StandardCursorType.DragCopy : StandardCursorType.SizeWestEast);
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        var (lane, delta, copy, dragged) = (_dragLane, _dragDelta, _dragCopy, _dragging);
+        _dragLane = -1;
+        _dragDelta = 0;
+        _dragging = false;
+        e.Pointer.Capture(null);
+        Cursor = Cursor.Default;
+        if (lane >= 0 && dragged && delta != 0)
+        {
+            RegionDragged?.Invoke(this, (lane, delta, copy));
+        }
+
+        InvalidateVisual();
+    }
+
+    /// <summary>Regions snap to beats when beats are wide enough to aim at, otherwise to bars.</summary>
+    private long SnapRegion(Sequence sequence, long tick)
+    {
         var meter = sequence.MeterMap;
-        var startTick = meter.BarStart(track.Events[0].Position);
-        var lastTick = track.EndPosition;
-        var endBar = meter.BarStart(lastTick);
-        var endTick = endBar == lastTick ? lastTick : TimeGrid.NextBar(meter, endBar);
-        var x0 = Math.Round(TickToX(startTick.Value)) + 1;
-        var x1 = Math.Round(TickToX(endTick.Value));
+        var bar = meter.BarStart(new Tick(Math.Max(0, tick)));
+        var beat = meter.SignatureAt(bar).TryGetTicksPerBeat(sequence.Ppqn, out var span) ? span.Value : sequence.Ppqn.TicksPerQuarterNote;
+        if (TickToX(beat) >= 24)
+        {
+            return bar.Value + ((long)Math.Round((tick - bar.Value) / (double)beat) * beat);
+        }
+
+        var next = TimeGrid.NextBar(meter, bar);
+        return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
+    }
+
+    /// <summary>A track's region: from the bar containing its first event to the end of the bar containing its last.</summary>
+    private static (long Start, long End)? RegionExtent(Sequence sequence, Track track)
+    {
+        if (track.Events.IsEmpty)
+        {
+            return null;
+        }
+
+        var meter = sequence.MeterMap;
+        var start = meter.BarStart(track.Events[0].Position);
+        var last = track.EndPosition;
+        var endBar = meter.BarStart(last);
+        var end = endBar == last ? last : TimeGrid.NextBar(meter, endBar);
+        return (start.Value, end.Value);
+    }
+
+    private void DrawRegion(DrawingContext context, Sequence sequence, Track track, int lane, double left, double right)
+    {
+        if (lane == _dragLane && _dragging && _dragDelta != 0)
+        {
+            // The original stays in place (dimmed unless copying) under the region being dragged.
+            using (context.PushOpacity(_dragCopy ? 1 : 0.35))
+            {
+                DrawRegion(context, sequence, track, lane, left, right, 0);
+            }
+
+            DrawRegion(context, sequence, track, lane, left, right, _dragDelta);
+            return;
+        }
+
+        DrawRegion(context, sequence, track, lane, left, right, 0);
+    }
+
+    private void DrawRegion(DrawingContext context, Sequence sequence, Track track, int lane, double left, double right, long offset)
+    {
+        if (RegionExtent(sequence, track) is not var (startTick, endTick))
+        {
+            return;
+        }
+
+        var shift = TickToX(offset);
+        var x0 = Math.Round(TickToX(startTick) + shift) + 1;
+        var x1 = Math.Round(TickToX(endTick) + shift);
         if (x1 < left || x0 > right)
         {
             return;
@@ -243,8 +345,8 @@ public sealed class TimelineView : Control
         var span = high - low + 1;
         var noteHeight = Math.Clamp(noteArea / span, 1.5, 4);
         var noteColor = muted ? Palette.Mix(color, Palette.Lane, 0.4) : Palette.Lighten(color, selected ? 0.6 : 0.45);
-        var firstTick = XToTick(left);
-        var lastVisible = XToTick(right);
+        var firstTick = XToTick(Math.Max(0, left - shift));
+        var lastVisible = XToTick(Math.Max(0, right - shift));
         using (context.PushClip(body))
         {
             foreach (var note in notes)
@@ -254,7 +356,7 @@ public sealed class TimelineView : Control
                     continue;
                 }
 
-                var x = TickToX(note.Position.Value);
+                var x = TickToX(note.Position.Value) + shift;
                 var w = Math.Max(1.5, TickToX(note.EndPosition.Value) - x - 0.5);
                 var y = noteTop + ((high - note.Note.Value) * (noteArea - noteHeight) / Math.Max(1, span - 1));
                 var opacity = 0.55 + (0.45 * note.Velocity.Value / 127.0);

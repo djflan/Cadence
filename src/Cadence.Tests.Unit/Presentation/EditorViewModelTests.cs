@@ -275,6 +275,19 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void MoveTrackContent_ShiftsOrCopiesTheWholeRegion()
+    {
+        _vm.MoveTrackContent(_vm.Tracks[0], 3840, copy: false);
+        Assert.Equal([3840L, 4800L, 5760L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal("Move Region", _session.History.UndoLabel);
+
+        _vm.MoveTrackContent(_vm.Tracks[0], -3840, copy: true);
+        Assert.Equal(6, Track.Events.Length);
+        Assert.Equal(0, Track.Events[0].Position.Value);
+        Assert.Equal("Copy Region", _session.History.UndoLabel);
+    }
+
+    [Fact]
     public void TempoAndMeter_AreEditableFromTheTransport()
     {
         _vm.CommitTempo("96.5");

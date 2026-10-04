@@ -36,6 +36,13 @@ public partial class MainWindow : Window
         Ruler.LoopRequested += (_, loop) => viewModel.SetLoop(loop);
         Timeline.LaneClicked += (_, click) => OnLaneClicked(click.Lane, click.Modifiers);
         Timeline.LaneDoubleClicked += (_, lane) => OpenInPianoRoll(lane);
+        Timeline.RegionDragged += (_, drag) =>
+        {
+            if (drag.Lane < viewModel.Tracks.Count)
+            {
+                viewModel.MoveTrackContent(viewModel.Tracks[drag.Lane], drag.DeltaTicks, drag.Copy);
+            }
+        };
         TimelineScroller.ScrollChanged += (_, _) => SyncTimelineViewport();
         TimelineScroller.SizeChanged += (_, _) => SyncTimelineViewport();
         TrackHeaderScroller.AddHandler(PointerWheelChangedEvent, OnTrackHeaderWheel, RoutingStrategies.Tunnel);

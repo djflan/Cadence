@@ -148,7 +148,9 @@ onto the window to open it. Hardware checks are listed in
 
 ### Editing notes
 
-Double-click a track's lane (or press P) to open it in the piano roll, below the arrangement.
+Double-click a track's lane (or press P) to open it in the piano roll, below the arrangement. In
+the arrangement, drag a track's region sideways to move its material (snapped to bars, or beats
+when zoomed in); Alt/Option-drag copies it.
 
 | In the piano roll | How |
 | ----------------- | --- |
