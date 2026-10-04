@@ -34,13 +34,19 @@ internal static class PlatformProviders
 
     /// <summary>
     /// Scheduling for the playback thread. On macOS the real-time time-constraint policy removed
-    /// multi-millisecond wake-up delays in measurement (ADR 0012).
+    /// multi-millisecond wake-up delays in measurement (ADR 0012). On Windows a 1 ms timer resolution
+    /// and the MMCSS "Pro Audio" task do the same job (ADR 0013).
     /// </summary>
     public static void ConfigurePlaybackThread()
     {
         if (OperatingSystem.IsMacOS() && !ThreadScheduling.MakeCurrentThreadRealtime(TimeSpan.FromMilliseconds(2), TimeSpan.FromMilliseconds(5)))
         {
             ThreadScheduling.PromoteCurrentThread();
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            Cadence.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
+            Cadence.Platform.Windows.ThreadScheduling.JoinProAudioTask();
         }
     }
 }

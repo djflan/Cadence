@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows platform services. Managed P/Invoke only; see docs/adr/0013-windows-playback-timing.md. -->
+  <PropertyGroup>
+    <RootNamespace>Cadence.Platform.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+</Project>
