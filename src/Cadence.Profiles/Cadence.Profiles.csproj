@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Device profile schema, validation, and loading. Contains no vendor or device content; see /profiles. -->
+  <PropertyGroup>
+    <RootNamespace>Cadence.Profiles</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+  </ItemGroup>
+</Project>

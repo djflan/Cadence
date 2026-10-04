@@ -12,6 +12,7 @@
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
+    <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

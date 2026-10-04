@@ -63,7 +63,9 @@ Cadence/
 ├── global.json
 ├── docs/
 │   ├── adr/            Architecture decision records
-│   └── midi-files.md   Standard MIDI File behavior and diagnostics
+│   ├── midi-files.md   Standard MIDI File behavior and diagnostics
+│   └── profiles.md     Device profile format
+├── profiles/           Shipped device profiles (data, not code)
 └── src/
     ├── Cadence.slnx
     ├── SubModules/
@@ -74,6 +76,7 @@ Cadence/
 - `src/SubModules/` is reserved for shared source submodules.
 - Each normal project belongs in its own direct child folder under `src/`.
 - `docs/adr/` records consequential architecture decisions.
+- `profiles/` holds device profile data; see `profiles/README.md` for contribution rules.
 
 The repository is intentionally minimal while the first vertical slice is designed. Empty architectural layers should not be generated simply to match a diagram.
 

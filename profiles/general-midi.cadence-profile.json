@@ -1,0 +1,1004 @@
+{
+  "format": "cadence-device-profile",
+  "schemaVersion": 1,
+  "id": "cadence.generic.gm1",
+  "version": "1.0.0",
+  "name": "General MIDI (Level 1)",
+  "description": "Any instrument that implements the General MIDI Level 1 sound set and percussion map. Use this profile for GM-compatible hardware and software when no more specific profile exists.",
+  "provenance": {
+    "sources": [
+      "General MIDI System Level 1 specification, MIDI Manufacturers Association (now The MIDI Association): sound set program names and families, percussion key map, required controllers and registered parameters.",
+      "MIDI 1.0 Detailed Specification: universal System Exclusive message formats."
+    ],
+    "contributors": [
+      "Cadence contributors"
+    ],
+    "license": "MIT",
+    "redistributionConfirmed": true,
+    "verification": "unverified",
+    "notes": "Program and percussion names are the standard General MIDI names, which are reproduced across the MIDI ecosystem. Not yet checked against a specific instrument."
+  },
+  "protocols": [
+    "gm1"
+  ],
+  "drumChannels": [
+    10
+  ],
+  "banks": [
+    {
+      "id": "gm",
+      "name": "General MIDI",
+      "kind": "melodic",
+      "programs": [
+        {
+          "number": 1,
+          "name": "Acoustic Grand Piano",
+          "category": "Piano"
+        },
+        {
+          "number": 2,
+          "name": "Bright Acoustic Piano",
+          "category": "Piano"
+        },
+        {
+          "number": 3,
+          "name": "Electric Grand Piano",
+          "category": "Piano"
+        },
+        {
+          "number": 4,
+          "name": "Honky-tonk Piano",
+          "category": "Piano"
+        },
+        {
+          "number": 5,
+          "name": "Electric Piano 1",
+          "category": "Piano"
+        },
+        {
+          "number": 6,
+          "name": "Electric Piano 2",
+          "category": "Piano"
+        },
+        {
+          "number": 7,
+          "name": "Harpsichord",
+          "category": "Piano"
+        },
+        {
+          "number": 8,
+          "name": "Clavi",
+          "category": "Piano"
+        },
+        {
+          "number": 9,
+          "name": "Celesta",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 10,
+          "name": "Glockenspiel",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 11,
+          "name": "Music Box",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 12,
+          "name": "Vibraphone",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 13,
+          "name": "Marimba",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 14,
+          "name": "Xylophone",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 15,
+          "name": "Tubular Bells",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 16,
+          "name": "Dulcimer",
+          "category": "Chromatic Percussion"
+        },
+        {
+          "number": 17,
+          "name": "Drawbar Organ",
+          "category": "Organ"
+        },
+        {
+          "number": 18,
+          "name": "Percussive Organ",
+          "category": "Organ"
+        },
+        {
+          "number": 19,
+          "name": "Rock Organ",
+          "category": "Organ"
+        },
+        {
+          "number": 20,
+          "name": "Church Organ",
+          "category": "Organ"
+        },
+        {
+          "number": 21,
+          "name": "Reed Organ",
+          "category": "Organ"
+        },
+        {
+          "number": 22,
+          "name": "Accordion",
+          "category": "Organ"
+        },
+        {
+          "number": 23,
+          "name": "Harmonica",
+          "category": "Organ"
+        },
+        {
+          "number": 24,
+          "name": "Tango Accordion",
+          "category": "Organ"
+        },
+        {
+          "number": 25,
+          "name": "Acoustic Guitar (nylon)",
+          "category": "Guitar"
+        },
+        {
+          "number": 26,
+          "name": "Acoustic Guitar (steel)",
+          "category": "Guitar"
+        },
+        {
+          "number": 27,
+          "name": "Electric Guitar (jazz)",
+          "category": "Guitar"
+        },
+        {
+          "number": 28,
+          "name": "Electric Guitar (clean)",
+          "category": "Guitar"
+        },
+        {
+          "number": 29,
+          "name": "Electric Guitar (muted)",
+          "category": "Guitar"
+        },
+        {
+          "number": 30,
+          "name": "Overdriven Guitar",
+          "category": "Guitar"
+        },
+        {
+          "number": 31,
+          "name": "Distortion Guitar",
+          "category": "Guitar"
+        },
+        {
+          "number": 32,
+          "name": "Guitar Harmonics",
+          "category": "Guitar"
+        },
+        {
+          "number": 33,
+          "name": "Acoustic Bass",
+          "category": "Bass"
+        },
+        {
+          "number": 34,
+          "name": "Electric Bass (finger)",
+          "category": "Bass"
+        },
+        {
+          "number": 35,
+          "name": "Electric Bass (pick)",
+          "category": "Bass"
+        },
+        {
+          "number": 36,
+          "name": "Fretless Bass",
+          "category": "Bass"
+        },
+        {
+          "number": 37,
+          "name": "Slap Bass 1",
+          "category": "Bass"
+        },
+        {
+          "number": 38,
+          "name": "Slap Bass 2",
+          "category": "Bass"
+        },
+        {
+          "number": 39,
+          "name": "Synth Bass 1",
+          "category": "Bass"
+        },
+        {
+          "number": 40,
+          "name": "Synth Bass 2",
+          "category": "Bass"
+        },
+        {
+          "number": 41,
+          "name": "Violin",
+          "category": "Strings"
+        },
+        {
+          "number": 42,
+          "name": "Viola",
+          "category": "Strings"
+        },
+        {
+          "number": 43,
+          "name": "Cello",
+          "category": "Strings"
+        },
+        {
+          "number": 44,
+          "name": "Contrabass",
+          "category": "Strings"
+        },
+        {
+          "number": 45,
+          "name": "Tremolo Strings",
+          "category": "Strings"
+        },
+        {
+          "number": 46,
+          "name": "Pizzicato Strings",
+          "category": "Strings"
+        },
+        {
+          "number": 47,
+          "name": "Orchestral Harp",
+          "category": "Strings"
+        },
+        {
+          "number": 48,
+          "name": "Timpani",
+          "category": "Strings"
+        },
+        {
+          "number": 49,
+          "name": "String Ensemble 1",
+          "category": "Ensemble"
+        },
+        {
+          "number": 50,
+          "name": "String Ensemble 2",
+          "category": "Ensemble"
+        },
+        {
+          "number": 51,
+          "name": "Synth Strings 1",
+          "category": "Ensemble"
+        },
+        {
+          "number": 52,
+          "name": "Synth Strings 2",
+          "category": "Ensemble"
+        },
+        {
+          "number": 53,
+          "name": "Choir Aahs",
+          "category": "Ensemble"
+        },
+        {
+          "number": 54,
+          "name": "Voice Oohs",
+          "category": "Ensemble"
+        },
+        {
+          "number": 55,
+          "name": "Synth Voice",
+          "category": "Ensemble"
+        },
+        {
+          "number": 56,
+          "name": "Orchestra Hit",
+          "category": "Ensemble"
+        },
+        {
+          "number": 57,
+          "name": "Trumpet",
+          "category": "Brass"
+        },
+        {
+          "number": 58,
+          "name": "Trombone",
+          "category": "Brass"
+        },
+        {
+          "number": 59,
+          "name": "Tuba",
+          "category": "Brass"
+        },
+        {
+          "number": 60,
+          "name": "Muted Trumpet",
+          "category": "Brass"
+        },
+        {
+          "number": 61,
+          "name": "French Horn",
+          "category": "Brass"
+        },
+        {
+          "number": 62,
+          "name": "Brass Section",
+          "category": "Brass"
+        },
+        {
+          "number": 63,
+          "name": "Synth Brass 1",
+          "category": "Brass"
+        },
+        {
+          "number": 64,
+          "name": "Synth Brass 2",
+          "category": "Brass"
+        },
+        {
+          "number": 65,
+          "name": "Soprano Sax",
+          "category": "Reed"
+        },
+        {
+          "number": 66,
+          "name": "Alto Sax",
+          "category": "Reed"
+        },
+        {
+          "number": 67,
+          "name": "Tenor Sax",
+          "category": "Reed"
+        },
+        {
+          "number": 68,
+          "name": "Baritone Sax",
+          "category": "Reed"
+        },
+        {
+          "number": 69,
+          "name": "Oboe",
+          "category": "Reed"
+        },
+        {
+          "number": 70,
+          "name": "English Horn",
+          "category": "Reed"
+        },
+        {
+          "number": 71,
+          "name": "Bassoon",
+          "category": "Reed"
+        },
+        {
+          "number": 72,
+          "name": "Clarinet",
+          "category": "Reed"
+        },
+        {
+          "number": 73,
+          "name": "Piccolo",
+          "category": "Pipe"
+        },
+        {
+          "number": 74,
+          "name": "Flute",
+          "category": "Pipe"
+        },
+        {
+          "number": 75,
+          "name": "Recorder",
+          "category": "Pipe"
+        },
+        {
+          "number": 76,
+          "name": "Pan Flute",
+          "category": "Pipe"
+        },
+        {
+          "number": 77,
+          "name": "Blown Bottle",
+          "category": "Pipe"
+        },
+        {
+          "number": 78,
+          "name": "Shakuhachi",
+          "category": "Pipe"
+        },
+        {
+          "number": 79,
+          "name": "Whistle",
+          "category": "Pipe"
+        },
+        {
+          "number": 80,
+          "name": "Ocarina",
+          "category": "Pipe"
+        },
+        {
+          "number": 81,
+          "name": "Lead 1 (square)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 82,
+          "name": "Lead 2 (sawtooth)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 83,
+          "name": "Lead 3 (calliope)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 84,
+          "name": "Lead 4 (chiff)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 85,
+          "name": "Lead 5 (charang)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 86,
+          "name": "Lead 6 (voice)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 87,
+          "name": "Lead 7 (fifths)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 88,
+          "name": "Lead 8 (bass + lead)",
+          "category": "Synth Lead"
+        },
+        {
+          "number": 89,
+          "name": "Pad 1 (new age)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 90,
+          "name": "Pad 2 (warm)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 91,
+          "name": "Pad 3 (polysynth)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 92,
+          "name": "Pad 4 (choir)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 93,
+          "name": "Pad 5 (bowed)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 94,
+          "name": "Pad 6 (metallic)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 95,
+          "name": "Pad 7 (halo)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 96,
+          "name": "Pad 8 (sweep)",
+          "category": "Synth Pad"
+        },
+        {
+          "number": 97,
+          "name": "FX 1 (rain)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 98,
+          "name": "FX 2 (soundtrack)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 99,
+          "name": "FX 3 (crystal)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 100,
+          "name": "FX 4 (atmosphere)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 101,
+          "name": "FX 5 (brightness)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 102,
+          "name": "FX 6 (goblins)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 103,
+          "name": "FX 7 (echoes)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 104,
+          "name": "FX 8 (sci-fi)",
+          "category": "Synth Effects"
+        },
+        {
+          "number": 105,
+          "name": "Sitar",
+          "category": "Ethnic"
+        },
+        {
+          "number": 106,
+          "name": "Banjo",
+          "category": "Ethnic"
+        },
+        {
+          "number": 107,
+          "name": "Shamisen",
+          "category": "Ethnic"
+        },
+        {
+          "number": 108,
+          "name": "Koto",
+          "category": "Ethnic"
+        },
+        {
+          "number": 109,
+          "name": "Kalimba",
+          "category": "Ethnic"
+        },
+        {
+          "number": 110,
+          "name": "Bagpipe",
+          "category": "Ethnic"
+        },
+        {
+          "number": 111,
+          "name": "Fiddle",
+          "category": "Ethnic"
+        },
+        {
+          "number": 112,
+          "name": "Shanai",
+          "category": "Ethnic"
+        },
+        {
+          "number": 113,
+          "name": "Tinkle Bell",
+          "category": "Percussive"
+        },
+        {
+          "number": 114,
+          "name": "Agogo",
+          "category": "Percussive"
+        },
+        {
+          "number": 115,
+          "name": "Steel Drums",
+          "category": "Percussive"
+        },
+        {
+          "number": 116,
+          "name": "Woodblock",
+          "category": "Percussive"
+        },
+        {
+          "number": 117,
+          "name": "Taiko Drum",
+          "category": "Percussive"
+        },
+        {
+          "number": 118,
+          "name": "Melodic Tom",
+          "category": "Percussive"
+        },
+        {
+          "number": 119,
+          "name": "Synth Drum",
+          "category": "Percussive"
+        },
+        {
+          "number": 120,
+          "name": "Reverse Cymbal",
+          "category": "Percussive"
+        },
+        {
+          "number": 121,
+          "name": "Guitar Fret Noise",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 122,
+          "name": "Breath Noise",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 123,
+          "name": "Seashore",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 124,
+          "name": "Bird Tweet",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 125,
+          "name": "Telephone Ring",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 126,
+          "name": "Helicopter",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 127,
+          "name": "Applause",
+          "category": "Sound Effects"
+        },
+        {
+          "number": 128,
+          "name": "Gunshot",
+          "category": "Sound Effects"
+        }
+      ]
+    }
+  ],
+  "drumKits": [
+    {
+      "id": "gm-standard",
+      "name": "Standard Kit",
+      "program": 1,
+      "notes": [
+        {
+          "note": 35,
+          "name": "Acoustic Bass Drum"
+        },
+        {
+          "note": 36,
+          "name": "Bass Drum 1"
+        },
+        {
+          "note": 37,
+          "name": "Side Stick"
+        },
+        {
+          "note": 38,
+          "name": "Acoustic Snare"
+        },
+        {
+          "note": 39,
+          "name": "Hand Clap"
+        },
+        {
+          "note": 40,
+          "name": "Electric Snare"
+        },
+        {
+          "note": 41,
+          "name": "Low Floor Tom"
+        },
+        {
+          "note": 42,
+          "name": "Closed Hi-Hat"
+        },
+        {
+          "note": 43,
+          "name": "High Floor Tom"
+        },
+        {
+          "note": 44,
+          "name": "Pedal Hi-Hat"
+        },
+        {
+          "note": 45,
+          "name": "Low Tom"
+        },
+        {
+          "note": 46,
+          "name": "Open Hi-Hat"
+        },
+        {
+          "note": 47,
+          "name": "Low-Mid Tom"
+        },
+        {
+          "note": 48,
+          "name": "Hi-Mid Tom"
+        },
+        {
+          "note": 49,
+          "name": "Crash Cymbal 1"
+        },
+        {
+          "note": 50,
+          "name": "High Tom"
+        },
+        {
+          "note": 51,
+          "name": "Ride Cymbal 1"
+        },
+        {
+          "note": 52,
+          "name": "Chinese Cymbal"
+        },
+        {
+          "note": 53,
+          "name": "Ride Bell"
+        },
+        {
+          "note": 54,
+          "name": "Tambourine"
+        },
+        {
+          "note": 55,
+          "name": "Splash Cymbal"
+        },
+        {
+          "note": 56,
+          "name": "Cowbell"
+        },
+        {
+          "note": 57,
+          "name": "Crash Cymbal 2"
+        },
+        {
+          "note": 58,
+          "name": "Vibraslap"
+        },
+        {
+          "note": 59,
+          "name": "Ride Cymbal 2"
+        },
+        {
+          "note": 60,
+          "name": "Hi Bongo"
+        },
+        {
+          "note": 61,
+          "name": "Low Bongo"
+        },
+        {
+          "note": 62,
+          "name": "Mute Hi Conga"
+        },
+        {
+          "note": 63,
+          "name": "Open Hi Conga"
+        },
+        {
+          "note": 64,
+          "name": "Low Conga"
+        },
+        {
+          "note": 65,
+          "name": "High Timbale"
+        },
+        {
+          "note": 66,
+          "name": "Low Timbale"
+        },
+        {
+          "note": 67,
+          "name": "High Agogo"
+        },
+        {
+          "note": 68,
+          "name": "Low Agogo"
+        },
+        {
+          "note": 69,
+          "name": "Cabasa"
+        },
+        {
+          "note": 70,
+          "name": "Maracas"
+        },
+        {
+          "note": 71,
+          "name": "Short Whistle"
+        },
+        {
+          "note": 72,
+          "name": "Long Whistle"
+        },
+        {
+          "note": 73,
+          "name": "Short Guiro"
+        },
+        {
+          "note": 74,
+          "name": "Long Guiro"
+        },
+        {
+          "note": 75,
+          "name": "Claves"
+        },
+        {
+          "note": 76,
+          "name": "Hi Wood Block"
+        },
+        {
+          "note": 77,
+          "name": "Low Wood Block"
+        },
+        {
+          "note": 78,
+          "name": "Mute Cuica"
+        },
+        {
+          "note": 79,
+          "name": "Open Cuica"
+        },
+        {
+          "note": 80,
+          "name": "Mute Triangle"
+        },
+        {
+          "note": 81,
+          "name": "Open Triangle"
+        }
+      ]
+    }
+  ],
+  "controllers": [
+    {
+      "number": 1,
+      "name": "Modulation",
+      "default": 0
+    },
+    {
+      "number": 6,
+      "name": "Data Entry"
+    },
+    {
+      "number": 7,
+      "name": "Channel Volume",
+      "default": 100
+    },
+    {
+      "number": 10,
+      "name": "Pan",
+      "default": 64
+    },
+    {
+      "number": 11,
+      "name": "Expression",
+      "default": 127
+    },
+    {
+      "number": 38,
+      "name": "Data Entry (LSB)"
+    },
+    {
+      "number": 64,
+      "name": "Sustain Pedal",
+      "default": 0
+    },
+    {
+      "number": 100,
+      "name": "RPN (LSB)"
+    },
+    {
+      "number": 101,
+      "name": "RPN (MSB)"
+    },
+    {
+      "number": 121,
+      "name": "Reset All Controllers"
+    },
+    {
+      "number": 123,
+      "name": "All Notes Off"
+    }
+  ],
+  "parameters": [
+    {
+      "msb": 0,
+      "lsb": 0,
+      "name": "Pitch Bend Sensitivity",
+      "min": 0,
+      "max": 16383,
+      "default": 256
+    },
+    {
+      "msb": 0,
+      "lsb": 1,
+      "name": "Fine Tuning",
+      "min": 0,
+      "max": 16383,
+      "default": 8192
+    },
+    {
+      "msb": 0,
+      "lsb": 2,
+      "name": "Coarse Tuning",
+      "min": 0,
+      "max": 16383,
+      "default": 8192
+    }
+  ],
+  "sysex": [
+    {
+      "id": "gm-system-on",
+      "name": "GM System On",
+      "effect": "reset",
+      "description": "Resets a General MIDI instrument to its GM default state.",
+      "bytes": "F0 7E {device} 09 01 F7",
+      "parameters": [
+        {
+          "name": "device",
+          "min": 0,
+          "max": 127,
+          "default": 127
+        }
+      ]
+    },
+    {
+      "id": "master-volume",
+      "name": "Master Volume",
+      "effect": "parameter",
+      "description": "Universal real-time master volume (14-bit, LSB then MSB).",
+      "bytes": "F0 7F {device} 04 01 {lsb} {msb} F7",
+      "parameters": [
+        {
+          "name": "device",
+          "min": 0,
+          "max": 127,
+          "default": 127
+        },
+        {
+          "name": "lsb",
+          "min": 0,
+          "max": 127,
+          "default": 127
+        },
+        {
+          "name": "msb",
+          "min": 0,
+          "max": 127,
+          "default": 127
+        }
+      ]
+    }
+  ],
+  "initialization": [
+    {
+      "sysex": "gm-system-on",
+      "delayAfterMs": 100
+    }
+  ],
+  "limitations": [
+    "Program names are the GM standard; a particular instrument's own voice names may differ.",
+    "Pitch bend sensitivity values are the raw 14-bit RPN value: MSB is semitones, LSB is cents (default 2 semitones = 256)."
+  ]
+}

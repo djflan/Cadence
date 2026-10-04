@@ -11,6 +11,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0004](0004-musical-time-representation.md) | Musical time representation | Accepted |
 | [0005](0005-midi-endpoint-contracts.md) | MIDI endpoint contracts | Accepted |
 | [0006](0006-playback-engine.md) | Playback engine: prepared plans, dual cursors, runtime releases | Accepted |
+| [0007](0007-device-profile-format.md) | Data-first device profiles | Accepted |
 
 ## Template
 

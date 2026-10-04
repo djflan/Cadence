@@ -1,0 +1,281 @@
+{
+  "format": "cadence-device-profile",
+  "schemaVersion": 1,
+  "id": "cadence.generic.xg",
+  "version": "1.0.0",
+  "name": "Generic XG",
+  "description": "Instruments compatible with the XG format: bank select layout, XG System On, and XG parameter change messages. Voice names are intentionally not included; programs are shown by number.",
+  "notices": [
+    "XG is a trademark of Yamaha Corporation. Cadence is an independent project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. The name is used only to describe compatibility."
+  ],
+  "provenance": {
+    "sources": [
+      "Publicly documented XG format conventions: bank select assignments (MSB 0 normal voices, 64 SFX voices, 126 SFX kits, 127 drum kits), the XG System On message, the XG parameter change message layout, and the recommended delay after System On.",
+      "MIDI 1.0 Detailed Specification: controller numbers, registered parameters, and universal System Exclusive formats."
+    ],
+    "contributors": [
+      "Cadence contributors"
+    ],
+    "license": "MIT",
+    "redistributionConfirmed": true,
+    "verification": "unverified",
+    "notes": "Contains only interface facts needed to address an XG instrument, no voice lists or other vendor text. Not yet checked against hardware."
+  },
+  "protocols": [
+    "xg",
+    "gm1"
+  ],
+  "drumChannels": [
+    10
+  ],
+  "banks": [
+    {
+      "id": "normal",
+      "name": "Normal voices (MSB 0)",
+      "kind": "melodic",
+      "msb": 0,
+      "lsb": 0
+    },
+    {
+      "id": "sfx",
+      "name": "SFX voices (MSB 64)",
+      "kind": "melodic",
+      "msb": 64,
+      "lsb": 0
+    },
+    {
+      "id": "sfx-kits",
+      "name": "SFX kits (MSB 126)",
+      "kind": "drums",
+      "msb": 126,
+      "lsb": 0
+    },
+    {
+      "id": "drum-kits",
+      "name": "Drum kits (MSB 127)",
+      "kind": "drums",
+      "msb": 127,
+      "lsb": 0
+    }
+  ],
+  "controllers": [
+    {
+      "number": 0,
+      "name": "Bank Select (MSB)"
+    },
+    {
+      "number": 1,
+      "name": "Modulation",
+      "default": 0
+    },
+    {
+      "number": 5,
+      "name": "Portamento Time"
+    },
+    {
+      "number": 6,
+      "name": "Data Entry"
+    },
+    {
+      "number": 7,
+      "name": "Channel Volume",
+      "default": 100
+    },
+    {
+      "number": 10,
+      "name": "Pan",
+      "default": 64
+    },
+    {
+      "number": 11,
+      "name": "Expression",
+      "default": 127
+    },
+    {
+      "number": 32,
+      "name": "Bank Select (LSB)"
+    },
+    {
+      "number": 38,
+      "name": "Data Entry (LSB)"
+    },
+    {
+      "number": 64,
+      "name": "Sustain Pedal",
+      "default": 0
+    },
+    {
+      "number": 65,
+      "name": "Portamento"
+    },
+    {
+      "number": 66,
+      "name": "Sostenuto"
+    },
+    {
+      "number": 67,
+      "name": "Soft Pedal"
+    },
+    {
+      "number": 71,
+      "name": "Harmonic Content"
+    },
+    {
+      "number": 72,
+      "name": "Release Time"
+    },
+    {
+      "number": 73,
+      "name": "Attack Time"
+    },
+    {
+      "number": 74,
+      "name": "Brightness"
+    },
+    {
+      "number": 84,
+      "name": "Portamento Control"
+    },
+    {
+      "number": 91,
+      "name": "Reverb Send"
+    },
+    {
+      "number": 93,
+      "name": "Chorus Send"
+    },
+    {
+      "number": 94,
+      "name": "Variation Send"
+    },
+    {
+      "number": 98,
+      "name": "NRPN (LSB)"
+    },
+    {
+      "number": 99,
+      "name": "NRPN (MSB)"
+    },
+    {
+      "number": 100,
+      "name": "RPN (LSB)"
+    },
+    {
+      "number": 101,
+      "name": "RPN (MSB)"
+    },
+    {
+      "number": 120,
+      "name": "All Sound Off"
+    },
+    {
+      "number": 121,
+      "name": "Reset All Controllers"
+    },
+    {
+      "number": 123,
+      "name": "All Notes Off"
+    }
+  ],
+  "parameters": [
+    {
+      "msb": 0,
+      "lsb": 0,
+      "name": "Pitch Bend Sensitivity",
+      "min": 0,
+      "max": 16383,
+      "default": 256
+    },
+    {
+      "msb": 0,
+      "lsb": 1,
+      "name": "Fine Tuning",
+      "min": 0,
+      "max": 16383,
+      "default": 8192
+    },
+    {
+      "msb": 0,
+      "lsb": 2,
+      "name": "Coarse Tuning",
+      "min": 0,
+      "max": 16383,
+      "default": 8192
+    }
+  ],
+  "sysex": [
+    {
+      "id": "xg-system-on",
+      "name": "XG System On",
+      "effect": "reset",
+      "description": "Resets every XG parameter to its default. The instrument needs time to settle afterwards.",
+      "bytes": "F0 43 {device} 4C 00 00 7E 00 F7",
+      "parameters": [
+        {
+          "name": "device",
+          "min": 16,
+          "max": 31,
+          "default": 16
+        }
+      ]
+    },
+    {
+      "id": "gm-system-on",
+      "name": "GM System On",
+      "effect": "reset",
+      "description": "Universal General MIDI reset.",
+      "bytes": "F0 7E 7F 09 01 F7"
+    },
+    {
+      "id": "xg-parameter-change",
+      "name": "XG Parameter Change",
+      "effect": "parameter",
+      "description": "Sets one XG parameter by its three-byte address. Addresses and value meanings are instrument documentation, not part of this profile.",
+      "bytes": "F0 43 {device} 4C {addressHigh} {addressMid} {addressLow} {value} F7",
+      "parameters": [
+        {
+          "name": "device",
+          "min": 16,
+          "max": 31,
+          "default": 16
+        },
+        {
+          "name": "addressHigh",
+          "min": 0,
+          "max": 127,
+          "default": 0
+        },
+        {
+          "name": "addressMid",
+          "min": 0,
+          "max": 127,
+          "default": 0
+        },
+        {
+          "name": "addressLow",
+          "min": 0,
+          "max": 127,
+          "default": 0
+        },
+        {
+          "name": "value",
+          "min": 0,
+          "max": 127,
+          "default": 0
+        }
+      ]
+    }
+  ],
+  "initialization": [
+    {
+      "sysex": "xg-system-on",
+      "delayAfterMs": 50
+    }
+  ],
+  "limitations": [
+    "Variation banks (MSB 0 with a non-zero LSB) are not listed; select them by number.",
+    "Program and drum kit names are not included.",
+    "The device parameter is 16 plus the instrument's device number (1-16 shown as 0-15 on many instruments).",
+    "Parameter changes with more than one data byte are not covered by the template."
+  ]
+}
