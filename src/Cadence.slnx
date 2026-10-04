@@ -1,2 +1,4 @@
 <Solution>
+  <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
+  <Project Path="Cadence.Tests.Unit/Cadence.Tests.Unit.csproj" />
 </Solution>

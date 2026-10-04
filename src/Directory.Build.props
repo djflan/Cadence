@@ -1,0 +1,30 @@
+<Project>
+  <!-- Shared build conventions for every project under src/. See docs/adr/0002-build-and-test-conventions.md. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Features>strict</Features>
+    <Deterministic>true</Deterministic>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Documentation is required where intent, units, ownership, or timing are not obvious,
+         not on every member, so missing-doc warnings (CS1591) are not enforced. Generating the
+         file is still required for IDE0005 (unnecessary usings) to run during build. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <Authors>Cadence contributors</Authors>
+    <Product>Cadence</Product>
+    <Copyright>Copyright (c) 2026 Cadence contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(CI)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure musical and sequencing model. Must not reference UI, platform, native, or vendor-profile code. -->
+  <PropertyGroup>
+    <RootNamespace>Cadence.Domain</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+  </ItemGroup>
+</Project>

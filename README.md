@@ -60,6 +60,9 @@ C or C++ components may be introduced where native MIDI APIs or measured high-re
 Cadence/
 ├── LICENSE
 ├── README.md
+├── global.json
+├── docs/
+│   └── adr/            Architecture decision records
 └── src/
     ├── Cadence.slnx
     ├── SubModules/
@@ -69,20 +72,22 @@ Cadence/
 - `src/Cadence.slnx` is the solution entry point.
 - `src/SubModules/` is reserved for shared source submodules.
 - Each normal project belongs in its own direct child folder under `src/`.
+- `docs/adr/` records consequential architecture decisions.
 
 The repository is intentionally minimal while the first vertical slice is designed. Empty architectural layers should not be generated simply to match a diagram.
 
 ## Building
 
-Install a supported .NET SDK, then from the repository root run:
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (10.0.300 or a later 10.0 feature band; see `global.json`), then from the repository root run:
 
 ```sh
 dotnet restore src/Cadence.slnx
 dotnet build src/Cadence.slnx
 dotnet test src/Cadence.slnx
+dotnet format src/Cadence.slnx --verify-no-changes
 ```
 
-The exact supported SDK version and any platform prerequisites will be documented once the first projects are added. Some platform MIDI adapters may require their target operating system; the default test suite should remain hardware-independent.
+Warnings are treated as errors and code style is enforced during build. Tests run on Microsoft.Testing.Platform; the default suite needs no MIDI hardware. Platform MIDI adapters may require their target operating system.
 
 ## Contributing
 
@@ -90,7 +95,7 @@ Cadence welcomes focused contributions to sequencing, MIDI interoperability, dev
 
 Before contributing:
 
-1. Read the architectural principle above and respect the dependency direction between projects.
+1. Read the architectural principle above and the decision records in `docs/adr/`.
 2. Keep device profiles independent from MIDI endpoint implementations.
 3. Include tests that do not require contributors to own specific hardware.
 4. Identify hardware behavior that was simulated rather than physically verified.
