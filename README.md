@@ -64,7 +64,8 @@ Cadence/
 ├── docs/
 │   ├── adr/            Architecture decision records
 │   ├── midi-files.md   Standard MIDI File behavior and diagnostics
-│   └── profiles.md     Device profile format
+│   ├── profiles.md     Device profile format
+│   └── project-format.md  Cadence project files, saving, and recovery
 ├── profiles/           Shipped device profiles (data, not code)
 └── src/
     ├── Cadence.slnx

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Persistence and shared adapters: the Cadence project file format and its storage. -->
+  <PropertyGroup>
+    <RootNamespace>Cadence.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+    <InternalsVisibleTo Include="Cadence.Tests.Integration" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+  </ItemGroup>
+</Project>
