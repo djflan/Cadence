@@ -24,13 +24,20 @@ public sealed class PlaybackController : IAsyncDisposable
     private readonly Dictionary<EndpointId, IMidiOutput> _open = [];
     private ImmutableArray<EndpointId> _slots = [];
 
-    public PlaybackController(ProjectSession session, EndpointDirectory endpoints, ProfileCatalog profiles, IMonotonicClock clock, PlaybackOptions? options = null, bool startThread = true)
+    /// <param name="session">The project being played.</param>
+    /// <param name="endpoints">Every available MIDI provider.</param>
+    /// <param name="profiles">Installed device profiles.</param>
+    /// <param name="clock">The monotonic clock shared with the endpoints.</param>
+    /// <param name="options">Scheduler options.</param>
+    /// <param name="startThread">False to drive <see cref="PlaybackEngine.Pump"/> manually (tests).</param>
+    /// <param name="playbackThreadSetup">Platform setup run on the playback thread, e.g. real-time scheduling (see ADR 0012).</param>
+    public PlaybackController(ProjectSession session, EndpointDirectory endpoints, ProfileCatalog profiles, IMonotonicClock clock, PlaybackOptions? options = null, bool startThread = true, Action? playbackThreadSetup = null)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
         Profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
         Engine = new PlaybackEngine(clock, session.Project.Sequence.TempoMap, options);
-        _thread = startThread ? new PlaybackThread(Engine) : null;
+        _thread = startThread ? new PlaybackThread(Engine, playbackThreadSetup) : null;
     }
 
     public PlaybackEngine Engine { get; }

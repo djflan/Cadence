@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Cadence.Application/Cadence.Application.csproj" />
+  <Project Path="Cadence.Benchmarks/Cadence.Benchmarks.csproj" />
   <Project Path="Cadence.Desktop/Cadence.Desktop.csproj" />
   <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
   <Project Path="Cadence.Infrastructure/Cadence.Infrastructure.csproj" />

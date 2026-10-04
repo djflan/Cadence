@@ -12,12 +12,19 @@ public sealed class PlaybackThread : IDisposable
     public static readonly TimeSpan SpinThreshold = TimeSpan.FromMilliseconds(1.5);
 
     private readonly PlaybackEngine _engine;
+    private readonly Action? _onThreadStart;
     private readonly Thread _thread;
     private volatile bool _stopping;
 
-    public PlaybackThread(PlaybackEngine engine)
+    /// <param name="engine">The engine to drive.</param>
+    /// <param name="onThreadStart">
+    /// Optional platform setup run on the playback thread before pumping, such as raising its
+    /// scheduling class. Kept outside this project so playback stays platform-neutral.
+    /// </param>
+    public PlaybackThread(PlaybackEngine engine, Action? onThreadStart = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        _onThreadStart = onThreadStart;
         _thread = new Thread(Run)
         {
             IsBackground = true,
@@ -49,6 +56,7 @@ public sealed class PlaybackThread : IDisposable
     {
         try
         {
+            _onThreadStart?.Invoke();
             while (!_stopping)
             {
                 var wait = _engine.Pump();

@@ -31,4 +31,16 @@ internal static class PlatformProviders
         // Windows MIDI Services and ALSA adapters are not implemented yet.
         return [];
     }
+
+    /// <summary>
+    /// Scheduling for the playback thread. On macOS the real-time time-constraint policy removed
+    /// multi-millisecond wake-up delays in measurement (ADR 0012).
+    /// </summary>
+    public static void ConfigurePlaybackThread()
+    {
+        if (OperatingSystem.IsMacOS() && !ThreadScheduling.MakeCurrentThreadRealtime(TimeSpan.FromMilliseconds(2), TimeSpan.FromMilliseconds(5)))
+        {
+            ThreadScheduling.PromoteCurrentThread();
+        }
+    }
 }

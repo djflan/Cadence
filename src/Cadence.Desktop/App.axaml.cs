@@ -46,7 +46,7 @@ public partial class App : Avalonia.Application
             .AddDirectory(UserProfileDirectory);
 
         var session = new ProjectSession();
-        var playback = new PlaybackController(session, endpoints, profiles, clock);
+        var playback = new PlaybackController(session, endpoints, profiles, clock, playbackThreadSetup: PlatformProviders.ConfigurePlaybackThread);
         var monitor = new MidiMonitor(builtIn.OpenInputAsync(monitorPort.InputId).AsTask().GetAwaiter().GetResult());
         var viewModel = new MainViewModel(session, playback, endpoints, new DialogService(window), new AvaloniaDispatcher(), monitor);
         _ = viewModel.InitializeAsync();

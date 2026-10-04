@@ -16,6 +16,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0009](0009-project-persistence.md) | Project persistence: versioned JSON with atomic saves | Accepted |
 | [0010](0010-desktop-ui-framework.md) | Desktop UI framework: Avalonia | Accepted |
 | [0011](0011-coremidi-adapter.md) | macOS CoreMIDI adapter in managed code | Accepted |
+| [0012](0012-performance-baseline.md) | Performance baseline: managed scheduling with OS real-time policy | Accepted |
 
 ## Template
 

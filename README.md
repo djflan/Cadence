@@ -95,6 +95,13 @@ dotnet test src/Cadence.slnx
 dotnet format src/Cadence.slnx --verify-no-changes
 ```
 
+Benchmarks and a real-time jitter probe live in `src/Cadence.Benchmarks`:
+
+```sh
+dotnet run -c Release --project src/Cadence.Benchmarks -- --filter '*' --job Short
+dotnet run -c Release --project src/Cadence.Benchmarks -- --jitter 10 --realtime
+```
+
 Warnings are treated as errors and code style is enforced during build. Tests run on Microsoft.Testing.Platform; the default suite needs no MIDI hardware. Platform MIDI adapters may require their target operating system.
 
 ## Running Cadence
