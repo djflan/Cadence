@@ -109,10 +109,10 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
         _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(track.Id)! with { Profile = new ProfileReference("p.one") }));
         await _controller.RefreshAsync(Ct);
 
-        Assert.Equal(0, await _controller.InitializeInstrumentAsync(track.Id, _ => false, Ct));
+        Assert.Equal(0, await _controller.InitializeInstrumentAsync(track.Id, _ => Task.FromResult(false), Ct));
         Assert.Empty(port.Sent);
 
-        Assert.Equal(1, await _controller.InitializeInstrumentAsync(track.Id, t => t.Name == "System On", Ct));
+        Assert.Equal(1, await _controller.InitializeInstrumentAsync(track.Id, t => Task.FromResult(t.Name == "System On"), Ct));
         Assert.Equal([0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7], Assert.Single(port.Sent).Bytes);
     }
 

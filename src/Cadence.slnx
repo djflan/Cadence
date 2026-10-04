@@ -1,9 +1,11 @@
 <Solution>
   <Project Path="Cadence.Application/Cadence.Application.csproj" />
+  <Project Path="Cadence.Desktop/Cadence.Desktop.csproj" />
   <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
   <Project Path="Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
   <Project Path="Cadence.Midi/Cadence.Midi.csproj" />
   <Project Path="Cadence.Playback/Cadence.Playback.csproj" />
+  <Project Path="Cadence.Presentation/Cadence.Presentation.csproj" />
   <Project Path="Cadence.Profiles/Cadence.Profiles.csproj" />
   <Project Path="Cadence.Tests.Integration/Cadence.Tests.Integration.csproj" />
   <Project Path="Cadence.Tests.Unit/Cadence.Tests.Unit.csproj" />

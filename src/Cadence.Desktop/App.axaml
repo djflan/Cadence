@@ -1,0 +1,34 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Cadence.Desktop.App"
+             RequestedThemeVariant="Dark"
+             Name="Cadence">
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark"
+                               Accent="#3DD6C4"
+                               RegionColor="#0E1014"
+                               AltHigh="#0E1014"
+                               AltMedium="#151820"
+                               AltMediumHigh="#151820"
+                               AltLow="#1B1F29"
+                               AltMediumLow="#1B1F29"
+                               BaseHigh="#E8EBF1"
+                               BaseMediumHigh="#C9CFDA"
+                               BaseMedium="#A3ABBA"
+                               BaseMediumLow="#6D7586"
+                               BaseLow="#343A48"
+                               ChromeAltLow="#C9CFDA"
+                               ChromeHigh="#343A48"
+                               ChromeMedium="#1B1F29"
+                               ChromeMediumLow="#151820"
+                               ChromeLow="#0E1014"
+                               ListLow="#1B1F29"
+                               ListMedium="#232836"
+                               ErrorText="#F2555A" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://Cadence.Desktop/Theme/Cadence.axaml" />
+  </Application.Styles>
+</Application>

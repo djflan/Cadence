@@ -13,6 +13,7 @@ public sealed class DependencyDirectionTests
         { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi"] },
         { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
+        { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
     };
 
     [Theory]
@@ -24,6 +25,12 @@ public sealed class DependencyDirectionTests
         var cadence = references.Where(name => name.StartsWith("Cadence", StringComparison.Ordinal));
         Assert.All(cadence, name => Assert.Contains(name, allowed));
     }
+
+    [Fact]
+    public void Presentation_DoesNotDependOnAUiFramework() =>
+        Assert.DoesNotContain(
+            Assembly.Load("Cadence.Presentation").GetReferencedAssemblies(),
+            r => r.Name?.StartsWith("Avalonia", StringComparison.Ordinal) == true);
 
     [Fact]
     public void Domain_ReferencesOnlyTheBaseClassLibrary()

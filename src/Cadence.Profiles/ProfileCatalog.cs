@@ -27,9 +27,12 @@ public sealed class ProfileCatalog
     public ImmutableArray<ProfileLoadFailure> Failures { get; }
 
     /// <summary>Loads every <c>*.cadence-profile.json</c> file directly inside <paramref name="directory"/>.</summary>
-    public static ProfileCatalog LoadDirectory(string directory, ProfileLoadOptions? options = null)
+    public static ProfileCatalog LoadDirectory(string directory, ProfileLoadOptions? options = null) => Empty.AddDirectory(directory, options);
+
+    /// <summary>Adds every profile file in <paramref name="directory"/>; a missing directory adds nothing.</summary>
+    public ProfileCatalog AddDirectory(string directory, ProfileLoadOptions? options = null)
     {
-        var catalog = Empty;
+        var catalog = this;
         if (!Directory.Exists(directory))
         {
             return catalog;

@@ -7,9 +7,11 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 > [!NOTE]
 > Cadence is an independent open-source project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. Yamaha, XG, QY100, and other product names and trademarks belong to their respective owners and are used solely to describe compatibility.
 
+![Cadence main window](docs/images/cadence-main-window.png)
+
 ## Status
 
-Cadence is in early development. The architecture and first end-to-end sequencing workflow are being established; it is not yet ready for production use or live performance.
+Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track to a device profile and an output independently, play it back with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Platform MIDI adapters and note editing are next.
 
 ## Goals
 
@@ -67,6 +69,7 @@ Cadence/
 │   ├── profiles.md     Device profile format
 │   └── project-format.md  Cadence project files, saving, and recovery
 ├── profiles/           Shipped device profiles (data, not code)
+├── samples/            Redistributable demo and fixture files
 └── src/
     ├── Cadence.slnx
     ├── SubModules/
@@ -93,6 +96,30 @@ dotnet format src/Cadence.slnx --verify-no-changes
 ```
 
 Warnings are treated as errors and code style is enforced during build. Tests run on Microsoft.Testing.Platform; the default suite needs no MIDI hardware. Platform MIDI adapters may require their target operating system.
+
+## Running Cadence
+
+```sh
+dotnet run --project src/Cadence.Desktop
+```
+
+Without any hardware, route tracks to **Cadence Monitor** and watch the messages in the MIDI
+monitor panel. A demo song is included in `samples/cadence-demo.mid`.
+
+| Action | Shortcut |
+| ------ | -------- |
+| Play / pause | Space |
+| Return to start | Home |
+| Loop four bars from the playhead | L |
+| Panic (silence every output) | Ctrl/Cmd + . |
+| Undo / Redo | Ctrl/Cmd + Z / Ctrl/Cmd + Shift + Z |
+| New, Open, Save, Save As | Ctrl/Cmd + N, O, S, Shift + S |
+| Import / Export MIDI | Ctrl/Cmd + I / E |
+| Add track | Ctrl/Cmd + T |
+
+Accessibility: every control has a screen-reader name, status is always shown with an icon and a
+word as well as colour, and all transport and file actions have keyboard shortcuts. Linux
+screen-reader support has not yet been verified.
 
 ## Contributing
 

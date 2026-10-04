@@ -14,6 +14,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0007](0007-device-profile-format.md) | Data-first device profiles | Accepted |
 | [0008](0008-routing-and-rebinding.md) | Routing: profiles and endpoints bound independently | Accepted |
 | [0009](0009-project-persistence.md) | Project persistence: versioned JSON with atomic saves | Accepted |
+| [0010](0010-desktop-ui-framework.md) | Desktop UI framework: Avalonia | Accepted |
 
 ## Template
 

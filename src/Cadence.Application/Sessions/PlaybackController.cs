@@ -110,7 +110,7 @@ public sealed class PlaybackController : IAsyncDisposable
     /// Nothing is sent unless the user asks; opening a project never does this.
     /// </summary>
     /// <returns>The number of messages sent.</returns>
-    public async Task<int> InitializeInstrumentAsync(TrackId track, Func<SysExTemplate, bool> confirm, CancellationToken cancellationToken = default)
+    public async Task<int> InitializeInstrumentAsync(TrackId track, Func<SysExTemplate, Task<bool>> confirm, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(confirm);
         var route = Routes.FirstOrDefault(r => r.Track == track);
@@ -133,7 +133,7 @@ public sealed class PlaybackController : IAsyncDisposable
             foreach (var step in profile.Initialization)
             {
                 var template = profile.FindTemplate(step.TemplateId)!;
-                if (template.RequiresConfirmation && !confirm(template))
+                if (template.RequiresConfirmation && !await confirm(template).ConfigureAwait(false))
                 {
                     continue;
                 }
