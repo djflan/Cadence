@@ -90,8 +90,11 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
-    /// <summary>True while the piano roll or the event list has keyboard focus.</summary>
-    internal bool IsEditorFocused => PianoRoll.IsFocused || EventListBox.IsKeyboardFocusWithin;
+    /// <summary>True while the lower pane (an editor, or its toolbar) has keyboard focus.</summary>
+    internal bool IsEditorFocused => PianoRoll.IsFocused || EditorPane.IsKeyboardFocusWithin || EditorHeader.IsKeyboardFocusWithin;
+
+    /// <summary>True while a note editor is on screen, so Cut and Paste have somewhere to act.</summary>
+    private bool IsEditorShowing => _viewModel is { IsEditorVisible: true, LowerPane: LowerPane.PianoRoll or LowerPane.EventList };
 
     private void AttachPianoRoll(MainViewModel vm)
     {
@@ -421,7 +424,7 @@ public partial class MainWindow : Window
         {
             text.Cut();
         }
-        else
+        else if (IsEditorShowing)
         {
             _viewModel?.Editor.Cut();
         }
@@ -433,7 +436,7 @@ public partial class MainWindow : Window
         {
             text.Paste();
         }
-        else
+        else if (IsEditorShowing)
         {
             _viewModel?.Editor.Paste();
         }
@@ -606,7 +609,7 @@ public partial class MainWindow : Window
                 Delete();
                 e.Handled = true;
                 break;
-            case Key.Return or Key.Enter when modifiers == KeyModifiers.None && !EventListBox.IsKeyboardFocusWithin:
+            case Key.Return or Key.Enter when modifiers == KeyModifiers.None && !IsEditorFocused:
                 BeginRename();
                 e.Handled = true;
                 break;

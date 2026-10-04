@@ -116,16 +116,7 @@ public static class EventEdits
         var strength = Math.Clamp(options.Strength, 0, 100) / 100.0;
         var swing = (Math.Clamp(options.Swing, 50, 75) - 50) / 50.0;
 
-        long Target(long tick)
-        {
-            var (line, index, step) = MusicalGrid.Nearest(tick, grid, meter);
-            if (index % 2 == 1)
-            {
-                line += (long)Math.Round(swing * step);
-            }
-
-            return tick + (long)Math.Round((line - tick) * strength);
-        }
+        long Target(long tick) => tick + (long)Math.Round((MusicalGrid.NearestLine(tick, grid, meter, swing) - tick) * strength);
 
         var result = ImmutableArray.CreateBuilder<TrackEvent>();
         foreach (var e in events)

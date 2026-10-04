@@ -48,32 +48,49 @@ public static class MusicalGrid
     public static long StepLength(GridDivision division, MeterMap meter, Tick position) =>
         Math.Max(1, (long)Math.Round(StepTicks(division, meter, position)));
 
-    /// <summary>The nearest grid line to <paramref name="tick"/>.</summary>
-    public static long Snap(long tick, GridDivision division, MeterMap meter) => Line(tick, division, meter, Math.Round);
+    /// <summary>The nearest grid line to <paramref name="tick"/>, including the next bar's downbeat.</summary>
+    public static long Snap(long tick, GridDivision division, MeterMap meter) => NearestLine(tick, division, meter, 0);
 
     /// <summary>The grid line at or before <paramref name="tick"/>.</summary>
-    public static long SnapDown(long tick, GridDivision division, MeterMap meter) => Line(tick, division, meter, Math.Floor);
-
-    /// <summary>
-    /// The grid line nearest <paramref name="tick"/> together with its index within the bar, so swing
-    /// can delay every second line.
-    /// </summary>
-    internal static (long Tick, long Index, double Step) Nearest(long tick, GridDivision division, MeterMap meter)
-    {
-        var position = new Tick(Math.Max(0, tick));
-        var bar = meter.BarStart(position).Value;
-        var step = StepTicks(division, meter, position);
-        var index = (long)Math.Round((position.Value - bar) / step);
-        return (bar + (long)Math.Round(index * step), index, step);
-    }
-
-    private static long Line(long tick, GridDivision division, MeterMap meter, Func<double, double> round)
+    public static long SnapDown(long tick, GridDivision division, MeterMap meter)
     {
         ArgumentNullException.ThrowIfNull(meter);
         var position = new Tick(Math.Max(0, tick));
         var bar = meter.BarStart(position).Value;
         var step = StepTicks(division, meter, position);
-        return bar + (long)Math.Round(round((position.Value - bar) / step) * step);
+        var index = (long)Math.Floor((position.Value - bar) / step);
+        var line = bar + (long)Math.Round(index * step);
+        return line > position.Value ? bar + (long)Math.Round((index - 1) * step) : line;
+    }
+
+    /// <summary>
+    /// The grid line nearest <paramref name="tick"/> when every second line in a bar is delayed by
+    /// <paramref name="swing"/> steps (0 for straight). Lines never pass the next bar's downbeat, which
+    /// is always a candidate, so bars that are not a whole number of steps still snap to their ends.
+    /// </summary>
+    internal static long NearestLine(long tick, GridDivision division, MeterMap meter, double swing)
+    {
+        ArgumentNullException.ThrowIfNull(meter);
+        var position = new Tick(Math.Max(0, tick));
+        var bar = meter.BarStart(position).Value;
+        var next = meter.TryGetTick(new BarBeatTick(meter.ToBarBeatTick(new Tick(bar)).Bar + 1, 1, 0), out var nextBar) ? nextBar.Value : long.MaxValue;
+        var step = StepTicks(division, meter, position);
+        var delay = division == GridDivision.Bar ? 0 : swing;
+        var index = (long)Math.Floor((position.Value - bar) / step);
+        var best = bar;
+        var bestDistance = long.MaxValue;
+        for (var candidate = Math.Max(0, index - 1); candidate <= index + 2; candidate++)
+        {
+            var line = Math.Min(next, bar + (long)Math.Round((candidate + (candidate % 2 == 1 ? delay : 0)) * step));
+            var distance = Math.Abs(line - position.Value);
+            if (distance < bestDistance)
+            {
+                best = line;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
     }
 
     private static double BarLength(MeterMap meter, Tick position)

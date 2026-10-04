@@ -109,6 +109,85 @@ public sealed partial class EventListViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Brings <see cref="Rows"/> in line with <paramref name="rows"/> with as few changes as possible,
+    /// so an edit to one event replaces one row and the list keeps its scroll position and focus.
+    /// </summary>
+    private void Reconcile(List<EventRow> rows)
+    {
+        // Edited events keep their IDs and their place: replace those rows where they stand.
+        if (rows.Count == Rows.Count)
+        {
+            var moved = false;
+            for (var i = 0; i < rows.Count && !moved; i++)
+            {
+                moved = rows[i].Id != Rows[i].Id;
+            }
+
+            if (!moved)
+            {
+                for (var i = 0; i < rows.Count; i++)
+                {
+                    if (!ReferenceEquals(rows[i], Rows[i]))
+                    {
+                        Rows[i] = rows[i];
+                    }
+                }
+
+                return;
+            }
+        }
+
+        var wanted = rows.ToHashSet();
+        var stale = Rows.Count(r => !wanted.Contains(r));
+        if (stale + Math.Abs(rows.Count - Rows.Count) > 64)
+        {
+            // Too different to patch cheaply (a whole-track edit): start over.
+            Rows.Clear();
+            foreach (var row in rows)
+            {
+                Rows.Add(row);
+            }
+
+            return;
+        }
+
+        for (var i = Rows.Count - 1; i >= 0; i--)
+        {
+            if (!wanted.Contains(Rows[i]))
+            {
+                Rows.RemoveAt(i);
+            }
+        }
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (i < Rows.Count && ReferenceEquals(Rows[i], rows[i]))
+            {
+                continue;
+            }
+
+            var current = -1;
+            for (var j = i + 1; j < Rows.Count; j++)
+            {
+                if (ReferenceEquals(Rows[j], rows[i]))
+                {
+                    current = j;
+                    break;
+                }
+            }
+
+            if (current >= 0)
+            {
+                Rows.Move(current, i);
+            }
+            else
+            {
+                Rows.Insert(i, rows[i]);
+            }
+        }
+    }
+
     private void RebuildRows()
     {
         var events = _editor.Track?.Events.Where(Filter.Includes).ToList() ?? [];
@@ -116,14 +195,7 @@ public sealed partial class EventListViewModel : ObservableObject
 
         // Reuse rows whose event is unchanged so the list keeps its scroll position and focus.
         var rows = events.Select(e => existing.TryGetValue(e.Id, out var row) && ReferenceEquals(row.Event, e) ? row : new EventRow(this, e)).ToList();
-        if (!rows.SequenceEqual(Rows))
-        {
-            Rows.Clear();
-            foreach (var row in rows)
-            {
-                Rows.Add(row);
-            }
-        }
+        Reconcile(rows);
 
         var selected = _editor.SelectedEvents;
         var present = Rows.ToHashSet();

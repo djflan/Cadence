@@ -220,6 +220,22 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void EventList_EditingOneEvent_KeepsTheOtherRows()
+    {
+        var untouched = _vm.EventList.Rows[0];
+        var replaced = 0;
+        _vm.EventList.Rows.CollectionChanged += (_, e) => replaced += e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Replace ? 1 : 100;
+
+        _vm.EventList.Rows[1].Data2 = "50";
+
+        Assert.Same(untouched, _vm.EventList.Rows[0]);
+        Assert.Equal(1, replaced);
+
+        _vm.EventList.Rows[2].Position = "1.1.100";
+        Assert.Equal(["1.1.000", "1.1.100", "1.2.000"], _vm.EventList.Rows.Select(r => r.Position));
+    }
+
+    [Fact]
     public void EventList_SharesTheSelection()
     {
         Editor.Select([Track.Events[2].Id]);

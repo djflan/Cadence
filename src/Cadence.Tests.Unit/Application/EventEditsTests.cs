@@ -121,6 +121,25 @@ public sealed class EventEditsTests
     }
 
     [Fact]
+    public void Swing_ChoosesTheNearestSwungLine()
+    {
+        // 125 is just past half a step, but the swung off-beat (317) is further away than the downbeat.
+        var result = EventEdits.Quantize([Note(125), Note(300)], FourFour, GridDivision.Eighth, new QuantizeOptions(Swing: 66)).Cast<NoteEvent>().ToList();
+
+        Assert.Equal([0L, 317L], result.Select(n => n.Position.Value));
+    }
+
+    [Fact]
+    public void Snap_NeverPassesTheNextDownbeat()
+    {
+        // A 7/16 bar is 840 ticks, not a whole number of quarter notes.
+        var sevenSixteen = MeterMap.Constant(Ppqn, new TimeSignature(7, 16));
+
+        Assert.Equal(840, MusicalGrid.Snap(800, GridDivision.Quarter, sevenSixteen));
+        Assert.Equal(480, MusicalGrid.SnapDown(800, GridDivision.Quarter, sevenSixteen));
+    }
+
+    [Fact]
     public void Quantize_LeavesEventsOnTheGridUnchanged() =>
         Assert.Empty(EventEdits.Quantize([Note(480), Cc(960)], FourFour, GridDivision.Quarter));
 

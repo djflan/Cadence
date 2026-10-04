@@ -340,7 +340,7 @@
                       AutomationProperties.Name="Resize editors" />
 
         <!-- Lower pane header: tabs and the active editor's tools -->
-        <Border Grid.Row="2" Classes="header" BorderThickness="0,1,0,1">
+        <Border x:Name="EditorHeader" Grid.Row="2" Classes="header" BorderThickness="0,1,0,1">
           <Grid ColumnDefinitions="Auto,*,Auto" Height="28">
             <StackPanel Orientation="Horizontal">
               <RadioButton Classes="tab" GroupName="LowerPane" IsChecked="{Binding LowerPane, Mode=OneWay, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=PianoRoll}"

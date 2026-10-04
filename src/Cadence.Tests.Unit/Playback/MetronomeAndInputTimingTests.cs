@@ -148,10 +148,9 @@ public sealed class MetronomeAndInputTimingTests
         f.PumpAt(0);
 
         Assert.True(f.Engine.TryGetTickAt(Start + TimeSpan.FromMilliseconds(1500), out var pickup));
-        Assert.True(f.Engine.TryGetTickAt(Start - TimeSpan.FromSeconds(10), out var early));
 
         Assert.Equal(new Tick(3500), pickup);
-        Assert.Equal(Tick.Zero, early);
+        Assert.False(f.Engine.TryGetTickAt(Start - TimeSpan.FromSeconds(10), out _));
     }
 
     [Fact]
@@ -171,6 +170,39 @@ public sealed class MetronomeAndInputTimingTests
 
         Assert.Equal(new Tick(995), late);
         Assert.Equal(new Tick(40), wrapped);
+    }
+
+    [Fact]
+    public void TryGetTickAt_FoldsInputAfterAnUnprocessedWrapIntoTheLoop()
+    {
+        using var f = new PlaybackFixture(null, Immediate);
+        f.Engine.SetLoop(new LoopRegion(Tick.Zero, new Tick(1000)));
+        f.Load();
+        f.Engine.Play(Tick.Zero);
+        f.PumpAt(0);
+        f.PumpAt(990);
+        var wraps = f.Engine.LoopWraps;
+
+        // The wrap at 1000 ms has not been processed yet.
+        Assert.True(f.Engine.TryGetTickAt(Start + TimeSpan.FromMilliseconds(1004), out var early));
+        Assert.Equal(new Tick(4), early);
+
+        f.PumpAt(1010);
+        Assert.Equal(wraps + 1, f.Engine.LoopWraps);
+    }
+
+    [Fact]
+    public void Seek_EndsACountIn()
+    {
+        using var f = new PlaybackFixture();
+        f.Load();
+        f.Engine.Play(Tick.Zero, CountIn.Bars(OneTwenty, FourFour, Tick.Zero, 1));
+        f.PumpAt(0);
+
+        f.Engine.Seek(new Tick(500));
+        f.PumpAt(10);
+
+        Assert.False(f.Engine.IsCountingIn);
     }
 
     [Fact]

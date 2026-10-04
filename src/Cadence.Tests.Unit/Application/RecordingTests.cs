@@ -200,6 +200,79 @@ public sealed class RecordingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task CycleRecording_PairsReleasesWithTheNoteTheyBelongTo()
+    {
+        var track = AddTrack(_synth);
+        _session.Execute(ProjectCommands.SetLoop(new TickRange(Tick.Zero, new Tick(3840))));
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+
+        // Pass 1 holds C4 across the wrap; pass 2 plays C4 again early in the loop.
+        RunTo(1900);
+        Play(60);
+        RunTo(2100);
+        Release(60);
+        RunTo(2200);
+        Play(60);
+        RunTo(2400);
+        Release(60);
+        RunTo(3000);
+        _controller.Stop();
+
+        var notes = Recorded(track).Events.Cast<NoteEvent>().Select(n => (n.Position.Value, n.EndPosition.Value)).ToList();
+        Assert.Equal([(384L, 768L), (3648L, 3840L)], notes);
+    }
+
+    [Fact]
+    public async Task Replace_WithALoopThatNeverEngaged_ReplacesOnlyWhatWasPlayedOver()
+    {
+        var early = new NoteEvent(new Tick(200), new TickSpan(10), MidiChannel.FromIndex(0), new NoteNumber(40), Velocity.Max);
+        var later = new NoteEvent(new Tick(31000), new TickSpan(10), MidiChannel.FromIndex(0), new NoteNumber(41), Velocity.Max);
+        var track = AddTrack(_synth, early, later);
+        _session.Execute(ProjectCommands.SetLoop(new TickRange(new Tick(30720), new Tick(46080))));
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0, Replace: true), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        Play(64);
+        RunTo(600);
+        Release(64);
+        RunTo(1000);
+        _controller.Stop();
+
+        Assert.Equal([64, 41], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+    }
+
+    [Fact]
+    public async Task NotesPlayedDuringACountInFromTheStart_AreNotPiledAtZero()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 1), Ct);
+        _controller.Engine.Pump();
+        RunTo(1500);
+        Play(60);
+        RunTo(1600);
+        Release(60);
+        RunTo(2500);
+        _controller.Stop();
+
+        Assert.Empty(Recorded(track).Events);
+    }
+
+    [Fact]
+    public void DefaultInputs_LeaveOutBuiltInBusesAndBusesCadenceIsPlayingTo()
+    {
+        static EndpointDescriptor Port(string provider, string name, EndpointDirection direction, EndpointTransport transport) =>
+            new(new EndpointId(provider, $"{name}/{direction}"), name, direction, transport, EndpointCapabilities.None);
+        var keyboard = Port("coremidi", "Keyboard", EndpointDirection.Input, EndpointTransport.Physical);
+        var iacIn = Port("coremidi", "IAC Bus 1", EndpointDirection.Input, EndpointTransport.Virtual);
+        var monitor = Port("loopback", "Cadence Monitor", EndpointDirection.Input, EndpointTransport.Test);
+        var iacOut = Port("coremidi", "IAC Bus 1", EndpointDirection.Output, EndpointTransport.Virtual);
+
+        Assert.Equal([keyboard.Id], PlaybackController.DefaultInputs([keyboard, iacIn, monitor], [iacOut]));
+        Assert.Equal([keyboard.Id, iacIn.Id], PlaybackController.DefaultInputs([keyboard, iacIn, monitor], []));
+    }
+
+    [Fact]
     public async Task ControllersAndPitchBend_AreRecordedAsEvents()
     {
         var track = AddTrack(_synth);

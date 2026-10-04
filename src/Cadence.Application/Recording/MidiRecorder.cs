@@ -135,7 +135,7 @@ public sealed class MidiRecorder : IDisposable
     /// held across the wrap end at the loop's end.
     /// </summary>
     /// <param name="end">The song position when recording stopped.</param>
-    /// <param name="loop">The loop that was active while recording, if any.</param>
+    /// <param name="loop">The loop, if playback wrapped at least once while recording; it becomes the take's range.</param>
     public RecordedTake Stop(Tick end, TickRange? loop)
     {
         _recording = false;
@@ -287,9 +287,12 @@ public sealed class MidiRecorder : IDisposable
         }
     }
 
+    /// <summary>
+    /// Pairs note-ons with note-offs in the order they were played (not by position, which repeats
+    /// across loop passes), so a release after a wrap ends the note it belongs to.
+    /// </summary>
     private static (ImmutableArray<TrackEvent> Events, List<RecordingNote> Preview) Build(List<Captured> captured, long end, TickRange? loop, bool held)
     {
-        captured.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.Order.CompareTo(b.Order));
         var events = ImmutableArray.CreateBuilder<TrackEvent>();
         var preview = new List<RecordingNote>();
         var open = new Dictionary<(byte Channel, byte Note), Queue<Captured>>();
@@ -322,7 +325,7 @@ public sealed class MidiRecorder : IDisposable
             }
         }
 
-        foreach (var on in open.Values.SelectMany(q => q).OrderBy(c => c.Tick).ThenBy(c => c.Order))
+        foreach (var on in open.Values.SelectMany(q => q).OrderBy(c => c.Order))
         {
             AddNote(on, EndOf(on.Tick, end), Velocity.DefaultRelease, isHeld: true);
         }

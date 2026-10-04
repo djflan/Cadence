@@ -20,7 +20,9 @@ shape the design:
   immediate cursor's tick-to-time anchor (and the previous one) through a seqlock;
   `PlaybackEngine.TryGetTickAt` maps any clock time to a tick from any thread, without locks or
   allocation. Input stamped just before a loop wrap or seek uses the previous anchor, so it stays in
-  the pass it was played in. Times before a count-in's start extrapolate into the pickup bar.
+  the pass it was played in; input stamped after a wrap the playback thread has not reached yet is
+  folded back into the loop. Times before a count-in's start extrapolate into the pickup bar, and
+  times before the start of the song are not recorded.
 - **Count-in and metronome live in the engine.** `Play` takes an optional count-in: the cursors are
   anchored at "now + count-in", and its clicks are scheduled like notes. Beat clicks come from the
   plan's meter map, follow loops, and go through the active-note table so they always release.
@@ -34,7 +36,11 @@ shape the design:
 - **Recording captures raw messages and pairs them at the end.** `MidiRecorder` appends channel
   messages and their ticks under a short lock; pairing into notes happens when recording stops.
   Notes still held end at the stop position; a release that maps before its note (after a loop wrap)
-  ends the note at the loop end. Cycle recording merges every pass. A take is one `Record` command,
+  ends the note at the loop end. Notes are paired in the order they were played, not by position,
+  because positions repeat across passes. Cycle recording merges every pass, and the loop is the
+  take's range only if playback actually wrapped. By default, inputs that share a name with an
+  output being played to are not listened to, so an IAC bus used both ways does not record Cadence's
+  own playback. A take is one `Record` command,
   merged by default or replacing what starts in the recorded range. A live preview is computed from
   the same capture for display. System messages are not recorded.
 - **Editors preview, then commit once.** Edits are pure functions (`EventEdits`) returning events with

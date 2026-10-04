@@ -56,6 +56,10 @@ public sealed class PlaybackController : IAsyncDisposable
     private IReadOnlyCollection<EndpointId>? _inputSelection;
     private RecordOptions _recordOptions = new();
     private (IMidiOutput Output, ChannelMessage Off)? _audition;
+    private long _takeWraps;
+
+    // Orders output changes and metronome slot assignments into the engine, which run on different threads.
+    private readonly Lock _engineGate = new();
 
     /// <param name="session">The project being played.</param>
     /// <param name="endpoints">Every available MIDI provider.</param>
@@ -130,9 +134,13 @@ public sealed class PlaybackController : IAsyncDisposable
                     outputs[i] = await GetOrOpenAsync(slots[i], problems, cancellationToken).ConfigureAwait(false);
                 }
 
-                Engine.SetOutputs(outputs);
+                lock (_engineGate)
+                {
+                    Engine.SetOutputs(outputs);
+                    _slots = slots;
+                }
+
                 CloseUnused(slots);
-                _slots = slots;
             }
 
             Volatile.Write(ref _published, _open.ToImmutableDictionary());
@@ -199,6 +207,7 @@ public sealed class PlaybackController : IAsyncDisposable
     public async Task RecordAsync(TrackId track, RecordOptions? options = null, CancellationToken cancellationToken = default)
     {
         _recordOptions = options ?? new RecordOptions();
+        _takeWraps = Engine.LoopWraps;
         if (Engine.State == TransportState.Playing)
         {
             Recorder.Start(track, Engine.Position);
@@ -228,7 +237,8 @@ public sealed class PlaybackController : IAsyncDisposable
 
         var project = _session.Project;
         var end = Engine.Position;
-        var loop = project.Loop is { } l && Recorder.RecordingTrack is not null && Engine.State == TransportState.Playing ? l : null;
+        // The loop is the take's range only if playback actually wrapped while recording.
+        var loop = project.Loop is { } l && Engine.LoopWraps != _takeWraps ? l : null;
         var take = Recorder.Stop(end, loop);
         ApplyMetronome();
         if (project.Sequence.FindTrack(take.Track) is not null && (take.Events.Length > 0 || _recordOptions.Replace))
@@ -348,8 +358,31 @@ public sealed class PlaybackController : IAsyncDisposable
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private IReadOnlyCollection<EndpointId> WantedInputs() =>
-        _inputSelection ?? [.. InputEndpoints.Where(e => e.Transport != EndpointTransport.Test).Select(e => e.Id)];
+    /// <summary>
+    /// The chosen inputs, or by default every input except Cadence's built-in buses and inputs that
+    /// share a name with an output Cadence is playing to (an IAC bus used both ways would record
+    /// Cadence's own playback).
+    /// </summary>
+    private IReadOnlyCollection<EndpointId> WantedInputs()
+    {
+        if (_inputSelection is { } chosen)
+        {
+            return chosen;
+        }
+
+        var outputs = _endpoints.GetEndpoints(EndpointDirection.Output);
+        return DefaultInputs(InputEndpoints, [.. _slots.Select(id => outputs.FirstOrDefault(o => o.Id == id)).OfType<EndpointDescriptor>()]);
+    }
+
+    /// <summary>
+    /// Every input except Cadence's built-in buses and inputs that share a provider and name with an
+    /// output being played to (an IAC bus used both ways would record Cadence's own playback).
+    /// </summary>
+    internal static IReadOnlyCollection<EndpointId> DefaultInputs(IEnumerable<EndpointDescriptor> inputs, IReadOnlyCollection<EndpointDescriptor> playing) =>
+        [.. inputs
+            .Where(e => e.Transport != EndpointTransport.Test)
+            .Where(e => !playing.Any(o => o.Id.Provider == e.Id.Provider && string.Equals(o.DisplayName, e.DisplayName, StringComparison.Ordinal)))
+            .Select(e => e.Id)];
 
     /// <summary>The metronome's endpoint: the one chosen, or else the thru track's output.</summary>
     private EndpointId? MetronomeEndpoint()
@@ -365,9 +398,12 @@ public sealed class PlaybackController : IAsyncDisposable
 
     private void ApplyMetronome()
     {
-        var slot = MetronomeEndpoint() is { } endpoint ? _slots.IndexOf(endpoint) : -1;
         var enabled = _metronome.Mode == MetronomeMode.Always || (_metronome.Mode == MetronomeMode.WhileRecording && Recorder.IsRecording);
-        Engine.SetMetronome(slot >= 0 ? _metronome.Sound with { Slot = slot } : null, enabled);
+        lock (_engineGate)
+        {
+            var slot = MetronomeEndpoint() is { } endpoint ? _slots.IndexOf(endpoint) : -1;
+            Engine.SetMetronome(slot >= 0 ? _metronome.Sound with { Slot = slot } : null, enabled);
+        }
     }
 
     private void ApplyThru()

@@ -62,6 +62,7 @@ public sealed class PlaybackEngine : IDisposable
     private Anchor _anchor;
     private Anchor _previousAnchor;
     private long _countInUntil;
+    private long _loopWraps;
 
     // Caller-visible state.
     private PlaybackPlan _latestPlan;
@@ -114,13 +115,13 @@ public sealed class PlaybackEngine : IDisposable
     {
         var tick = from ?? Position;
         Volatile.Write(ref _positionTick, tick.Value);
-        if (countIn is not null)
-        {
-            Volatile.Write(ref _countInUntil, (_clock.Now + countIn.Duration).Ticks);
-        }
+        Volatile.Write(ref _countInUntil, countIn is null ? 0 : (_clock.Now + countIn.Duration).Ticks);
 
         Enqueue(new PlayCommand(tick.Value, ChaseState.Compute(Volatile.Read(ref _latestPlan), tick.Value), countIn));
     }
+
+    /// <summary>How many times playback has wrapped from the loop's end to its start, ever. Compare two readings to tell whether a pass looped.</summary>
+    public long LoopWraps => Interlocked.Read(ref _loopWraps);
 
     /// <summary>True while a count-in requested by <see cref="Play"/> is still running.</summary>
     public bool IsCountingIn => State == TransportState.Playing && _clock.Now.Ticks < Volatile.Read(ref _countInUntil);
@@ -148,7 +149,7 @@ public sealed class PlaybackEngine : IDisposable
     /// following loops and seeks. Times during a count-in map to the bars before the start position.
     /// Safe to call from any thread.
     /// </summary>
-    /// <returns>False when the transport is stopped.</returns>
+    /// <returns>False when the transport is stopped, or the time maps before the start of the song.</returns>
     public bool TryGetTickAt(TimeSpan time, out Tick tick)
     {
         Anchor current, previous;
@@ -179,14 +180,30 @@ public sealed class PlaybackEngine : IDisposable
         // An input that arrived just before a loop wrap or seek belongs to the pass it was played in.
         var anchor = time < current.Time && previous.Playing && previous.Tempo is not null && time >= previous.Time ? previous : current;
         var songTime = anchor.SongTime + (time - anchor.Time);
-        tick = songTime <= TimeSpan.Zero ? Tick.Zero : anchor.Tempo!.TickAt(songTime);
+        if (songTime < TimeSpan.Zero)
+        {
+            tick = Tick.Zero;
+            return false;
+        }
+
+        var value = anchor.Tempo!.TickAt(songTime).Value;
+
+        // An input stamped after a loop wrap that the playback thread has not processed yet belongs
+        // to the next pass, at the start of the loop.
+        if (anchor.LoopEnd > anchor.LoopStart && value >= anchor.LoopEnd)
+        {
+            value = anchor.LoopStart + ((value - anchor.LoopEnd) % (anchor.LoopEnd - anchor.LoopStart));
+        }
+
+        tick = new Tick(value);
         return true;
     }
 
-    /// <summary>Moves the playhead. While playing, sounding notes are released and controller state is chased.</summary>
+    /// <summary>Moves the playhead. While playing, sounding notes are released and controller state is chased; a count-in ends.</summary>
     public void Seek(Tick position)
     {
         Volatile.Write(ref _positionTick, position.Value);
+        Volatile.Write(ref _countInUntil, 0);
         Enqueue(new SeekCommand(position.Value, ChaseState.Compute(Volatile.Read(ref _latestPlan), position.Value)));
     }
 
@@ -316,6 +333,11 @@ public sealed class PlaybackEngine : IDisposable
                 break;
             case LoopCommand loop:
                 _loop = loop.Loop;
+                if (_playing)
+                {
+                    PublishAnchor(playing: true);
+                }
+
                 break;
             case PanicCommand:
                 ReleaseAll(now);
@@ -344,7 +366,8 @@ public sealed class PlaybackEngine : IDisposable
     {
         Interlocked.Increment(ref _anchorVersion);
         _previousAnchor = _anchor;
-        _anchor = new Anchor(playing, _immediate.AnchorTime, _immediate.AnchorSongTime, _plan.TempoMap);
+        var engaged = _loop is { } loop && _immediate.AnchorTick < loop.End.Value ? loop : null;
+        _anchor = new Anchor(playing, _immediate.AnchorTime, _immediate.AnchorSongTime, _plan.TempoMap, engaged?.Start.Value ?? 0, engaged?.End.Value ?? 0);
         Interlocked.Increment(ref _anchorVersion);
     }
 
@@ -419,6 +442,7 @@ public sealed class PlaybackEngine : IDisposable
                 cursor = Cursor.At(_plan, loop!.Start.Value, wrapTime);
                 if (!scheduledClass)
                 {
+                    Interlocked.Increment(ref _loopWraps);
                     PublishAnchor(playing: true);
                 }
 
@@ -689,7 +713,8 @@ public sealed class PlaybackEngine : IDisposable
     }
 
     /// <summary>A published tick-to-time mapping: <see cref="SongTime"/> plays at clock time <see cref="Time"/>.</summary>
-    private readonly record struct Anchor(bool Playing, TimeSpan Time, TimeSpan SongTime, TempoMap? Tempo);
+    /// <remarks><see cref="LoopStart"/> and <see cref="LoopEnd"/> are the loop the cursor will wrap at, or both zero.</remarks>
+    private readonly record struct Anchor(bool Playing, TimeSpan Time, TimeSpan SongTime, TempoMap? Tempo, long LoopStart, long LoopEnd);
 
     private readonly record struct TimedClick(TimeSpan Time, bool Downbeat);
 

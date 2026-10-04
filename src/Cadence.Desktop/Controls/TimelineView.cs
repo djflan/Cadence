@@ -214,6 +214,14 @@ public sealed class TimelineView : Control
             return;
         }
 
+        if (_dragLane >= project.Sequence.Tracks.Length)
+        {
+            // The track went away mid-drag (for example, undo).
+            _dragLane = -1;
+            InvalidateVisual();
+            return;
+        }
+
         var x = e.GetPosition(this).X;
         _dragging |= Math.Abs(x - _dragPress.X) > 4;
         if (_dragging && RegionExtent(project.Sequence, project.Sequence.Tracks[_dragLane]) is var (start, _))
