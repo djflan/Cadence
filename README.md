@@ -18,7 +18,7 @@ play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtu
 | Platform | App | MIDI output | Notes |
 | -------- | --- | ----------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
-| Windows | Builds and runs; UI not yet verified | WinMM: hardware ports and software synths (no SysEx yet) | 1 ms timer and MMCSS playback thread; Windows MIDI Services adapter planned |
+WinMM: hardware ports and software synths, including SysEx
 | Linux | Builds; not yet verified | Built-in monitor only | ALSA adapter planned; screen-reader support unverified |
 
 ## Goals

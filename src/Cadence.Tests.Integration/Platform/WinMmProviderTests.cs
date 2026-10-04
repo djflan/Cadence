@@ -49,7 +49,7 @@ public sealed class WinMmProviderTests
         {
             Assert.Equal(WinMmProvider.ProviderId, e.Id.Provider);
             Assert.Equal(EndpointDirection.Output, e.Direction);
-            Assert.Equal(EndpointCapabilities.None, e.Capabilities);
+            Assert.Equal(EndpointCapabilities.SystemExclusive, e.Capabilities);
         });
         Assert.Equal(endpoints.Count, endpoints.Select(e => e.Id).Distinct().Count());
     }
@@ -75,7 +75,7 @@ public sealed class WinMmProviderTests
     }
 
     [Fact]
-    public async Task Output_RejectsInvalidAndSysEx_AndClosesOnDispose()
+    public async Task Output_RejectsInvalidMessages_AndClosesOnDispose()
     {
         RequireWindows();
         using var provider = new WinMmProvider();
@@ -87,13 +87,56 @@ public sealed class WinMmProviderTests
 
         Assert.Equal(EndpointState.Open, output.State);
         Assert.Equal(SendResult.Rejected, output.Send([0x90, 0x3C], MidiTimestamp.Immediate));
-        Assert.Equal(SendResult.Rejected, output.Send([0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7], MidiTimestamp.Immediate));
+        Assert.Equal(SendResult.Rejected, output.Send([0xF0, 0x7E, 0x7F, 0x09, 0x01], MidiTimestamp.Immediate));
+
+        var oversized = new byte[ushort.MaxValue + 1];
+        oversized[0] = 0xF0;
+        oversized[^1] = 0xF7;
+        Assert.Equal(SendResult.Rejected, output.Send(oversized, MidiTimestamp.Immediate));
 
         output.Dispose();
 
         Assert.Equal(EndpointState.Closed, output.State);
         Assert.Equal(SendResult.Closed, output.Send([0xB0, 0x7B, 0x00], MidiTimestamp.Immediate));
         Assert.Equal([EndpointState.Closed], states);
+    }
+
+    [Fact]
+    public async Task SysEx_IsSent_AndBuffersAreReused()
+    {
+        RequireWindows();
+        using var provider = new WinMmProvider();
+        var synth = RequireSoftwareSynth(provider);
+        using var output = await provider.OpenOutputAsync(synth.Id, Ct);
+
+        // GM System On resets the synth; it makes no sound. Sending more messages than there are
+        // buffers proves finished buffers are reclaimed, and a 2 KB message proves a buffer can grow.
+        byte[] gmOn = [0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7];
+        var large = new byte[2048];
+        large[0] = 0xF0;
+        large[1] = 0x7D; // non-commercial manufacturer ID: devices ignore it
+        large[^1] = 0xF7;
+
+        for (var i = 0; i < 3 * 8; i++)
+        {
+            var message = i % 4 == 3 ? large : gmOn;
+            Assert.Equal(SendResult.Sent, await SendWhenReadyAsync(output, message));
+        }
+    }
+
+    private static async Task<SendResult> SendWhenReadyAsync(IMidiOutput output, byte[] message)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (true)
+        {
+            var result = output.Send(message, MidiTimestamp.Immediate);
+            if (result != SendResult.QueueFull || DateTime.UtcNow > deadline)
+            {
+                return result;
+            }
+
+            await Task.Delay(5, Ct);
+        }
     }
 
     [Fact]

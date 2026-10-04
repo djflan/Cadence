@@ -19,6 +19,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0012](0012-performance-baseline.md) | Performance baseline: managed scheduling with OS real-time policy | Accepted |
 | [0013](0013-windows-playback-timing.md) | Windows playback timing: 1 ms timer resolution and MMCSS | Accepted |
 | [0014](0014-winmm-adapter.md) | Windows WinMM output adapter in managed code | Accepted |
+| [0015](0015-winmm-system-exclusive.md) | System exclusive through WinMM without blocking playback | Accepted |
 
 ## Template
 

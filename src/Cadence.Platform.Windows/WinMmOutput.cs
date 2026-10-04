@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Cadence.Midi.Endpoints;
 using Cadence.Midi.Wire;
@@ -5,16 +6,47 @@ using Cadence.Midi.Wire;
 namespace Cadence.Platform.Windows;
 
 /// <summary>
-/// Sends short messages with <c>midiOutShortMsg</c>, which delivers immediately. Nothing is allocated
-/// per send. System exclusive is rejected until long-message buffers are implemented.
+/// Sends short messages with <c>midiOutShortMsg</c> and system exclusive with <c>midiOutLongMsg</c>,
+/// both of which deliver immediately. Long messages use a fixed pool of buffers in native memory: a
+/// buffer is reused once the driver marks it done, and a send that finds no free buffer reports
+/// <see cref="SendResult.QueueFull"/> rather than waiting. A buffer only grows (reallocates) when a
+/// larger message than it has held before arrives.
 /// </summary>
+/// <remarks>Like every <see cref="IMidiOutput"/>, sends come from one thread at a time.</remarks>
 [SupportedOSPlatform("windows")]
-internal sealed class WinMmOutput(WinMmProvider provider, EndpointDescriptor endpoint, IntPtr handle) : IMidiOutput
+internal sealed unsafe class WinMmOutput : IMidiOutput
 {
+    /// <summary>The longest system exclusive message accepted, matching the CoreMIDI adapter.</summary>
+    public const int MaxMessage = ushort.MaxValue;
+
+    /// <summary>How many long messages may be in the driver at once.</summary>
+    public const int LongMessageSlots = 8;
+
+    private const int InitialCapacity = 1024;
+    private static readonly uint HeaderSize = (uint)sizeof(WinMm.MidiHeader);
+
+    private readonly WinMmProvider _provider;
+    private readonly IntPtr _handle;
+    private readonly WinMm.MidiHeader* _headers;
+    private readonly int[] _capacities = new int[LongMessageSlots];
+    private readonly bool[] _queued = new bool[LongMessageSlots];
     private int _state = (int)EndpointState.Open;
     private int _sending;
 
-    public EndpointDescriptor Endpoint { get; } = endpoint;
+    public WinMmOutput(WinMmProvider provider, EndpointDescriptor endpoint, IntPtr handle)
+    {
+        _provider = provider;
+        Endpoint = endpoint;
+        _handle = handle;
+        _headers = (WinMm.MidiHeader*)NativeMemory.AllocZeroed(LongMessageSlots, HeaderSize);
+        for (var i = 0; i < LongMessageSlots; i++)
+        {
+            _headers[i].Data = (byte*)NativeMemory.Alloc(InitialCapacity);
+            _capacities[i] = InitialCapacity;
+        }
+    }
+
+    public EndpointDescriptor Endpoint { get; }
 
     public EndpointState State => (EndpointState)Volatile.Read(ref _state);
 
@@ -35,9 +67,14 @@ internal sealed class WinMmOutput(WinMmProvider provider, EndpointDescriptor end
             }
 
             var kind = MidiWire.Classify(message);
-            if (kind is MidiMessageClass.Invalid or MidiMessageClass.SystemExclusive)
+            if (kind == MidiMessageClass.Invalid || message.Length > MaxMessage)
             {
                 return SendResult.Rejected;
+            }
+
+            if (kind == MidiMessageClass.SystemExclusive)
+            {
+                return SendLong(message);
             }
 
             var packed = (uint)message[0];
@@ -51,19 +88,7 @@ internal sealed class WinMmOutput(WinMmProvider provider, EndpointDescriptor end
                 packed |= (uint)message[2] << 16;
             }
 
-            switch (WinMm.midiOutShortMsg(handle, packed))
-            {
-                case WinMm.NoError:
-                    return SendResult.Sent;
-                case WinMm.NotReady:
-                    return SendResult.QueueFull;
-                case WinMm.NoDriver or WinMm.NoDevice or WinMm.InvalidHandle:
-                    Transition(EndpointState.Disconnected, "The WinMM device went away.");
-                    return SendResult.Disconnected;
-                default:
-                    Transition(EndpointState.Faulted, "WinMM reported an error.");
-                    return SendResult.Closed;
-            }
+            return Map(WinMm.midiOutShortMsg(_handle, packed));
         }
         finally
         {
@@ -84,10 +109,100 @@ internal sealed class WinMmOutput(WinMmProvider provider, EndpointDescriptor end
             spinner.SpinOnce();
         }
 
-        // Reset turns off any sounding notes before the device is released.
-        _ = WinMm.midiOutReset(handle);
-        _ = WinMm.midiOutClose(handle);
-        provider.Forget(this);
+        // Reset turns off any sounding notes and returns every queued long-message buffer as done.
+        _ = WinMm.midiOutReset(_handle);
+        for (var i = 0; i < LongMessageSlots; i++)
+        {
+            if (_queued[i])
+            {
+                _ = WinMm.midiOutUnprepareHeader(_handle, &_headers[i], HeaderSize);
+                _queued[i] = false;
+            }
+        }
+
+        _ = WinMm.midiOutClose(_handle);
+        for (var i = 0; i < LongMessageSlots; i++)
+        {
+            NativeMemory.Free(_headers[i].Data);
+        }
+
+        NativeMemory.Free(_headers);
+        _provider.Forget(this);
+    }
+
+    private SendResult SendLong(ReadOnlySpan<byte> message)
+    {
+        var slot = ClaimSlot();
+        if (slot < 0)
+        {
+            return SendResult.QueueFull;
+        }
+
+        var header = &_headers[slot];
+        if (message.Length > _capacities[slot])
+        {
+            header->Data = (byte*)NativeMemory.Realloc(header->Data, (nuint)message.Length);
+            _capacities[slot] = message.Length;
+        }
+
+        message.CopyTo(new Span<byte>(header->Data, message.Length));
+        header->BufferLength = (uint)message.Length;
+        header->BytesRecorded = (uint)message.Length;
+        header->Flags = 0;
+
+        var status = WinMm.midiOutPrepareHeader(_handle, header, HeaderSize);
+        if (status != WinMm.NoError)
+        {
+            return Map(status);
+        }
+
+        status = WinMm.midiOutLongMsg(_handle, header, HeaderSize);
+        if (status != WinMm.NoError)
+        {
+            _ = WinMm.midiOutUnprepareHeader(_handle, header, HeaderSize);
+            return Map(status);
+        }
+
+        _queued[slot] = true;
+        return SendResult.Sent;
+    }
+
+    /// <summary>Returns a slot the driver is not using, unpreparing finished ones; -1 if all are busy.</summary>
+    private int ClaimSlot()
+    {
+        for (var i = 0; i < LongMessageSlots; i++)
+        {
+            if (!_queued[i])
+            {
+                return i;
+            }
+
+            if ((Volatile.Read(ref _headers[i].Flags) & WinMm.HeaderDone) != 0
+                && WinMm.midiOutUnprepareHeader(_handle, &_headers[i], HeaderSize) != WinMm.StillPlaying)
+            {
+                _queued[i] = false;
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private SendResult Map(uint status)
+    {
+        switch (status)
+        {
+            case WinMm.NoError:
+                return SendResult.Sent;
+            case WinMm.NotReady:
+                return SendResult.QueueFull;
+            case WinMm.NoDriver or WinMm.NoDevice or WinMm.InvalidHandle:
+                Transition(EndpointState.Disconnected, "The WinMM device went away.");
+                return SendResult.Disconnected;
+            default:
+                Transition(EndpointState.Faulted, "WinMM reported an error.");
+                return SendResult.Closed;
+        }
     }
 
     private bool Transition(EndpointState state, string? reason)

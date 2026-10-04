@@ -7,7 +7,7 @@ namespace Cadence.Platform.Windows;
 /// <summary>
 /// MIDI outputs from the legacy Windows multimedia API (WinMM). WinMM cannot schedule messages, so
 /// every endpoint is in the immediate delivery class and Cadence's playback thread waits for each
-/// message. System exclusive, inputs and hot-plug notifications are not supported yet (ADR 0014).
+/// message. Inputs and hot-plug notifications are not supported yet (ADR 0014).
 /// </summary>
 /// <remarks>
 /// WinMM identifies devices only by index, which shifts when devices come and go. Endpoint IDs are
@@ -135,7 +135,7 @@ public sealed class WinMmProvider : IMidiEndpointProvider
                 occurrence == 1 ? name : string.Create(CultureInfo.InvariantCulture, $"{name} ({occurrence})"),
                 EndpointDirection.Output,
                 transport,
-                EndpointCapabilities.None);
+                EndpointCapabilities.SystemExclusive);
             result.Add((descriptor, device));
         }
 
