@@ -46,6 +46,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         var track = new Track(TrackId.New(), "Piano", [Note(0), Note(960, 64), Note(1920, 67)]);
         _session.Execute(ProjectCommands.AddTrack(track));
         _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, _synth.OutputId.Value, "Synth") }));
+        _vm.LowerPane = LowerPane.EventList;
         await Settle();
     }
 
@@ -289,11 +290,15 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     [Fact]
     public void ShowPane_TogglesTheLowerPane()
     {
-        _vm.ShowPaneCommand.Execute(LowerPane.EventList);
-        Assert.Equal((LowerPane.EventList, true), (_vm.LowerPane, _vm.IsEditorVisible));
+        _vm.ShowPaneCommand.Execute(LowerPane.PianoRoll);
+        Assert.Equal((LowerPane.PianoRoll, true), (_vm.LowerPane, _vm.IsEditorVisible));
+        Assert.False(_vm.EventList.IsActive);
+
+        _vm.ShowPaneCommand.Execute(LowerPane.PianoRoll);
+        Assert.False(_vm.IsEditorVisible);
 
         _vm.ShowPaneCommand.Execute(LowerPane.EventList);
-        Assert.False(_vm.IsEditorVisible);
+        Assert.True(_vm.EventList.IsActive);
     }
 
     private sealed class ImmediateDispatcher : IUiDispatcher

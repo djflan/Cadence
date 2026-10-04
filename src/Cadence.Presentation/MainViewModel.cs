@@ -229,6 +229,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial LowerPane LowerPane { get; set; } = LowerPane.PianoRoll;
 
+    partial void OnIsEditorVisibleChanged(bool value) => EventList.IsActive = value && LowerPane == LowerPane.EventList;
+
+    partial void OnLowerPaneChanged(LowerPane value) => EventList.IsActive = IsEditorVisible && value == LowerPane.EventList;
+
     partial void OnIsMetronomeEnabledChanged(bool value) => ApplyMetronome();
 
     partial void OnClickWhilePlayingChanged(bool value) => ApplyMetronome();
@@ -735,6 +739,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _playback.Panic();
         AddMessage(MessageSeverity.Info, "Panic", "Sent All Notes Off, All Sound Off, and sustain off on every channel of every output.");
     }
+
+    /// <summary>Sets the loop (cycle) range, or turns it off with null, e.g. from the ruler.</summary>
+    public void SetLoop(TickRange? loop) => Execute(ProjectCommands.SetLoop(loop));
 
     /// <summary>Turns the loop off, or loops four bars starting at the bar containing the playhead.</summary>
     [RelayCommand]

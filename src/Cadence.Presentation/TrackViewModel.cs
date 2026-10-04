@@ -85,6 +85,15 @@ public sealed partial class TrackViewModel : ObservableObject
         _ => "Offline",
     };
 
+    /// <summary>The output and, when it is not ready, a word for why: "Synth", "Synth · Check", "No output".</summary>
+    public string StatusLine => Health switch
+    {
+        RouteHealth.Ready => Output.Name,
+        RouteHealth.Attention => $"{Output.Name} · Check",
+        _ when Route?.Endpoint is null => "No output",
+        _ => $"{Output.Name} · Offline",
+    };
+
     /// <summary>"Profile → Output", showing the two independent choices side by side.</summary>
     [ObservableProperty]
     public partial string RouteText { get; private set; } = string.Empty;
@@ -121,6 +130,7 @@ public sealed partial class TrackViewModel : ObservableObject
             Problems = resolved?.Problems ?? [];
             RouteText = $"{Profile.Name} → {Output.Name}";
             OnPropertyChanged(nameof(HealthText));
+            OnPropertyChanged(nameof(StatusLine));
             OnPropertyChanged(nameof(IsReady));
             OnPropertyChanged(nameof(NeedsAttention));
             OnPropertyChanged(nameof(IsOffline));

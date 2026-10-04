@@ -10,11 +10,13 @@ internal static class Shortcuts
     /// <summary>(Group, action, keys). "⌘" is shown as Ctrl on Windows and Linux.</summary>
     public static readonly (string Group, string Action, string Keys)[] All =
     [
-        ("Transport", "Play / pause", "Space"),
-        ("Transport", "Return to start", "Home"),
-        ("Transport", "Go to end", "End"),
+        ("Transport", "Play / stop", "Space"),
+        ("Transport", "Record (punch in and out while playing)", "R"),
+        ("Transport", "Metronome on / off", "K"),
+        ("Transport", "Go to start / end", "Home  /  End"),
         ("Transport", "Previous / next bar", ",  /  ."),
-        ("Transport", "Loop four bars from the playhead", "L"),
+        ("Transport", "Cycle four bars from the playhead", "L"),
+        ("Transport", "Set the cycle", "Drag in the top strip of the ruler"),
         ("Transport", "Panic: silence every output", "⌘ ."),
         ("Tracks", "Select previous / next track", "↑  /  ↓"),
         ("Tracks", "Extend the selection", "⇧ ↑  /  ⇧ ↓,  ⇧-click"),
@@ -22,9 +24,23 @@ internal static class Shortcuts
         ("Tracks", "Select all tracks", "⌘ A"),
         ("Tracks", "Rename the selected track", "Return"),
         ("Tracks", "Mute / solo the selected tracks", "M  /  S"),
-        ("Tracks", "Add track", "⌘ T"),
+        ("Tracks", "New track", "⌘ T"),
         ("Tracks", "Duplicate the selected tracks", "⌘ D"),
         ("Tracks", "Delete the selected tracks", "⌫"),
+        ("Tracks", "Open a track in the piano roll", "Double-click its lane"),
+        ("Piano roll", "Arrow / pencil / eraser tool", "1  /  2  /  3"),
+        ("Piano roll", "Add a note", "Double-click, or click with the pencil"),
+        ("Piano roll", "Copy while dragging / ignore the grid", "⌥-drag  /  ⌘-drag"),
+        ("Piano roll", "Move the selection by a grid step / four steps", "←  →  /  ⇧ ←  →"),
+        ("Piano roll", "Transpose a semitone / an octave", "↑  ↓  /  ⇧ ↑  ↓"),
+        ("Piano roll", "Velocity up / down", "⌥ ↑  /  ⌥ ↓"),
+        ("Piano roll", "Quantize / quantize note ends", "Q  /  ⇧ Q"),
+        ("Piano roll", "Select all notes / deselect", "⌘ A  /  Esc"),
+        ("Piano roll", "Copy, cut, paste at the playhead, duplicate", "⌘ C,  ⌘ X,  ⌘ V,  ⌘ D"),
+        ("Piano roll", "Delete the selected notes", "⌫"),
+        ("Piano roll", "Zoom time / key height", "⌘-scroll  /  ⌥-scroll"),
+        ("View", "Inspector", "I"),
+        ("View", "Piano roll / event list", "P  /  D"),
         ("View", "Zoom in / out", "⌘ =  /  ⌘ −"),
         ("View", "Zoom with the pointer", "⌘-scroll, pinch, or scroll over the ruler"),
         ("File", "New / open project", "⌘ N  /  ⌘ O"),
@@ -36,7 +52,7 @@ internal static class Shortcuts
     ];
 
     public static string ForPlatform(string keys) =>
-        OperatingSystem.IsMacOS() ? keys : keys.Replace("⌘", "Ctrl", StringComparison.Ordinal).Replace("⇧", "Shift", StringComparison.Ordinal).Replace("⌫", "Delete", StringComparison.Ordinal);
+        OperatingSystem.IsMacOS() ? keys : keys.Replace("⌘", "Ctrl", StringComparison.Ordinal).Replace("⇧", "Shift", StringComparison.Ordinal).Replace("⌥", "Alt", StringComparison.Ordinal).Replace("⌫", "Delete", StringComparison.Ordinal);
 
     public static Window CreateWindow()
     {
@@ -70,7 +86,7 @@ internal static class Shortcuts
             Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new ScrollViewer { Content = grid },
-            Background = new SolidColorBrush(Color.Parse("#0E1014")),
+            Background = new SolidColorBrush(Color.Parse("#1C1C1E")),
         };
     }
 }

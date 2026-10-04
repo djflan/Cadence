@@ -5,17 +5,18 @@ using Cadence.Desktop.Theme;
 
 namespace Cadence.Desktop.Controls;
 
-/// <summary>The playhead, drawn above the timeline so moving it never redraws the notes.</summary>
+/// <summary>The playhead line, drawn above the lanes so moving it never redraws the notes. Red while recording.</summary>
 public sealed class PlayheadOverlay : Control
 {
     public static readonly StyledProperty<double> XProperty = AvaloniaProperty.Register<PlayheadOverlay, double>(nameof(X));
+    public static readonly StyledProperty<bool> IsRecordingProperty = AvaloniaProperty.Register<PlayheadOverlay, bool>(nameof(IsRecording));
 
-    private static readonly IBrush Line = new SolidColorBrush(Palette.Accent);
-    private static readonly StreamGeometry Head = StreamGeometry.Parse("M -6,0 L 6,0 L 0,8 Z");
+    private static readonly IBrush Line = new SolidColorBrush(Palette.Playhead, 0.9);
+    private static readonly IBrush RecordLine = new SolidColorBrush(Palette.Record);
 
     static PlayheadOverlay()
     {
-        AffectsRender<PlayheadOverlay>(XProperty);
+        AffectsRender<PlayheadOverlay>(XProperty, IsRecordingProperty);
         IsHitTestVisibleProperty.OverrideDefaultValue<PlayheadOverlay>(false);
     }
 
@@ -25,13 +26,15 @@ public sealed class PlayheadOverlay : Control
         set => SetValue(XProperty, value);
     }
 
+    public bool IsRecording
+    {
+        get => GetValue(IsRecordingProperty);
+        set => SetValue(IsRecordingProperty, value);
+    }
+
     public override void Render(DrawingContext context)
     {
-        var x = Math.Round(X) + 0.5;
-        context.FillRectangle(Line, new Rect(x - 0.75, 0, 1.5, Bounds.Height));
-        using (context.PushTransform(Matrix.CreateTranslation(x, 0)))
-        {
-            context.DrawGeometry(Line, null, Head);
-        }
+        var x = Math.Round(X);
+        context.FillRectangle(IsRecording ? RecordLine : Line, new Rect(x, 0, 1, Bounds.Height));
     }
 }

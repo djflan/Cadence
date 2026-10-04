@@ -33,6 +33,7 @@ public sealed partial class EventListViewModel : ObservableObject
     private readonly MainViewModel _owner;
     private readonly EditorViewModel _editor;
     private bool _syncingSelection;
+    private bool _stale = true;
 
     internal EventListViewModel(MainViewModel owner, EditorViewModel editor)
     {
@@ -53,6 +54,21 @@ public sealed partial class EventListViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string CountText { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// True while the list is on screen. Rows are only built while active, so editing a large track
+    /// with the list hidden costs nothing.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsActive { get; set; }
+
+    partial void OnIsActiveChanged(bool value)
+    {
+        if (value && _stale)
+        {
+            Rebuild();
+        }
+    }
 
     /// <summary>Called by the view when the user changes the list's selection.</summary>
     public void OnRowsSelected()
@@ -75,6 +91,26 @@ public sealed partial class EventListViewModel : ObservableObject
 
     private void Rebuild()
     {
+        if (!IsActive)
+        {
+            _stale = true;
+            return;
+        }
+
+        _stale = false;
+        _syncingSelection = true;
+        try
+        {
+            RebuildRows();
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+    }
+
+    private void RebuildRows()
+    {
         var events = _editor.Track?.Events.Where(Filter.Includes).ToList() ?? [];
         var existing = Rows.ToDictionary(r => r.Id);
 
@@ -89,26 +125,20 @@ public sealed partial class EventListViewModel : ObservableObject
             }
         }
 
-        _syncingSelection = true;
-        try
+        var selected = _editor.SelectedEvents;
+        var present = Rows.ToHashSet();
+        for (var i = SelectedRows.Count - 1; i >= 0; i--)
         {
-            var selected = _editor.SelectedEvents;
-            for (var i = SelectedRows.Count - 1; i >= 0; i--)
+            if (!selected.Contains(SelectedRows[i].Id) || !present.Contains(SelectedRows[i]))
             {
-                if (!selected.Contains(SelectedRows[i].Id) || !Rows.Contains(SelectedRows[i]))
-                {
-                    SelectedRows.RemoveAt(i);
-                }
-            }
-
-            foreach (var row in Rows.Where(r => selected.Contains(r.Id) && !SelectedRows.Contains(r)))
-            {
-                SelectedRows.Add(row);
+                SelectedRows.RemoveAt(i);
             }
         }
-        finally
+
+        var already = SelectedRows.ToHashSet();
+        foreach (var row in Rows.Where(r => selected.Contains(r.Id) && !already.Contains(r)))
         {
-            _syncingSelection = false;
+            SelectedRows.Add(row);
         }
 
         CountText = string.Create(CultureInfo.InvariantCulture, $"{Rows.Count} event{(Rows.Count == 1 ? string.Empty : "s")}");
