@@ -127,7 +127,7 @@ public sealed class TimelineView : Control
             var x0 = TickToX(loop.Start.Value);
             var x1 = TickToX(loop.End.Value);
             context.FillRectangle(LoopFill, new Rect(x0, 0, x1 - x0, Bounds.Height));
-            context.FillRectangle(LoopBar, new Rect(x0, 2, x1 - x0, 4), 2);
+            context.FillRectangle(LoopBar, new Rect(x0, 2, x1 - x0, 4));
         }
 
         DrawGrid(context, sequence, firstTick, lastTick);
@@ -230,7 +230,7 @@ public sealed class TimelineView : Control
             var w = Math.Max(2, TickToX(note.EndPosition.Value) - x - 1);
             var y = top + ((high - note.Note.Value) * (height - noteHeight) / Math.Max(1, span - 1));
             var opacity = (0.45 + (0.55 * note.Velocity.Value / 127.0)) * faded;
-            context.FillRectangle(new SolidColorBrush(color, opacity), new Rect(x, y, w, noteHeight), 1.5f);
+            context.FillRectangle(new SolidColorBrush(color, opacity), new Rect(x, y, w, noteHeight), 0.5f);
         }
     }
 }

@@ -35,8 +35,12 @@
     <SolidColorBrush x:Key="Cadence.Success" Color="{StaticResource Cadence.SuccessColor}" />
 
     <FontFamily x:Key="Cadence.MonoFont">SF Mono, Cascadia Mono, JetBrains Mono, Menlo, Consolas, DejaVu Sans Mono, monospace</FontFamily>
-    <CornerRadius x:Key="Cadence.PanelRadius">12</CornerRadius>
-    <CornerRadius x:Key="Cadence.ControlRadius">8</CornerRadius>
+    <CornerRadius x:Key="Cadence.PanelRadius">4</CornerRadius>
+    <CornerRadius x:Key="Cadence.ControlRadius">3</CornerRadius>
+
+    <!-- Fluent's own radii, so combo boxes, text fields, steppers, and flyouts match. -->
+    <CornerRadius x:Key="ControlCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="OverlayCornerRadius">4</CornerRadius>
 
     <!-- Icons (16-unit boxes) -->
     <StreamGeometry x:Key="Icon.Play">M4,2 L14,8 L4,14 Z</StreamGeometry>
@@ -155,7 +159,7 @@
     <Setter Property="Width" Value="36" />
     <Setter Property="Height" Value="36" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="CornerRadius" Value="3" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -167,7 +171,7 @@
   <Style Selector="Button.transport.play">
     <Setter Property="Width" Value="44" />
     <Setter Property="Height" Value="44" />
-    <Setter Property="CornerRadius" Value="22" />
+    <Setter Property="CornerRadius" Value="4" />
     <Setter Property="Background" Value="{StaticResource Cadence.Accent}" />
   </Style>
   <Style Selector="Button.transport.play:pointerover /template/ ContentPresenter">
@@ -199,7 +203,7 @@
     <Setter Property="Padding" Value="0" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="2" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="Background" Value="{StaticResource Cadence.Hover}" />
     <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
@@ -215,7 +219,7 @@
 
   <!-- Status chips -->
   <Style Selector="Border.chip">
-    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="CornerRadius" Value="2" />
     <Setter Property="Padding" Value="7,2" />
     <Setter Property="Background" Value="{StaticResource Cadence.Hover}" />
   </Style>

@@ -22,7 +22,7 @@
         </Border>
       </StackPanel>
 
-      <Border Grid.Column="1" Classes="panel" CornerRadius="28" Padding="10,6">
+      <Border Grid.Column="1" Classes="panel" Padding="10,6">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <Button Classes="transport" Command="{Binding ReturnToStartCommand}" ToolTip.Tip="Return to start (Home)" AutomationProperties.Name="Return to start">
             <PathIcon Data="{StaticResource Icon.Start}" Width="14" Height="14" />
@@ -108,7 +108,7 @@
                   <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:TrackViewModel">
                       <Grid ColumnDefinitions="4,*,Auto" AutomationProperties.Name="{Binding Name}">
-                        <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" CornerRadius="2" Margin="0,10" />
+                        <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" CornerRadius="0" Margin="0,10" />
                         <StackPanel Grid.Column="1" Margin="12,8,6,8" Spacing="3" VerticalAlignment="Center">
                           <TextBox Classes="inline" Text="{Binding Name}" AutomationProperties.Name="Track name" />
                           <StackPanel Orientation="Horizontal" Spacing="6">
