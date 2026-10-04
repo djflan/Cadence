@@ -1,0 +1,106 @@
+# Cadence
+
+Cadence is a modern, open-source, cross-platform MIDI workstation built for musicians who use real instruments.
+
+It is initially focused on excellent Yamaha XG and QY100 workflows, while its architecture is deliberately broader: Cadence can describe what an instrument understands independently from where MIDI is sent. A track can therefore use a device profile with physical hardware, a virtual MIDI port, a network destination, or a compatible software instrument.
+
+> [!NOTE]
+> Cadence is an independent open-source project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. Yamaha, XG, QY100, and other product names and trademarks belong to their respective owners and are used solely to describe compatibility.
+
+## Status
+
+Cadence is in early development. The architecture and first end-to-end sequencing workflow are being established; it is not yet ready for production use or live performance.
+
+## Goals
+
+- Hardware-first MIDI sequencing, recording, editing, and playback
+- Reliable timing with measurable scheduling behavior
+- First-class, data-defined device profiles for voices, banks, controllers, effects, SysEx, and capabilities
+- Independent MIDI endpoints for physical, virtual, network, and future hosted-software destinations
+- A portable project format that survives missing or renamed devices
+- Standard MIDI File import and export with honest reporting of lossy conversions
+- Accessible cross-platform desktop workflows
+- A clean extension path for GM, GM2, XG, GS, and community-defined instruments
+
+## Architectural principle
+
+Cadence separates a **device profile** from a **MIDI endpoint**:
+
+```text
+Track / logical part
+        |
+        +-- Device profile: what the instrument understands
+        |      voices, banks, controllers, SysEx, capabilities
+        |
+        +-- MIDI endpoint: where messages are sent
+               physical port, virtual port, network, software instrument
+```
+
+That makes all of these legitimate configurations:
+
+```text
+QY100 profile       -> physical QY100
+QY100 profile       -> compatible XG software synth
+Generic XG profile  -> physical XG module
+GM/GM2 profile      -> arbitrary compliant endpoint
+Custom profile      -> virtual MIDI port
+```
+
+Profiles are not ports, and ports are not instruments. Projects retain their musical intent even when a previously selected endpoint is unavailable.
+
+## Technology direction
+
+Cadence uses .NET and C# for its domain, application, persistence, profile, and cross-platform UI code. Platform adapters isolate operating-system MIDI services.
+
+C or C++ components may be introduced where native MIDI APIs or measured high-resolution scheduling requirements justify them. Any native component must remain behind a narrow, versioned C ABI; vendor knowledge and domain rules stay in managed code.
+
+## Repository layout
+
+```text
+Cadence/
+├── LICENSE
+├── README.md
+├── AGENT_HANDOFF.md
+└── src/
+    ├── Cadence.slnx
+    ├── SubModules/
+    └── <ProjectFolder>/
+```
+
+- `src/Cadence.slnx` is the solution entry point.
+- `src/SubModules/` is reserved for shared source submodules.
+- Each normal project belongs in its own direct child folder under `src/`.
+- `AGENT_HANDOFF.md` contains the detailed product, architecture, safety, testing, and delivery brief for implementation agents and contributors.
+
+The repository is intentionally minimal while the first vertical slice is designed. Empty architectural layers should not be generated simply to match a diagram.
+
+## Building
+
+Install a supported .NET SDK, then from the repository root run:
+
+```sh
+dotnet restore src/Cadence.slnx
+dotnet build src/Cadence.slnx
+dotnet test src/Cadence.slnx
+```
+
+The exact supported SDK version and any platform prerequisites will be documented once the first projects are added. Some platform MIDI adapters may require their target operating system; the default test suite should remain hardware-independent.
+
+## Contributing
+
+Cadence welcomes focused contributions to sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing.
+
+Before contributing:
+
+1. Read `AGENT_HANDOFF.md` for architectural constraints and the definition of done.
+2. Keep device profiles independent from MIDI endpoint implementations.
+3. Include tests that do not require contributors to own specific hardware.
+4. Identify hardware behavior that was simulated rather than physically verified.
+5. Include provenance for profile data and only submit material you have the right to redistribute.
+6. Do not contribute vendor logos, manual scans, firmware, ROM content, proprietary binaries, or copied vendor artwork/text.
+
+Compatibility names must be used factually and must not imply vendor affiliation, certification, sponsorship, or endorsement.
+
+## License
+
+Cadence is licensed under the [MIT License](LICENSE).
