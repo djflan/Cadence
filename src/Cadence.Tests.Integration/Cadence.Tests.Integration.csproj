@@ -1,13 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Fast, deterministic tests. Must never require MIDI hardware, network, or wall-clock timing. -->
+  <!-- Tests that use real threads, clocks, file systems, or OS services. Never requires MIDI hardware. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Cadence.Tests.Unit</RootNamespace>
+    <RootNamespace>Cadence.Tests.Integration</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
-    <PackageReference Include="CsCheck" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />

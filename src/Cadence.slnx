@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
   <Project Path="Cadence.Midi/Cadence.Midi.csproj" />
+  <Project Path="Cadence.Playback/Cadence.Playback.csproj" />
+  <Project Path="Cadence.Tests.Integration/Cadence.Tests.Integration.csproj" />
   <Project Path="Cadence.Tests.Unit/Cadence.Tests.Unit.csproj" />
 </Solution>

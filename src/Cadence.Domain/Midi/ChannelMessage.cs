@@ -96,6 +96,9 @@ public readonly record struct ChannelMessage
 
     public FourteenBitValue PitchBendValue => FourteenBitValue.FromBytes(Data2, Data1);
 
+    /// <summary>The same message addressed to another channel.</summary>
+    public ChannelMessage WithChannel(MidiChannel channel) => new((byte)((Status & 0xF0) | channel.Index), Data1, Data2);
+
     /// <summary>Writes the encoded message and returns the number of bytes written.</summary>
     public int CopyTo(Span<byte> destination)
     {
