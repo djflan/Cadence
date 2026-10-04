@@ -1,0 +1,249 @@
+using Cadence.Application.Editing;
+using Cadence.Application.Sessions;
+using Cadence.Domain.Midi;
+using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
+using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
+using Cadence.Midi.Endpoints;
+using Cadence.Midi.Timing;
+using Cadence.Playback;
+using Cadence.Profiles;
+
+namespace Cadence.Tests.Unit.Application;
+
+/// <summary>
+/// Recording through loopback ports on a virtual clock. New projects are 960 PPQN at 120 BPM, so
+/// 500 ms is one beat (960 ticks) and a 4/4 bar is two seconds.
+/// </summary>
+public sealed class RecordingTests : IAsyncDisposable
+{
+    private static readonly TimeSpan Origin = TimeSpan.FromSeconds(10);
+
+    private readonly VirtualClock _clock = new(Origin);
+    private readonly LoopbackMidiProvider _provider;
+    private readonly EndpointDirectory _directory;
+    private readonly ProjectSession _session = new();
+    private readonly PlaybackController _controller;
+    private readonly LoopbackPort _keys;
+    private readonly LoopbackPort _synth;
+
+    public RecordingTests()
+    {
+        _provider = new LoopbackMidiProvider(_clock);
+        _keys = _provider.CreatePort("Keys", "keys");
+        _synth = _provider.CreatePort("Synth", "synth");
+        _directory = new EndpointDirectory([_provider]);
+        _controller = new PlaybackController(_session, _directory, ProfileCatalog.Empty, _clock, startThread: false);
+        _controller.SelectInputs([_keys.InputId]);
+    }
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    public async ValueTask DisposeAsync()
+    {
+        await _controller.DisposeAsync();
+        _directory.Dispose();
+        _provider.Dispose();
+    }
+
+    private Track AddTrack(LoopbackPort output, params TrackEvent[] events)
+    {
+        var track = new Track(TrackId.New(), "Keys", events);
+        _session.Execute(ProjectCommands.AddTrack(track));
+        _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, output.OutputId.Value, output.Name) }));
+        return track;
+    }
+
+    /// <summary>Pumps the engine every 10 ms up to <paramref name="milliseconds"/> after the origin.</summary>
+    private void RunTo(double milliseconds)
+    {
+        var target = Origin + TimeSpan.FromMilliseconds(milliseconds);
+        while (_clock.Now < target)
+        {
+            _clock.Advance(TimeSpan.FromMilliseconds(Math.Min(10, (target - _clock.Now).TotalMilliseconds)));
+            _controller.Engine.Pump();
+        }
+    }
+
+    private void Play(int note, int velocity = 100) => _keys.Inject([0x90, (byte)note, (byte)velocity]);
+
+    private void Release(int note) => _keys.Inject([0x80, (byte)note, 0x40]);
+
+    private Track Recorded(Track track) => _session.Project.Sequence.FindTrack(track.Id)!;
+
+    [Fact]
+    public async Task RecordFromStop_CountsInThenCapturesNotesWherePlayed()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 1), Ct);
+        _controller.Engine.Pump();
+        Assert.True(_controller.Engine.IsCountingIn);
+
+        RunTo(2500);
+        Play(60);
+        RunTo(2750);
+        Release(60);
+        RunTo(3000);
+        var take = _controller.Stop();
+
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        Assert.Equal((960L, 480L), (note.Position.Value, note.Duration.Value));
+        Assert.Equal(100, note.Velocity.Value);
+        Assert.Equal(new TickRange(Tick.Zero, new Tick(1920)), take!.Range);
+        Assert.Equal("Record", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public async Task Recording_ClicksTheMetronomeOnTheTracksOutput()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 1), Ct);
+        RunTo(2600);
+
+        // Four count-in clicks, then the downbeat and the second beat of bar 1 (channel 10).
+        Assert.Equal(6, _synth.Sent.Count(m => m.Bytes[0] == 0x99));
+    }
+
+    [Fact]
+    public async Task Thru_EchoesToTheTrackWithItsChannelAndTranspose()
+    {
+        var track = AddTrack(_synth);
+        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(track.Id)! with { Channel = MidiChannel.FromNumber(3), Transpose = 12 }));
+        _controller.SetThruTrack(track.Id);
+        await _controller.RefreshAsync(Ct);
+
+        Play(60, 90);
+        _controller.Engine.Pump();
+        _controller.SetThruTrack(null);
+        Release(60);
+        _controller.Engine.Pump();
+
+        // The release follows its note even though thru was turned off in between.
+        Assert.Equal(["92485A", "824840"], _synth.Sent.Select(m => Convert.ToHexString(m.Bytes)));
+        Assert.Equal(2, _controller.Recorder.MessagesReceived);
+    }
+
+    [Fact]
+    public async Task Thru_NeverEchoesBackIntoTheBusItCameFrom()
+    {
+        var track = AddTrack(_keys);
+        _controller.SetThruTrack(track.Id);
+        await _controller.RefreshAsync(Ct);
+
+        Play(60);
+        _controller.Engine.Pump();
+
+        Assert.Empty(_keys.Sent);
+    }
+
+    [Fact]
+    public async Task PunchIn_ReplaceRemovesOnlyWhatWasRecordedOver()
+    {
+        var before = new NoteEvent(new Tick(100), new TickSpan(10), MidiChannel.FromIndex(0), new NoteNumber(40), Velocity.Max);
+        var over = new NoteEvent(new Tick(1500), new TickSpan(10), MidiChannel.FromIndex(0), new NoteNumber(41), Velocity.Max);
+        var track = AddTrack(_synth, before, over);
+        await _controller.PlayAsync(Tick.Zero, Ct);
+        RunTo(500);
+
+        await _controller.RecordAsync(track.Id, new RecordOptions(Replace: true), Ct);
+        Play(64);
+        RunTo(600);
+        Release(64);
+        RunTo(1000);
+        _controller.FinishRecording();
+
+        Assert.Equal(TransportState.Playing, _controller.Engine.State);
+        Assert.Equal([40, 64], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+    }
+
+    [Fact]
+    public async Task HeldNotes_EndWhereRecordingStopped()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(250);
+        Play(60);
+        RunTo(1000);
+        _controller.Stop();
+
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        Assert.Equal((480L, 1920L), (note.Position.Value, note.EndPosition.Value));
+    }
+
+    [Fact]
+    public async Task CycleRecording_MergesPassesAndEndsWrappedNotesAtTheLoopEnd()
+    {
+        var track = AddTrack(_synth);
+        _session.Execute(ProjectCommands.SetLoop(new TickRange(Tick.Zero, new Tick(3840))));
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+
+        RunTo(1900);
+        Play(60);
+        RunTo(2100);
+        Release(60);
+        RunTo(2500);
+        Play(62);
+        RunTo(2750);
+        Release(62);
+        RunTo(3000);
+        _controller.Stop();
+
+        var notes = Recorded(track).Events.Cast<NoteEvent>().ToList();
+        Assert.Equal([(960L, 1440L, 62), (3648L, 3840L, 60)], notes.Select(n => (n.Position.Value, n.EndPosition.Value, (int)n.Note.Value)));
+    }
+
+    [Fact]
+    public async Task ControllersAndPitchBend_AreRecordedAsEvents()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        _keys.Inject([0xB0, 0x01, 0x40]);
+        _keys.Inject([0xE0, 0x00, 0x50]);
+        _keys.Inject([0xF8]);
+        RunTo(600);
+        _controller.Stop();
+
+        var events = Recorded(track).Events.Cast<ChannelEvent>().ToList();
+        Assert.Equal([ChannelMessageKind.ControlChange, ChannelMessageKind.PitchBend], events.Select(e => e.Message.Kind));
+        Assert.All(events, e => Assert.Equal(960, e.Position.Value));
+    }
+
+    [Fact]
+    public async Task Preview_ShowsHeldNotesWhileRecording()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        Play(60);
+        RunTo(750);
+
+        var preview = Assert.Single(_controller.Recorder.Preview(_controller.Engine.Position, null));
+
+        Assert.True(preview.IsHeld);
+        Assert.Equal((960L, 1440L), (preview.Start, preview.End));
+    }
+
+    [Fact]
+    public async Task EmptyTake_DoesNotCreateAnUndoStep()
+    {
+        var track = AddTrack(_synth);
+        var label = _session.History.UndoLabel;
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        _controller.Stop();
+
+        Assert.Equal(label, _session.History.UndoLabel);
+        Assert.Empty(Recorded(track).Events);
+    }
+}

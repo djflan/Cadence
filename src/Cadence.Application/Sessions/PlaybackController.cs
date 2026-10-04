@@ -1,5 +1,8 @@
 using System.Collections.Immutable;
+using Cadence.Application.Editing;
+using Cadence.Application.Recording;
 using Cadence.Application.Routing;
+using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
@@ -8,6 +11,28 @@ using Cadence.Playback;
 using Cadence.Profiles;
 
 namespace Cadence.Application.Sessions;
+
+/// <summary>When the metronome clicks. Count-ins always click when a metronome output is available.</summary>
+public enum MetronomeMode
+{
+    Off,
+    WhileRecording,
+    Always,
+}
+
+/// <summary>Metronome preferences.</summary>
+/// <param name="Mode">When beats click during playback.</param>
+/// <param name="Output">The endpoint to click on; <see langword="null"/> uses the selected track's output.</param>
+public sealed record MetronomeSettings(MetronomeMode Mode = MetronomeMode.WhileRecording, EndpointId? Output = null)
+{
+    /// <summary>The click's notes, velocities, and channel (the slot is assigned by the controller).</summary>
+    public MetronomeClick Sound { get; init; } = new(0);
+}
+
+/// <summary>How a take is recorded.</summary>
+/// <param name="CountInBars">Bars to count in before recording from a stop; 0 for none.</param>
+/// <param name="Replace">Replace what is already on the track in the recorded range, rather than merging (overdub).</param>
+public sealed record RecordOptions(int CountInBars = 1, bool Replace = false);
 
 /// <summary>
 /// Connects a <see cref="ProjectSession"/> to MIDI outputs and the playback engine. It keeps routes
@@ -22,7 +47,15 @@ public sealed class PlaybackController : IAsyncDisposable
     private readonly PlaybackThread? _thread;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<EndpointId, IMidiOutput> _open = [];
+
+    // _open as of the last refresh, for thru and audition, which run outside the refresh gate.
+    private ImmutableDictionary<EndpointId, IMidiOutput> _published = ImmutableDictionary<EndpointId, IMidiOutput>.Empty;
     private ImmutableArray<EndpointId> _slots = [];
+    private MetronomeSettings _metronome = new();
+    private TrackId? _thruTrack;
+    private IReadOnlyCollection<EndpointId>? _inputSelection;
+    private RecordOptions _recordOptions = new();
+    private (IMidiOutput Output, ChannelMessage Off)? _audition;
 
     /// <param name="session">The project being played.</param>
     /// <param name="endpoints">Every available MIDI provider.</param>
@@ -37,10 +70,19 @@ public sealed class PlaybackController : IAsyncDisposable
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
         Profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
         Engine = new PlaybackEngine(clock, session.Project.Sequence.TempoMap, options);
+        Recorder = new MidiRecorder(Engine);
         _thread = startThread ? new PlaybackThread(Engine, playbackThreadSetup) : null;
     }
 
     public PlaybackEngine Engine { get; }
+
+    /// <summary>MIDI input, thru, and take capture.</summary>
+    public MidiRecorder Recorder { get; }
+
+    public MetronomeSettings Metronome => _metronome;
+
+    /// <summary>Problems opening MIDI inputs during the last refresh.</summary>
+    public ImmutableArray<string> InputProblems { get; private set; } = [];
 
     public ProfileCatalog Profiles { get; private set; }
 
@@ -71,19 +113,32 @@ public sealed class PlaybackController : IAsyncDisposable
             var prepared = PlaybackRouting.Prepare(project.Sequence, Routes);
             var problems = ImmutableArray.CreateBuilder<string>();
 
-            var stale = _slots.Any(id => !_open.TryGetValue(id, out var output) || output.State != EndpointState.Open);
-            if (stale || !prepared.Slots.SequenceEqual(_slots))
+            // The metronome may click on an output no track uses; it gets a slot of its own.
+            var slots = prepared.Slots;
+            var metronomeEndpoint = MetronomeEndpoint();
+            if (metronomeEndpoint is { } clickOn && !slots.Contains(clickOn))
             {
-                var outputs = new IMidiOutput?[prepared.Slots.Length];
+                slots = slots.Add(clickOn);
+            }
+
+            var stale = _slots.Any(id => !_open.TryGetValue(id, out var output) || output.State != EndpointState.Open);
+            if (stale || !slots.SequenceEqual(_slots))
+            {
+                var outputs = new IMidiOutput?[slots.Length];
                 for (var i = 0; i < outputs.Length; i++)
                 {
-                    outputs[i] = await GetOrOpenAsync(prepared.Slots[i], problems, cancellationToken).ConfigureAwait(false);
+                    outputs[i] = await GetOrOpenAsync(slots[i], problems, cancellationToken).ConfigureAwait(false);
                 }
 
                 Engine.SetOutputs(outputs);
-                CloseUnused(prepared.Slots);
-                _slots = prepared.Slots;
+                CloseUnused(slots);
+                _slots = slots;
             }
+
+            Volatile.Write(ref _published, _open.ToImmutableDictionary());
+            ApplyMetronome();
+            ApplyThru();
+            InputProblems = await Recorder.SetInputsAsync(_endpoints, WantedInputs(), cancellationToken).ConfigureAwait(false);
 
             var plan = PlaybackPlanCompiler.Compile(project.Sequence, prepared.Bindings);
             Engine.Load(plan);
@@ -105,7 +160,113 @@ public sealed class PlaybackController : IAsyncDisposable
         Engine.Play(from);
     }
 
-    public void Stop() => Engine.Stop();
+    /// <summary>Stops playback. A take being recorded is finished and added to its track first.</summary>
+    public RecordedTake? Stop()
+    {
+        var take = FinishRecording();
+        Engine.Stop();
+        return take;
+    }
+
+    /// <summary>The input endpoints recording can use.</summary>
+    public IReadOnlyList<EndpointDescriptor> InputEndpoints => _endpoints.GetEndpoints(EndpointDirection.Input);
+
+    /// <summary>
+    /// Chooses which inputs to listen to; <see langword="null"/> listens to every input except
+    /// Cadence's built-in test and monitor buses (which would echo Cadence's own output back).
+    /// Takes effect on the next <see cref="RefreshAsync"/>.
+    /// </summary>
+    public void SelectInputs(IReadOnlyCollection<EndpointId>? inputs) => _inputSelection = inputs;
+
+    /// <summary>Echoes input to <paramref name="track"/>'s output (MIDI thru), or stops echoing when null.</summary>
+    public void SetThruTrack(TrackId? track)
+    {
+        _thruTrack = track;
+        ApplyThru();
+    }
+
+    /// <summary>Changes the metronome. Takes effect on the next <see cref="RefreshAsync"/> when its output changes.</summary>
+    public void SetMetronome(MetronomeSettings settings)
+    {
+        _metronome = settings ?? throw new ArgumentNullException(nameof(settings));
+        ApplyMetronome();
+    }
+
+    /// <summary>
+    /// Starts recording into <paramref name="track"/>. While playing, recording punches in at the
+    /// playhead; from a stop, playback starts at the playhead after the count-in.
+    /// </summary>
+    public async Task RecordAsync(TrackId track, RecordOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        _recordOptions = options ?? new RecordOptions();
+        if (Engine.State == TransportState.Playing)
+        {
+            Recorder.Start(track, Engine.Position);
+            ApplyMetronome();
+            return;
+        }
+
+        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+        var from = Engine.Position;
+        var sequence = _session.Project.Sequence;
+        var countIn = _recordOptions.CountInBars > 0 ? CountIn.Bars(sequence.TempoMap, sequence.MeterMap, from, _recordOptions.CountInBars) : null;
+        Recorder.Start(track, from);
+        ApplyMetronome();
+        Engine.Play(from, countIn);
+    }
+
+    /// <summary>
+    /// Ends the take (punch out) and adds it to its track as one undoable step, leaving the transport
+    /// running. Returns null when nothing was being recorded.
+    /// </summary>
+    public RecordedTake? FinishRecording()
+    {
+        if (!Recorder.IsRecording)
+        {
+            return null;
+        }
+
+        var project = _session.Project;
+        var end = Engine.Position;
+        var loop = project.Loop is { } l && Recorder.RecordingTrack is not null && Engine.State == TransportState.Playing ? l : null;
+        var take = Recorder.Stop(end, loop);
+        ApplyMetronome();
+        if (project.Sequence.FindTrack(take.Track) is not null && (take.Events.Length > 0 || _recordOptions.Replace))
+        {
+            _session.Execute(ProjectCommands.Record(take.Track, take.Events, _recordOptions.Replace ? take.Range : null));
+        }
+
+        return take;
+    }
+
+    /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a piano key.</summary>
+    public void Audition(TrackId track, NoteNumber note, Velocity velocity)
+    {
+        EndAudition();
+        if (Routes.FirstOrDefault(r => r.Track == track) is not { CanPlay: true } route
+            || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output))
+        {
+            return;
+        }
+
+        var channel = route.Route!.Channel ?? FirstChannel(_session.Project.Sequence.FindTrack(track)) ?? MidiChannel.FromIndex(0);
+        if (!note.TryTranspose(route.Route.Transpose, out var sounding))
+        {
+            return;
+        }
+
+        Engine.SendNow(output, ChannelMessage.NoteOn(channel, sounding, velocity));
+        _audition = (output, ChannelMessage.NoteOff(channel, sounding, Velocity.DefaultRelease));
+    }
+
+    public void EndAudition()
+    {
+        if (_audition is { } held)
+        {
+            Engine.SendNow(held.Output, held.Off);
+            _audition = null;
+        }
+    }
 
     public void Seek(Tick position) => Engine.Seek(position);
 
@@ -164,6 +325,8 @@ public sealed class PlaybackController : IAsyncDisposable
     /// <summary>Stops playback (releasing sounding notes), stops the playback thread, then closes every output.</summary>
     public async ValueTask DisposeAsync()
     {
+        EndAudition();
+        Recorder.Dispose();
         Engine.Stop();
         if (_thread is not null)
         {
@@ -184,6 +347,49 @@ public sealed class PlaybackController : IAsyncDisposable
         _gate.Dispose();
         await Task.CompletedTask.ConfigureAwait(false);
     }
+
+    private IReadOnlyCollection<EndpointId> WantedInputs() =>
+        _inputSelection ?? [.. InputEndpoints.Where(e => e.Transport != EndpointTransport.Test).Select(e => e.Id)];
+
+    /// <summary>The metronome's endpoint: the one chosen, or else the thru track's output.</summary>
+    private EndpointId? MetronomeEndpoint()
+    {
+        if (_metronome.Output is { } chosen)
+        {
+            return chosen;
+        }
+
+        var track = Recorder.RecordingTrack ?? _thruTrack;
+        return Routes.FirstOrDefault(r => r.Track == track) is { CanPlay: true } route ? route.Endpoint.Endpoint!.Id : null;
+    }
+
+    private void ApplyMetronome()
+    {
+        var slot = MetronomeEndpoint() is { } endpoint ? _slots.IndexOf(endpoint) : -1;
+        var enabled = _metronome.Mode == MetronomeMode.Always || (_metronome.Mode == MetronomeMode.WhileRecording && Recorder.IsRecording);
+        Engine.SetMetronome(slot >= 0 ? _metronome.Sound with { Slot = slot } : null, enabled);
+    }
+
+    private void ApplyThru()
+    {
+        ThruTarget? target = null;
+        if (_thruTrack is { } track
+            && Routes.FirstOrDefault(r => r.Track == track) is { CanPlay: true } route
+            && Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output))
+        {
+            target = new ThruTarget(output, route.Route!.Channel, route.Route.Transpose);
+        }
+
+        Recorder.SetThru(target);
+    }
+
+    private static MidiChannel? FirstChannel(Track? track) =>
+        track?.Events.Select(e => e switch
+        {
+            NoteEvent note => note.Channel,
+            ChannelEvent channel => channel.Message.Channel,
+            _ => (MidiChannel?)null,
+        }).FirstOrDefault(c => c is not null);
 
     private async Task<IMidiOutput?> GetOrOpenAsync(EndpointId id, ImmutableArray<string>.Builder problems, CancellationToken cancellationToken)
     {
