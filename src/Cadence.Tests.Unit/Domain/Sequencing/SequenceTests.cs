@@ -60,6 +60,20 @@ public sealed class SequenceTests
     }
 
     [Fact]
+    public void InsertTrack_PlacesTrackAtIndex()
+    {
+        var a = Track.Create("a");
+        var c = Track.Create("c");
+        var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(a).WithTrack(c);
+
+        var inserted = sequence.InsertTrack(1, Track.Create("b"));
+
+        Assert.Equal(["a", "b", "c"], inserted.Tracks.Select(t => t.Name));
+        Assert.Throws<ArgumentException>(() => inserted.InsertTrack(0, a));
+        Assert.Throws<ArgumentOutOfRangeException>(() => sequence.InsertTrack(3, Track.Create("x")));
+    }
+
+    [Fact]
     public void Markers_AreSorted()
     {
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithMarkers([new Marker(new Tick(10), "B"), new Marker(Tick.Zero, "A")]);

@@ -106,14 +106,14 @@
             <Grid ColumnDefinitions="272,*">
               <StackPanel>
                 <Border Height="{x:Static controls:TimelineView.RulerHeight}" BorderBrush="{StaticResource Cadence.Border}" BorderThickness="0,0,0,1" />
-                <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItem="{Binding SelectedTrack}"
+                <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItems="{Binding SelectedTracks}" SelectionMode="Multiple"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Tracks">
                   <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:TrackViewModel">
                       <Grid ColumnDefinitions="4,*,Auto" AutomationProperties.Name="{Binding Name}">
                         <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" CornerRadius="0" Margin="0,10" />
                         <StackPanel Grid.Column="1" Margin="12,8,6,8" Spacing="3" VerticalAlignment="Center">
-                          <TextBox Classes="inline" Text="{Binding Name}" AutomationProperties.Name="Track name" />
+                          <TextBox Classes="inline" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Track name" />
                           <StackPanel Orientation="Horizontal" Spacing="6">
                             <Border Classes="chip" Classes.ready="{Binding IsReady}" Classes.attention="{Binding NeedsAttention}" Classes.offline="{Binding IsOffline}"
                                     ToolTip.Tip="{Binding RouteText}" AutomationProperties.Name="{Binding HealthText}">
@@ -167,13 +167,13 @@
       <Border Grid.Column="2" Classes="panel">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <Panel Margin="16">
-            <TextBlock Text="Select a track to set up its instrument and output." Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding SelectedTrack, Converter={x:Static ObjectConverters.IsNull}}" />
-            <StackPanel Spacing="14" DataContext="{Binding SelectedTrack}" x:DataType="vm:TrackViewModel"
-                        IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectedTrack, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}">
+            <TextBlock Text="Select a track to set up its instrument and output. Shift-click or ⌘/Ctrl-click to select several." Classes="secondary" TextWrapping="Wrap"
+                       IsVisible="{Binding !Selection.HasSelection}" />
+            <StackPanel Spacing="14" DataContext="{Binding Selection}" x:DataType="vm:SelectionViewModel" IsVisible="{Binding HasSelection}">
               <StackPanel Spacing="4">
-                <TextBlock Text="TRACK" Classes="overline" />
-                <TextBlock Text="{Binding Name}" Classes="title" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding RouteText}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding IsMultiple, Converter={x:Static theme:SelectionHeaderConverter.Instance}}" Classes="overline" />
+                <TextBlock Text="{Binding Title}" Classes="title" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" Classes="muted" TextWrapping="Wrap" />
               </StackPanel>
 
               <Border Classes="card">
@@ -211,7 +211,8 @@
                     <TextBlock Text="Channel" Classes="muted" />
                     <TextBlock Grid.Column="2" Text="Transpose" Classes="muted" />
                     <ComboBox Grid.Row="1" ItemsSource="{Binding ChannelChoices}" SelectedItem="{Binding Channel}" HorizontalAlignment="Stretch" AutomationProperties.Name="Channel" />
-                    <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding Transpose}" Minimum="-48" Maximum="48" Increment="1" FormatString="+0;-0;0" AutomationProperties.Name="Transpose in semitones" />
+                    <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding Transpose}" Minimum="-48" Maximum="48" Increment="1" FormatString="+0;-0;0"
+                                   PlaceholderText="Mixed" AutomationProperties.Name="Transpose in semitones" />
                   </Grid>
                 </StackPanel>
               </Border>
@@ -219,10 +220,10 @@
               <Border Classes="card">
                 <StackPanel Spacing="8">
                   <TextBlock Text="VOICE" Classes="overline" />
-                  <ComboBox ItemsSource="{Binding Banks}" SelectedItem="{Binding VoiceBank}" HorizontalAlignment="Stretch" AutomationProperties.Name="Voice bank" />
+                  <ComboBox ItemsSource="{Binding Banks}" SelectedItem="{Binding VoiceBank}" HorizontalAlignment="Stretch" IsEnabled="{Binding CanEditVoice}" AutomationProperties.Name="Voice bank" />
                   <ComboBox ItemsSource="{Binding Programs}" SelectedItem="{Binding VoiceProgram}" HorizontalAlignment="Stretch" IsEnabled="{Binding Programs.Count}"
                             AutomationProperties.Name="Voice program" MaxDropDownHeight="360" />
-                  <TextBlock Text="Selected at the start of playback, before the track's own program changes." Classes="muted" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding VoiceHint}" Classes="muted" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
 
@@ -238,10 +239,11 @@
               </ItemsControl>
 
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Initialize Instrument…" IsEnabled="{Binding CanInitialize}"
+                <Button Content="Initialize Instrument…" IsEnabled="{Binding CanInitialize}" IsVisible="{Binding IsSingle}"
                         Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).InitializeInstrumentCommand}"
                         ToolTip.Tip="Send the profile's setup messages, asking before anything that resets the instrument" />
-                <Button Classes="danger" Content="Delete Track" Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteTrackCommand}" />
+                <Button Classes="danger" Content="{Binding IsMultiple, Converter={x:Static theme:DeleteLabelConverter.Instance}}"
+                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteTracksCommand}" ToolTip.Tip="Delete (⌫)" />
               </StackPanel>
             </StackPanel>
           </Panel>

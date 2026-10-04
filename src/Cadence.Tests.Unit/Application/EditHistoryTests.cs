@@ -103,6 +103,59 @@ public sealed class EditHistoryTests
     }
 
     [Fact]
+    public void BatchCommands_UndoAsOneStep()
+    {
+        var a = Track.Create("a");
+        var b = Track.Create("b");
+        var history = new EditHistory(Project.CreateNew());
+        history.Execute(ProjectCommands.AddTrack(a));
+        history.Execute(ProjectCommands.AddTrack(b));
+
+        history.Execute(ProjectCommands.SetMuted([a.Id, b.Id], true));
+        Assert.All(history.Current.Sequence.Tracks, t => Assert.True(t.IsMuted));
+        Assert.Equal("Mute Tracks", history.UndoLabel);
+
+        history.Undo();
+        Assert.All(history.Current.Sequence.Tracks, t => Assert.False(t.IsMuted));
+        Assert.False(history.Execute(ProjectCommands.SetSoloed([a.Id, b.Id], false)));
+    }
+
+    [Fact]
+    public void DuplicateTracks_CopiesBelowWithFreshIdsAndRoutes()
+    {
+        var note = new NoteEvent(Tick.Zero, new TickSpan(10), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max);
+        var a = Track.Create("Bass").Add(note);
+        var b = Track.Create("Drums");
+        var history = new EditHistory(Project.CreateNew());
+        history.Execute(ProjectCommands.AddTrack(a));
+        history.Execute(ProjectCommands.AddTrack(b));
+        history.Execute(ProjectCommands.SetRoute(new TrackRoute(a.Id) { Channel = MidiChannel.FromNumber(2) }));
+
+        history.Execute(ProjectCommands.DuplicateTracks([a.Id]));
+
+        var tracks = history.Current.Sequence.Tracks;
+        Assert.Equal(["Bass", "Bass copy", "Drums"], tracks.Select(t => t.Name));
+        Assert.NotEqual(a.Id, tracks[1].Id);
+        Assert.NotEqual(note.Id, tracks[1].Events.Single().Id);
+        Assert.Equal(MidiChannel.FromNumber(2), history.Current.Routing.Find(tracks[1].Id)!.Channel);
+    }
+
+    [Fact]
+    public void RemoveTracks_DeletesSeveralInOneStep()
+    {
+        var a = Track.Create("a");
+        var b = Track.Create("b");
+        var history = new EditHistory(Project.CreateNew());
+        history.Execute(ProjectCommands.AddTrack(a));
+        history.Execute(ProjectCommands.AddTrack(b));
+
+        history.Execute(ProjectCommands.RemoveTracks([a.Id, b.Id]));
+        Assert.Empty(history.Current.Sequence.Tracks);
+        history.Undo();
+        Assert.Equal(2, history.Current.Sequence.Tracks.Length);
+    }
+
+    [Fact]
     public void TempoAndLoopCommands_ChangeTransportSettings()
     {
         var history = new EditHistory(Project.CreateNew());

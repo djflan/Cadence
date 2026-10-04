@@ -20,7 +20,7 @@ public sealed class TimelineView : Control
     public static readonly StyledProperty<Project?> ProjectProperty = AvaloniaProperty.Register<TimelineView, Project?>(nameof(Project));
     public static readonly StyledProperty<double> PixelsPerQuarterProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(PixelsPerQuarter), 40);
     public static readonly StyledProperty<double> LaneHeightProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(LaneHeight), 64);
-    public static readonly StyledProperty<int> SelectedIndexProperty = AvaloniaProperty.Register<TimelineView, int>(nameof(SelectedIndex), -1);
+    public static readonly StyledProperty<IReadOnlySet<int>> SelectedLanesProperty = AvaloniaProperty.Register<TimelineView, IReadOnlySet<int>>(nameof(SelectedLanes), new HashSet<int>());
     public static readonly StyledProperty<double> VisibleLeftProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(VisibleLeft));
     public static readonly StyledProperty<double> VisibleWidthProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(VisibleWidth), double.PositiveInfinity);
 
@@ -37,7 +37,7 @@ public sealed class TimelineView : Control
 
     static TimelineView()
     {
-        AffectsRender<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty, SelectedIndexProperty, VisibleLeftProperty, VisibleWidthProperty);
+        AffectsRender<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty, SelectedLanesProperty, VisibleLeftProperty, VisibleWidthProperty);
         AffectsMeasure<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty);
         FocusableProperty.OverrideDefaultValue<TimelineView>(true);
     }
@@ -60,10 +60,11 @@ public sealed class TimelineView : Control
         set => SetValue(LaneHeightProperty, value);
     }
 
-    public int SelectedIndex
+    /// <summary>Indices of the lanes to highlight as selected.</summary>
+    public IReadOnlySet<int> SelectedLanes
     {
-        get => GetValue(SelectedIndexProperty);
-        set => SetValue(SelectedIndexProperty, value);
+        get => GetValue(SelectedLanesProperty);
+        set => SetValue(SelectedLanesProperty, value);
     }
 
     /// <summary>The horizontal scroll offset, used to draw only what is visible.</summary>
@@ -115,7 +116,7 @@ public sealed class TimelineView : Control
         for (var lane = 0; lane < Math.Max(1, sequence.Tracks.Length); lane++)
         {
             var top = RulerHeight + (lane * LaneHeight);
-            var brush = lane == SelectedIndex ? LaneSelected : lane % 2 == 1 ? LaneAlt : null;
+            var brush = SelectedLanes.Contains(lane) ? LaneSelected : lane % 2 == 1 ? LaneAlt : null;
             if (brush is not null)
             {
                 context.FillRectangle(brush, new Rect(left, top, right - left, LaneHeight));

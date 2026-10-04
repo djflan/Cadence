@@ -84,7 +84,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         var track = await ImportAsync();
 
-        track.Output = track.OutputChoices.Single(o => o.Name == "Synth");
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
         await Settle();
 
         Assert.True(track.IsReady);
@@ -98,7 +98,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task DisconnectedOutput_StaysVisibleAsAPlaceholder()
     {
         var track = await ImportAsync();
-        track.Output = track.OutputChoices.Single(o => o.Name == "Synth");
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
         await Settle();
 
         _provider.RemovePort("synth");
@@ -106,9 +106,11 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         var current = _vm.Tracks.Single();
         Assert.True(current.IsOffline);
-        Assert.False(current.Output!.IsAvailable);
+        Assert.False(current.Output.IsAvailable);
         Assert.Equal("Synth", current.Output.Name);
         Assert.Equal("Disconnected", current.Output.Detail);
+        Assert.Same(_vm.Selection.Output, _vm.Selection.OutputChoices.Last());
+        Assert.Equal("Disconnected", _vm.Selection.Output!.Detail);
     }
 
     [Fact]
@@ -116,18 +118,20 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         var track = await ImportAsync();
 
-        track.Profile = track.ProfileChoices.Single(p => p.Name == "Test GM");
+        var selection = _vm.Selection;
+        Assert.False(selection.CanEditVoice);
+        selection.Profile = selection.ProfileChoices.Single(p => p.Name == "Test GM");
         await Settle();
-        track = _vm.Tracks.Single();
-        track.VoiceBank = track.Banks.Single(b => b.Name == "Main");
+        selection.VoiceBank = selection.Banks.Single(b => b.Name == "Main");
         await Settle();
-        track = _vm.Tracks.Single();
 
-        Assert.Equal(["Not affiliated."], track.ProfileNotices);
-        Assert.Equal(128, track.Programs.Count);
-        Assert.Equal("1 · Piano", track.Programs[0].Name);
-        Assert.Equal("Program 2", track.Programs[1].Name);
-        Assert.Equal(new ProgramNumber(0), track.VoiceProgram!.Program);
+        Assert.True(selection.CanEditVoice);
+        Assert.Equal(["Not affiliated."], selection.ProfileNotices);
+        Assert.Equal(128, selection.Programs.Count);
+        Assert.Equal("1 · Piano", selection.Programs[0].Name);
+        Assert.Equal("Program 2", selection.Programs[1].Name);
+        Assert.Equal(new ProgramNumber(0), selection.VoiceProgram!.Program);
+        Assert.Equal("main", track.Route!.Voice!.BankId);
     }
 
     [Fact]
@@ -150,9 +154,9 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task InitializeInstrument_AsksBeforeResetting()
     {
         var track = await ImportAsync();
-        track.Output = track.OutputChoices.Single(o => o.Name == "Synth");
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
         await Settle();
-        _vm.Tracks.Single().Profile = _vm.Tracks.Single().ProfileChoices.Single(p => p.Name == "Test GM");
+        _vm.Selection.Profile = _vm.Selection.ProfileChoices.Single(p => p.Name == "Test GM");
         await Settle();
 
         _ui.ConfirmAnswer = false;
@@ -186,11 +190,11 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await ImportAsync();
 
         _ui.ConfirmAnswer = false;
-        await _vm.DeleteTrackCommand.ExecuteAsync(null);
+        await _vm.DeleteTracksCommand.ExecuteAsync(null);
         Assert.Single(_vm.Tracks);
 
         _ui.ConfirmAnswer = true;
-        await _vm.DeleteTrackCommand.ExecuteAsync(null);
+        await _vm.DeleteTracksCommand.ExecuteAsync(null);
         await Settle();
         Assert.Empty(_vm.Tracks);
     }
@@ -231,7 +235,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         await ImportAsync();
         _vm.SeekTo(480 * 5);
-        _vm.Tracks.Single().Output = _vm.Tracks.Single().OutputChoices.Single(o => o.Name == "Synth");
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
 
         _vm.OnFrame();
 
@@ -239,6 +243,126 @@ public sealed class MainViewModelTests : IAsyncLifetime
         Assert.Equal("0:02.500", _vm.TimeText);
         Assert.Equal("120.0", _vm.TempoText);
         Assert.Equal("4/4", _vm.MeterText);
+    }
+
+    private async Task<List<TrackViewModel>> ThreeTracksAsync()
+    {
+        await ImportAsync();
+        _vm.AddTrackCommand.Execute(null);
+        _vm.AddTrackCommand.Execute(null);
+        await Settle();
+        return [.. _vm.Tracks];
+    }
+
+    [Fact]
+    public async Task MultiSelection_ShowsMixedValuesAndAppliesChangesToAllInOneUndo()
+    {
+        var tracks = await ThreeTracksAsync();
+        _vm.Select(tracks[0]);
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
+        await Settle();
+
+        _vm.SelectAllTracksCommand.Execute(null);
+        Assert.Equal("3 tracks", _vm.Selection.Title);
+        Assert.True(_vm.Selection.Output!.IsMixed);
+
+        _vm.Selection.Output = _vm.Selection.OutputChoices.Single(o => o.Name == "Synth");
+        _vm.Selection.Channel = _vm.Selection.ChannelChoices.Single(c => c.Channel?.Number == 5);
+        _vm.Selection.Transpose = 7;
+        await Settle();
+
+        Assert.All(_vm.Tracks, t => Assert.True(t.IsReady));
+        Assert.All(_session.Project.Routing.Routes.Values, r => Assert.Equal((5, 7), (r.Channel!.Value.Number, r.Transpose)));
+        Assert.Equal("Transpose (3 Tracks)", _session.History.UndoLabel);
+
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(0, _vm.Selection.Transpose);
+        Assert.Equal(5, _vm.Selection.Channel!.Channel!.Value.Number);
+    }
+
+    [Fact]
+    public async Task MultiSelection_WithDifferentProfiles_DisablesVoice()
+    {
+        var tracks = await ThreeTracksAsync();
+        _vm.Select(tracks[0]);
+        _vm.Selection.Profile = _vm.Selection.ProfileChoices.Single(p => p.Name == "Test GM");
+        await Settle();
+
+        _vm.SelectAllTracksCommand.Execute(null);
+
+        Assert.True(_vm.Selection.Profile!.IsMixed);
+        Assert.False(_vm.Selection.CanEditVoice);
+        Assert.Contains("same installed profile", _vm.Selection.VoiceHint, StringComparison.Ordinal);
+        Assert.False(_vm.Selection.CanInitialize);
+    }
+
+    [Fact]
+    public async Task ToggleMuteAndSolo_ActOnTheSelection()
+    {
+        var tracks = await ThreeTracksAsync();
+        _vm.Select(tracks[0]);
+        _vm.SelectedTracks.Add(tracks[1]);
+
+        _vm.ToggleMuteCommand.Execute(null);
+        await Settle();
+        Assert.Equal([true, true, false], _vm.Tracks.Select(t => t.IsMuted));
+
+        _vm.ToggleMuteCommand.Execute(null);
+        _vm.ToggleSoloCommand.Execute(null);
+        await Settle();
+        Assert.All(_vm.Tracks, t => Assert.False(t.IsMuted));
+        Assert.Equal([true, true, false], _vm.Tracks.Select(t => t.IsSoloed));
+    }
+
+    [Fact]
+    public async Task DeleteAndDuplicate_ActOnTheSelection()
+    {
+        var tracks = await ThreeTracksAsync();
+        _vm.Select(tracks[1]);
+        _vm.SelectedTracks.Add(tracks[2]);
+
+        _vm.DuplicateTracksCommand.Execute(null);
+        await Settle();
+        Assert.Equal(["Piano", "Track 2", "Track 2 copy", "Track 3", "Track 3 copy"], _vm.Tracks.Select(t => t.Name));
+
+        _vm.Select(_vm.Tracks[0]);
+        _vm.SelectedTracks.Add(_vm.Tracks[1]);
+        await _vm.DeleteTracksCommand.ExecuteAsync(null);
+        await Settle();
+        Assert.Equal(["Track 2 copy", "Track 3", "Track 3 copy"], _vm.Tracks.Select(t => t.Name));
+        Assert.Contains("2 tracks", _ui.LastConfirmMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SelectAdjacent_MovesOrExtendsTheSelection()
+    {
+        var tracks = await ThreeTracksAsync();
+        _vm.Select(tracks[0]);
+
+        _vm.SelectAdjacent(1, extend: false);
+        Assert.Equal([tracks[1]], _vm.SelectedTracks);
+        _vm.SelectAdjacent(1, extend: true);
+        Assert.Equal([tracks[1], tracks[2]], _vm.SelectedTracks);
+        _vm.SelectAdjacent(5, extend: false);
+        Assert.Equal([tracks[2]], _vm.SelectedTracks);
+    }
+
+    [Fact]
+    public async Task BarNavigation_MovesByWholeBars()
+    {
+        await ImportAsync();
+        _vm.SeekTo(1920 + 100);
+
+        _vm.PreviousBarCommand.Execute(null);
+        Assert.Equal(1920, _vm.PlayheadTick);
+        _vm.PreviousBarCommand.Execute(null);
+        Assert.Equal(0, _vm.PlayheadTick);
+        _vm.NextBarCommand.Execute(null);
+        _vm.NextBarCommand.Execute(null);
+        Assert.Equal(3840, _vm.PlayheadTick);
+        _vm.GoToEndCommand.Execute(null);
+        Assert.Equal(480, _vm.PlayheadTick);
     }
 
     [Theory]
@@ -328,6 +452,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         public string? LastConfirmTitle { get; private set; }
 
+        public string LastConfirmMessage { get; private set; } = string.Empty;
+
         public UnsavedChangesChoice SaveChoice { get; set; } = UnsavedChangesChoice.Discard;
 
         public Task<string?> PickOpenFileAsync(string title, IReadOnlyList<FileFilter> filters) => Task.FromResult(NextOpenPath);
@@ -337,6 +463,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         public Task<bool> ConfirmAsync(string title, string message, string confirmLabel, bool destructive)
         {
             LastConfirmTitle = title;
+            LastConfirmMessage = message;
             return Task.FromResult(ConfirmAnswer);
         }
 

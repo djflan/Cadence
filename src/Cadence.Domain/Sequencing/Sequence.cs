@@ -72,6 +72,21 @@ public sealed class Sequence
         return new Sequence(Ppqn, TempoMap, MeterMap, Tracks.Add(track), Markers);
     }
 
+    /// <summary>Inserts a new track at <paramref name="index"/> (0 to the track count).</summary>
+    /// <exception cref="ArgumentException">A track with the same ID already exists.</exception>
+    public Sequence InsertTrack(int index, Track track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(index, Tracks.Length);
+        if (FindTrack(track.Id) is not null)
+        {
+            throw new ArgumentException($"Track {track.Id} is already in the sequence.", nameof(track));
+        }
+
+        return new Sequence(Ppqn, TempoMap, MeterMap, Tracks.Insert(index, track), Markers);
+    }
+
     public Sequence WithoutTrack(TrackId id) =>
         new(Ppqn, TempoMap, MeterMap, Tracks.RemoveAll(t => t.Id == id), Markers);
 

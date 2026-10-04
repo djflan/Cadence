@@ -55,6 +55,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _monitor = monitor;
         Project = session.Project;
+        Selection = new SelectionViewModel(this);
+        SelectedTracks.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(SelectedTrack));
+            SyncSelection();
+        };
 
         // Session work may finish on a thread-pool thread; view state is only touched on the UI thread.
         _session.Changed += (_, _) => _dispatcher.Run(OnSessionChanged);
@@ -78,8 +84,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial Project Project { get; private set; }
 
-    [ObservableProperty]
-    public partial TrackViewModel? SelectedTrack { get; set; }
+    /// <summary>
+    /// The selected tracks, in selection order. The list view binds to this collection directly, so
+    /// changes made here (select all, add track) are reflected in the UI and vice versa.
+    /// </summary>
+    public ObservableCollection<TrackViewModel> SelectedTracks { get; } = [];
+
+    /// <summary>The inspector for <see cref="SelectedTracks"/>.</summary>
+    public SelectionViewModel Selection { get; }
+
+    /// <summary>The first selected track, or null.</summary>
+    public TrackViewModel? SelectedTrack => SelectedTracks.Count > 0 ? SelectedTracks[0] : null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
@@ -154,6 +169,56 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal EndpointDescriptor? FindEndpoint(EndpointId id) => _outputDescriptors.FirstOrDefault(e => e.Id == id);
 
     internal DeviceProfile? FindProfile(string id) => _playback.Profiles.Find(id);
+
+    /// <summary>Applies a routing change to every selected track as one undoable step.</summary>
+    internal void ApplyToSelection(string label, Func<Domain.Routing.TrackRoute, Domain.Routing.TrackRoute> change)
+    {
+        var tracks = SelectedTracks.ToList();
+        if (tracks.Count == 0)
+        {
+            return;
+        }
+
+        var commands = tracks.Select(t => ProjectCommands.SetRoute(change(Project.Routing.Find(t.Id) ?? new Domain.Routing.TrackRoute(t.Id))));
+        Execute(ProjectCommands.Batch(tracks.Count == 1 ? label : $"{label} ({tracks.Count} Tracks)", commands));
+    }
+
+    /// <summary>Makes <paramref name="track"/> the only selected track.</summary>
+    public void Select(TrackViewModel track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (SelectedTracks.Count == 1 && SelectedTracks[0] == track)
+        {
+            return;
+        }
+
+        SelectedTracks.Clear();
+        SelectedTracks.Add(track);
+    }
+
+    /// <summary>Moves the selection up or down; with <paramref name="extend"/>, adds the next track instead.</summary>
+    public void SelectAdjacent(int delta, bool extend)
+    {
+        if (Tracks.Count == 0)
+        {
+            return;
+        }
+
+        var anchor = SelectedTracks.Count > 0 ? SelectedTracks[^1] : null;
+        var index = anchor is null ? (delta > 0 ? 0 : Tracks.Count - 1) : Math.Clamp(Tracks.IndexOf(anchor) + delta, 0, Tracks.Count - 1);
+        var target = Tracks[index];
+        if (extend)
+        {
+            if (!SelectedTracks.Contains(target))
+            {
+                SelectedTracks.Add(target);
+            }
+        }
+        else
+        {
+            Select(target);
+        }
+    }
 
     /// <summary>Polls engine state for display. Called by a UI timer (about 30 Hz); never schedules MIDI.</summary>
     public void OnFrame()
@@ -390,30 +455,101 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         var track = Track.Create(string.Create(CultureInfo.InvariantCulture, $"Track {Project.Sequence.Tracks.Length + 1}"));
         Execute(ProjectCommands.AddTrack(track));
-        SelectedTrack = Tracks.FirstOrDefault(t => t.Id == track.Id);
+        if (Tracks.FirstOrDefault(t => t.Id == track.Id) is { } added)
+        {
+            Select(added);
+        }
     }
 
     [RelayCommand]
-    private async Task DeleteTrackAsync()
+    private void SelectAllTracks()
     {
-        if (SelectedTrack is not { } selected || Project.Sequence.FindTrack(selected.Id) is not { } track)
+        foreach (var track in Tracks.Where(t => !SelectedTracks.Contains(t)).ToList())
         {
-            return;
+            SelectedTracks.Add(track);
         }
-
-        if (track.Events.Length > 0 && !await _ui.ConfirmAsync("Delete track?", $"\"{track.Name}\" has {track.Events.Length} events. You can undo this.", "Delete", destructive: true))
-        {
-            return;
-        }
-
-        Execute(ProjectCommands.RemoveTrack(track.Id));
     }
 
-    /// <summary>Routes every track to the selected track's output.</summary>
+    [RelayCommand]
+    private void DuplicateTracks()
+    {
+        if (SelectedTracks.Count > 0)
+        {
+            Execute(ProjectCommands.DuplicateTracks([.. SelectedTracks.Select(t => t.Id)]));
+        }
+    }
+
+    /// <summary>Mutes the selected tracks, or unmutes them if they are all muted.</summary>
+    [RelayCommand]
+    private void ToggleMute()
+    {
+        if (SelectedTracks.Count > 0)
+        {
+            Execute(ProjectCommands.SetMuted([.. SelectedTracks.Select(t => t.Id)], !SelectedTracks.All(t => t.IsMuted)));
+        }
+    }
+
+    /// <summary>Solos the selected tracks, or unsolos them if they are all soloed.</summary>
+    [RelayCommand]
+    private void ToggleSolo()
+    {
+        if (SelectedTracks.Count > 0)
+        {
+            Execute(ProjectCommands.SetSoloed([.. SelectedTracks.Select(t => t.Id)], !SelectedTracks.All(t => t.IsSoloed)));
+        }
+    }
+
+    [RelayCommand]
+    private void PreviousBar() => MoveByBars(-1);
+
+    [RelayCommand]
+    private void NextBar() => MoveByBars(1);
+
+    [RelayCommand]
+    private void GoToEnd() => SeekTo(Project.Sequence.EndPosition.Value);
+
+    /// <summary>Moves to the start of an adjacent bar. Going back from mid-bar first returns to the bar's start.</summary>
+    private void MoveByBars(int bars)
+    {
+        var meter = Project.Sequence.MeterMap;
+        var position = new Tick(PlayheadTick);
+        var start = meter.BarStart(position);
+        var bar = meter.ToBarBeatTick(start).Bar;
+        var targetBar = bars < 0 && start < position ? bar : Math.Max(1, bar + bars);
+        if (meter.TryGetTick(new BarBeatTick(targetBar, 1, 0), out var target))
+        {
+            SeekTo(target.Value);
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteTracksAsync()
+    {
+        var tracks = SelectedTracks.Select(t => Project.Sequence.FindTrack(t.Id)).OfType<Track>().ToList();
+        if (tracks.Count == 0)
+        {
+            return;
+        }
+
+        var events = tracks.Sum(t => t.Events.Length);
+        var subject = tracks.Count == 1 ? $"\"{tracks[0].Name}\"" : $"{tracks.Count} tracks";
+        if (events > 0 && !await _ui.ConfirmAsync(
+                tracks.Count == 1 ? "Delete track?" : "Delete tracks?",
+                $"{subject} {(tracks.Count == 1 ? "has" : "have")} {events} events. You can undo this.",
+                "Delete",
+                destructive: true))
+        {
+            return;
+        }
+
+        Execute(ProjectCommands.RemoveTracks([.. tracks.Select(t => t.Id)]));
+    }
+
+    /// <summary>Routes every track to the output shown in the inspector.</summary>
     [RelayCommand]
     private void UseOutputForAllTracks()
     {
-        if (SelectedTrack?.Output is not { Id: { } id, IsAvailable: true } || FindEndpoint(id) is not { } endpoint)
+        if (Selection.Output is not { Id: { } id, IsAvailable: true, IsMixed: false } || FindEndpoint(id) is not { } endpoint)
         {
             return;
         }
@@ -430,7 +566,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task InitializeInstrumentAsync()
     {
-        if (SelectedTrack is not { } track)
+        if (SelectedTracks.Count != 1 || SelectedTrack is not { } track)
         {
             return;
         }
@@ -509,6 +645,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OutputsText = string.Create(CultureInfo.InvariantCulture, $"{Outputs.Count} output{(Outputs.Count == 1 ? string.Empty : "s")} available");
     }
 
+    private void SyncSelection() => Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
+
     private static string Describe(EndpointTransport transport) => transport switch
     {
         EndpointTransport.Physical => "Hardware",
@@ -522,7 +660,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void SyncTracks()
     {
         var tracks = Project.Sequence.Tracks;
-        var selectedId = SelectedTrack?.Id;
+        var selectedIds = SelectedTracks.Select(t => t.Id).ToHashSet();
         for (var i = Tracks.Count - 1; i >= 0; i--)
         {
             if (!tracks.Any(t => t.Id == Tracks[i].Id))
@@ -545,10 +683,26 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 Tracks.Move(Tracks.IndexOf(existing), i);
             }
 
-            existing.Sync(i + 1, tracks[i], _playback.Routes.FirstOrDefault(r => r.Track == tracks[i].Id), outputs, _playback.Profiles);
+            existing.Sync(i + 1, tracks[i], _playback.Routes.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
         }
 
-        SelectedTrack = Tracks.FirstOrDefault(t => t.Id == selectedId) ?? Tracks.FirstOrDefault();
+        for (var i = SelectedTracks.Count - 1; i >= 0; i--)
+        {
+            if (!Tracks.Contains(SelectedTracks[i]))
+            {
+                SelectedTracks.RemoveAt(i);
+            }
+        }
+
+        if (SelectedTracks.Count == 0 && Tracks.Count > 0)
+        {
+            SelectedTracks.Add(Tracks[0]);
+        }
+        else if (selectedIds.Count > 0)
+        {
+            // Rows were updated in place; refresh the inspector from their new values.
+            SyncSelection();
+        }
     }
 
     private async Task<bool> ResolveUnsavedChangesAsync()

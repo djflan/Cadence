@@ -20,7 +20,8 @@ internal static class AppMenu
         (Key.N, KeyModifiers.None), (Key.O, KeyModifiers.None), (Key.W, KeyModifiers.None), (Key.S, KeyModifiers.None),
         (Key.S, KeyModifiers.Shift), (Key.I, KeyModifiers.None), (Key.E, KeyModifiers.None), (Key.Z, KeyModifiers.None),
         (Key.Z, KeyModifiers.Shift), (Key.T, KeyModifiers.None), (Key.OemPeriod, KeyModifiers.None), (Key.OemPlus, KeyModifiers.None),
-        (Key.OemMinus, KeyModifiers.None), (Key.M, KeyModifiers.None),
+        (Key.OemMinus, KeyModifiers.None), (Key.M, KeyModifiers.None), (Key.A, KeyModifiers.None), (Key.D, KeyModifiers.None),
+        (Key.X, KeyModifiers.None), (Key.C, KeyModifiers.None), (Key.V, KeyModifiers.None), (Key.OemQuestion, KeyModifiers.None),
     ];
 
     public static void Install(MainWindow window, MainViewModel vm, KeyModifiers command)
@@ -48,18 +49,32 @@ internal static class AppMenu
                 Item("Export MIDI File…", vm.ExportMidiCommand, Cmd(Key.E))),
             Submenu("Edit",
                 Item("Undo", vm.UndoCommand, Cmd(Key.Z)),
-                Item("Redo", vm.RedoCommand, Cmd(Key.Z, KeyModifiers.Shift))),
+                Item("Redo", vm.RedoCommand, Cmd(Key.Z, KeyModifiers.Shift)),
+                new NativeMenuItemSeparator(),
+                Item("Cut", () => window.FocusedTextBox()?.Cut(), Cmd(Key.X)),
+                Item("Copy", () => window.FocusedTextBox()?.Copy(), Cmd(Key.C)),
+                Item("Paste", () => window.FocusedTextBox()?.Paste(), Cmd(Key.V)),
+                Item("Select All", window.SelectAll, Cmd(Key.A))),
+            // Single-key shortcuts are shown in the titles but handled by the window, so they never
+            // reach the menu bar while a text field is being edited.
             Submenu("Track",
                 Item("Add Track", vm.AddTrackCommand, Cmd(Key.T)),
-                Item("Delete Track…", vm.DeleteTrackCommand),
+                Item("Duplicate", vm.DuplicateTracksCommand, Cmd(Key.D)),
+                Item("Rename    Return", window.BeginRename),
+                Item("Delete    ⌫", vm.DeleteTracksCommand),
+                new NativeMenuItemSeparator(),
+                Item("Mute    M", vm.ToggleMuteCommand),
+                Item("Solo    S", vm.ToggleSoloCommand),
                 new NativeMenuItemSeparator(),
                 Item("Use Output for All Tracks", vm.UseOutputForAllTracksCommand),
                 Item("Initialize Instrument…", vm.InitializeInstrumentCommand)),
-            // Space, Home, and L stay window key bindings so they never steal keys from text fields.
             Submenu("Transport",
                 Item("Play / Pause    Space", vm.PlayPauseCommand),
                 Item("Stop", vm.StopCommand),
                 Item("Return to Start    Home", vm.ReturnToStartCommand),
+                Item("Go to End    End", vm.GoToEndCommand),
+                Item("Previous Bar    ,", vm.PreviousBarCommand),
+                Item("Next Bar    .", vm.NextBarCommand),
                 Item("Loop Four Bars    L", vm.ToggleLoopCommand),
                 new NativeMenuItemSeparator(),
                 Item("Panic", vm.PanicCommand, Cmd(Key.OemPeriod))),
@@ -70,6 +85,7 @@ internal static class AppMenu
                 Item("Minimize", () => window.WindowState = WindowState.Minimized, Cmd(Key.M)),
                 Item("Zoom", () => window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized)),
             Submenu("Help",
+                Item("Keyboard Shortcuts", window.ShowShortcuts, Cmd(Key.OemQuestion)),
                 Item("Cadence Help", () => _ = window.Launcher.LaunchUriAsync(new Uri(HelpUrl)))),
         ]);
     }

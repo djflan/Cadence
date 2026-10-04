@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Cadence.Presentation;
 
 namespace Cadence.Desktop.Views;
@@ -30,7 +31,9 @@ public partial class MainWindow : Window
         Timeline.SeekRequested += (_, tick) => viewModel.SeekTo(tick);
         TimelineScroller.ScrollChanged += (_, _) => SyncTimelineViewport();
         TimelineScroller.SizeChanged += (_, _) => SyncTimelineViewport();
-        TrackList.SelectionChanged += (_, _) => Timeline.SelectedIndex = TrackList.SelectedIndex;
+        viewModel.SelectedTracks.CollectionChanged += (_, _) => SyncSelectedLanes();
+        viewModel.Tracks.CollectionChanged += (_, _) => SyncSelectedLanes();
+        AddHandler(KeyDownEvent, OnShortcutKeyDown, RoutingStrategies.Tunnel);
         viewModel.MonitorEntries.CollectionChanged += (_, _) =>
         {
             if (viewModel.MonitorEntries.Count > 0)
@@ -154,9 +157,7 @@ public partial class MainWindow : Window
             }
         }
 
-        Bind(Key.Space, KeyModifiers.None, vm.PlayPauseCommand);
-        Bind(Key.Home, KeyModifiers.None, vm.ReturnToStartCommand);
-        Bind(Key.L, KeyModifiers.None, vm.ToggleLoopCommand);
+        Bind(Key.D, command, vm.DuplicateTracksCommand);
         Bind(Key.OemPeriod, command, vm.PanicCommand);
         Bind(Key.Z, command, vm.UndoCommand);
         Bind(Key.Z, command | KeyModifiers.Shift, vm.RedoCommand);
@@ -169,6 +170,139 @@ public partial class MainWindow : Window
         Bind(Key.T, command, vm.AddTrackCommand);
         Bind(Key.OemPlus, command, vm.ZoomInCommand);
         Bind(Key.OemMinus, command, vm.ZoomOutCommand);
+    }
+
+    private void SyncSelectedLanes()
+    {
+        if (_viewModel is { } vm)
+        {
+            Timeline.SelectedLanes = vm.SelectedTracks.Select(t => vm.Tracks.IndexOf(t)).Where(i => i >= 0).ToHashSet();
+        }
+    }
+
+    /// <summary>The text field being edited, if any. Single-key shortcuts stand aside while one is focused.</summary>
+    internal TextBox? FocusedTextBox() => FocusManager?.GetFocusedElement() as TextBox;
+
+    /// <summary>Select All: the text in a focused field, otherwise every track.</summary>
+    internal void SelectAll()
+    {
+        if (FocusedTextBox() is { } text)
+        {
+            text.SelectAll();
+        }
+        else
+        {
+            _viewModel?.SelectAllTracksCommand.Execute(null);
+        }
+    }
+
+    /// <summary>Starts editing the first selected track's name.</summary>
+    internal void BeginRename()
+    {
+        if (_viewModel?.SelectedTrack is not { } track
+            || TrackList.ContainerFromItem(track) is not { } container
+            || container.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is not { } name)
+        {
+            return;
+        }
+
+        // Deferred so the key that started the rename cannot also type into the field.
+        Dispatcher.UIThread.Post(() =>
+        {
+            name.Focus();
+            name.SelectAll();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary>Leaves a text field by focusing its track row, so the next keys act on tracks again.</summary>
+    private void EndEditing(TextBox editing)
+    {
+        var row = editing.DataContext is TrackViewModel track ? TrackList.ContainerFromItem(track) : null;
+        if (row?.Focus() != true)
+        {
+            Timeline.Focus();
+        }
+    }
+
+    internal void ShowShortcuts() => _ = Shortcuts.CreateWindow().ShowDialog(this);
+
+    /// <summary>
+    /// Single-key and navigation shortcuts. Runs before focused controls (tunnel) so that, for
+    /// example, Space plays even when the track list has focus, but never while text is being edited.
+    /// </summary>
+    private void OnShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is not { } vm)
+        {
+            return;
+        }
+
+        if (FocusedTextBox() is { } editing)
+        {
+            // Return commits a track name and Escape cancels it; everything else belongs to the field.
+            if (editing.Classes.Contains("inline") && e.Key is Key.Return or Key.Enter or Key.Escape)
+            {
+                if (editing.DataContext is TrackViewModel track)
+                {
+                    if (e.Key == Key.Escape)
+                    {
+                        editing.Text = track.Name;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(editing.Text))
+                    {
+                        track.Name = editing.Text.Trim();
+                    }
+                }
+
+                EndEditing(editing);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var modifiers = e.KeyModifiers;
+        System.Windows.Input.ICommand? target = (e.Key, modifiers) switch
+        {
+            (Key.Space, KeyModifiers.None) => vm.PlayPauseCommand,
+            (Key.Home, KeyModifiers.None) => vm.ReturnToStartCommand,
+            (Key.End, KeyModifiers.None) => vm.GoToEndCommand,
+            (Key.OemComma, KeyModifiers.None) => vm.PreviousBarCommand,
+            (Key.OemPeriod, KeyModifiers.None) => vm.NextBarCommand,
+            (Key.L, KeyModifiers.None) => vm.ToggleLoopCommand,
+            (Key.M, KeyModifiers.None) => vm.ToggleMuteCommand,
+            (Key.S, KeyModifiers.None) => vm.ToggleSoloCommand,
+            (Key.Delete or Key.Back, KeyModifiers.None) => vm.DeleteTracksCommand,
+            _ => null,
+        };
+
+        if (target is not null)
+        {
+            target.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Return or Key.Enter when modifiers == KeyModifiers.None:
+                BeginRename();
+                e.Handled = true;
+                break;
+            case Key.Up or Key.Down when (modifiers is KeyModifiers.None or KeyModifiers.Shift) && !TrackList.IsKeyboardFocusWithin:
+                vm.SelectAdjacent(e.Key == Key.Up ? -1 : 1, extend: modifiers == KeyModifiers.Shift);
+                e.Handled = true;
+                break;
+            case Key.A when modifiers == command:
+                SelectAll();
+                e.Handled = true;
+                break;
+            case Key.OemQuestion when modifiers.HasFlag(command):
+                ShowShortcuts();
+                e.Handled = true;
+                break;
+        }
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)

@@ -119,14 +119,22 @@ onto the window to open it. Hardware checks are listed in
 | Action | Shortcut |
 | ------ | -------- |
 | Play / pause | Space |
-| Return to start | Home |
+| Return to start / go to end | Home / End |
+| Previous / next bar | , / . |
 | Loop four bars from the playhead | L |
 | Panic (silence every output) | Ctrl/Cmd + . |
+| Select tracks | Click; Shift-click for a range; Ctrl/Cmd-click to add or remove; ↑ / ↓ (Shift to extend) |
+| Select all tracks | Ctrl/Cmd + A |
+| Rename / mute / solo / delete selected tracks | Return / M / S / Delete |
+| Add / duplicate tracks | Ctrl/Cmd + T / Ctrl/Cmd + D |
 | Undo / Redo | Ctrl/Cmd + Z / Ctrl/Cmd + Shift + Z |
 | New, Open, Save, Save As | Ctrl/Cmd + N, O, S, Shift + S |
 | Import / Export MIDI | Ctrl/Cmd + I / E |
-| Add track | Ctrl/Cmd + T |
 | Zoom timeline | Ctrl/Cmd + scroll, trackpad pinch, scroll over the bar ruler, or Ctrl/Cmd + = / − |
+| Keyboard shortcut reference | Ctrl/Cmd + / |
+
+With several tracks selected, the inspector changes output, profile, channel, transpose, and voice
+for all of them at once (one undo step); values that differ show *Mixed*.
 
 On macOS, all commands are also in the standard menu bar (File, Edit, Track, Transport, View,
 Window, Help, and *About Cadence* in the application menu).
