@@ -39,6 +39,13 @@ public static class PlaybackPlanCompiler
             ArgumentOutOfRangeException.ThrowIfNegative(binding.OutputSlot, nameof(bindings));
             var pendingSysEx = new List<byte>();
             long pendingSysExTick = 0;
+            var transposedAway = 0;
+
+            for (var i = 0; i < binding.InitialMessages.Length; i++)
+            {
+                var message = Rechannel(binding.InitialMessages[i]);
+                Add(0, EventOrder.PhaseOf(message), i - binding.InitialMessages.Length, new PlanEvent(0, binding.OutputSlot, message, -1, 0));
+            }
 
             for (var i = 0; i < track.Events.Length; i++)
             {
@@ -46,11 +53,19 @@ public static class PlaybackPlanCompiler
                 var tick = e.Position.Value;
                 switch (e)
                 {
+                    case NoteEvent note when binding.Transpose != 0 && !note.Note.TryTranspose(binding.Transpose, out _):
+                        transposedAway++;
+                        break;
                     case NoteEvent note:
-                        Add(tick, EventPhase.NoteOn, i, new PlanEvent(tick, binding.OutputSlot, Rechannel(note.OnMessage), -1, note.Duration.Value, note.ReleaseVelocity));
+                        var on = binding.Transpose == 0 ? note.OnMessage : (note with { Note = Transposed(note.Note) }).OnMessage;
+                        Add(tick, EventPhase.NoteOn, i, new PlanEvent(tick, binding.OutputSlot, Rechannel(on), -1, note.Duration.Value, note.ReleaseVelocity));
+                        break;
+                    case ChannelEvent channel when !TryTransposeKeyed(channel.Message, out _):
+                        transposedAway++;
                         break;
                     case ChannelEvent channel:
-                        Add(tick, e.Phase, i, new PlanEvent(tick, binding.OutputSlot, Rechannel(channel.Message), -1, 0));
+                        TryTransposeKeyed(channel.Message, out var keyed);
+                        Add(tick, e.Phase, i, new PlanEvent(tick, binding.OutputSlot, Rechannel(keyed), -1, 0));
                         break;
                     case SysExEvent sysEx:
                         AddPayload(tick, i, sysEx.Message.Bytes);
@@ -59,6 +74,11 @@ public static class PlaybackPlanCompiler
                         AddRaw(raw, i);
                         break;
                 }
+            }
+
+            if (transposedAway > 0)
+            {
+                diagnostics.Add(new PlanDiagnostic(track.Id, $"{transposedAway} notes were transposed outside the MIDI range and will not play."));
             }
 
             if (pendingSysEx.Count > 0)
@@ -75,6 +95,26 @@ public static class PlaybackPlanCompiler
             }
 
             ChannelMessage Rechannel(ChannelMessage message) => binding.Channel is { } channel ? message.WithChannel(channel) : message;
+
+            NoteNumber Transposed(NoteNumber note) => note.TryTranspose(binding.Transpose, out var result) ? result : note;
+
+            // Note-on/off and polyphonic pressure carry a note number and move with the transposition.
+            bool TryTransposeKeyed(ChannelMessage message, out ChannelMessage result)
+            {
+                result = message;
+                if (binding.Transpose == 0 || message.Kind is not (ChannelMessageKind.NoteOn or ChannelMessageKind.NoteOff or ChannelMessageKind.PolyPressure))
+                {
+                    return true;
+                }
+
+                if (!message.Note.TryTranspose(binding.Transpose, out var note))
+                {
+                    return false;
+                }
+
+                ChannelMessage.TryCreate(message.Status, note.Value, message.Data2, out result);
+                return true;
+            }
 
             // Raw events are sent when they are a complete message on their own. SysEx split across
             // several events is joined and sent at the time of its first packet.

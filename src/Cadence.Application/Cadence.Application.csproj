@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Use cases and orchestration: routing resolution, playback preparation, editing commands. UI-free. -->
+  <PropertyGroup>
+    <RootNamespace>Cadence.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+    <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
+    <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
+    <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
+  </ItemGroup>
+</Project>

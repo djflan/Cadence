@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Cadence.Application/Cadence.Application.csproj" />
   <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
   <Project Path="Cadence.Midi/Cadence.Midi.csproj" />
   <Project Path="Cadence.Playback/Cadence.Playback.csproj" />

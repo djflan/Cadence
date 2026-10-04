@@ -1,13 +1,22 @@
+using System.Collections.Immutable;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 
 namespace Cadence.Playback;
 
-/// <summary>Where a track's events go in a plan: an output slot and an optional channel override.</summary>
+/// <summary>Where a track's events go in a plan, and how they are transformed on the way.</summary>
 /// <param name="OutputSlot">Index into the outputs given to <see cref="PlaybackEngine.SetOutputs"/>.</param>
 /// <param name="Channel">When set, every channel message on the track is re-addressed to this channel.</param>
-public sealed record PlanTrackBinding(int OutputSlot, MidiChannel? Channel = null);
+/// <param name="Transpose">Semitones added to every note; notes pushed outside 0-127 are left out and reported.</param>
+public sealed record PlanTrackBinding(int OutputSlot, MidiChannel? Channel = null, int Transpose = 0)
+{
+    /// <summary>
+    /// Messages sent at tick 0 before the track's own events in the same phase, such as a voice
+    /// selection. They are subject to the channel override but not to transposition.
+    /// </summary>
+    public ImmutableArray<ChannelMessage> InitialMessages { get; init; } = [];
+}
 
 /// <summary>Something the compiler left out of a plan, and why.</summary>
 public sealed record PlanDiagnostic(TrackId Track, string Message);

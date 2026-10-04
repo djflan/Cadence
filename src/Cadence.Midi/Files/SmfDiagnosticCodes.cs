@@ -33,4 +33,5 @@ public static class SmfDiagnosticCodes
     // Exporting
     public const string MixerStateNotStored = "SMF200";
     public const string TextEncodedAsUtf8 = "SMF201";
+    public const string OverlappingNotes = "SMF202";
 }

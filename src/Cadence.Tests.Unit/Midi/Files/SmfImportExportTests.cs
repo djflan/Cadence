@@ -229,7 +229,7 @@ public sealed class SmfImportExportTests
                 return new Sequence(
                     new TempoMap(ppqn, tempos.Select(t => new TempoChange(new Tick(t.Item1), new Tempo(t.Item2)))),
                     new MeterMap(ppqn, meters.Select(m => new MeterChange(new Tick(m.Item1), TimeSignature.FromExponent(m.Item2, m.Item3)))),
-                    tracks.Select(t => new Track(TrackId.New(), t.Item1, t.Item2)),
+                    tracks.Select(t => new Track(TrackId.New(), t.Item1, WithoutOverlappingNotes(t.Item2))),
                     []);
             });
 
@@ -245,6 +245,39 @@ public sealed class SmfImportExportTests
                 && imported.Sequence.MeterMap.Changes.SequenceEqual(original.MeterMap.Changes)
                 && imported.Sequence.Tracks.Select(Describe).SequenceEqual(original.Tracks.Select(Describe));
         });
+
+    /// <summary>Drops notes that overlap an earlier note of the same pitch and channel, which a MIDI file cannot represent unambiguously.</summary>
+    private static IEnumerable<TrackEvent> WithoutOverlappingNotes(TrackEvent[] events)
+    {
+        var busyUntil = new Dictionary<(MidiChannel, NoteNumber), long>();
+        foreach (var e in events.OrderBy(e => e.Position))
+        {
+            if (e is NoteEvent note)
+            {
+                var key = (note.Channel, note.Note);
+                if (busyUntil.TryGetValue(key, out var end) && note.Position.Value < end)
+                {
+                    continue;
+                }
+
+                busyUntil[key] = note.EndPosition.Value;
+            }
+
+            yield return e;
+        }
+    }
+
+    [Fact]
+    public void Export_WarnsThatOverlappingSamePitchNotesAreAmbiguous()
+    {
+        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(new Track(TrackId.New(), "", [
+            new NoteEvent(Tick.Zero, new TickSpan(100), One, NoteNumber.MiddleC, Velocity.Max),
+            new NoteEvent(new Tick(10), new TickSpan(20), One, NoteNumber.MiddleC, Velocity.Max),
+            new NoteEvent(new Tick(10), new TickSpan(20), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max),
+        ]));
+
+        AssertCode(SmfExporter.Export(sequence).Diagnostics, SmfDiagnosticCodes.OverlappingNotes);
+    }
 
     private static string Describe(Track track) =>
         track.Name + ":" + string.Join(";", track.Events.Select(e => e switch

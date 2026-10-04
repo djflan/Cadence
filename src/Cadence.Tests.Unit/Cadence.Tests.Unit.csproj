@@ -10,6 +10,7 @@
     <PackageReference Include="CsCheck" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../Cadence.Application/Cadence.Application.csproj" />
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />

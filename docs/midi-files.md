@@ -74,10 +74,13 @@ with a count.
 | SMF112 | Warning | A track name was shortened to 256 characters |
 | SMF200 | Info | Mute/solo state cannot be stored in a MIDI file |
 | SMF201 | Info | Non-ASCII names were written as UTF-8 |
+| SMF202 | Warning | Same-pitch notes overlap on one channel; their lengths may change when read back |
 
 ## Known limitations
 
 - Byte-exact reproduction of an imported file is not a goal: export uses canonical event order,
   running status, and standard metronome settings.
 - A track's end-of-track position is not kept; exported tracks end at their last event.
+- Overlapping notes of the same pitch on the same channel cannot be stored unambiguously in a MIDI
+  file: on import they are paired first-in, first-out, so their lengths may differ (SMF202).
 - RIFF-wrapped (`.rmi`) files are not yet recognized.

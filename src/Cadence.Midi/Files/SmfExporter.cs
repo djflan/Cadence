@@ -100,8 +100,33 @@ public static class SmfExporter
             }
         }
 
+        if (HasOverlappingNotes(track))
+        {
+            diagnostics.Warn(
+                SmfDiagnosticCodes.OverlappingNotes,
+                "Notes of the same pitch overlap on the same channel. A MIDI file cannot record which release belongs to which note, so their lengths may differ when the file is read back.",
+                fileTrackIndex);
+        }
+
         var ordered = scheduled.OrderBy(s => s.Tick).ThenBy(s => s.Phase).ThenBy(s => s.Sequence).Select(s => s.Event);
         return new SmfTrack(ordered, track.EndPosition.Value);
+    }
+
+    private static bool HasOverlappingNotes(Track track)
+    {
+        var lastEnd = new Dictionary<(byte Channel, byte Note), long>();
+        foreach (var note in track.Events.OfType<NoteEvent>())
+        {
+            var key = (note.Channel.Index, note.Note.Value);
+            if (lastEnd.TryGetValue(key, out var end) && note.Position.Value < end)
+            {
+                return true;
+            }
+
+            lastEnd[key] = Math.Max(end, note.EndPosition.Value);
+        }
+
+        return false;
     }
 
     private static SmfMetaEvent Text(long tick, byte type, string text, int fileTrackIndex, DiagnosticBag diagnostics)
