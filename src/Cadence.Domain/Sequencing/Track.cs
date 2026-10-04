@@ -51,6 +51,10 @@ public sealed class Track
 
     public Track WithSoloed(bool isSoloed) => new(Id, Name, Events, IsMuted, isSoloed);
 
+    /// <summary>Replaces every event at once, keeping the track's identity, name, and mute/solo state.</summary>
+    /// <exception cref="ArgumentException">Two events share an <see cref="EventId"/>.</exception>
+    public Track WithEvents(IEnumerable<TrackEvent> events) => new(Id, Name, Canonicalize(events), IsMuted, IsSoloed);
+
     public TrackEvent? Find(EventId id)
     {
         foreach (var e in Events)
