@@ -9,6 +9,46 @@ namespace Cadence.Tests.Integration.Sessions;
 public sealed class SampleFileTests
 {
     [Fact]
+    public async Task FormatZeroCanon_PreservesFormatOneEventsAcrossSixteenChannelTracks()
+    {
+        var original = new ProjectSession();
+        var split = new ProjectSession();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var originalReport = await original.ImportMidiAsync(Path.Combine(RepositoryPaths.Root, "samples", "canon-gm16.mid"), cancellationToken);
+        var splitReport = await split.ImportMidiAsync(Path.Combine(RepositoryPaths.Root, "samples", "canon-gm16-format0.mid"), cancellationToken);
+
+        Assert.Empty(originalReport.ImportDiagnostics);
+        Assert.Empty(splitReport.ImportDiagnostics);
+        Assert.Equal(original.Project.Name, split.Project.Name);
+        var expected = original.Project.Sequence;
+        var actual = split.Project.Sequence;
+        Assert.Equal(17, actual.Tracks.Length);
+        Assert.Equal("MIDI Setup", actual.Tracks[0].Name);
+        Assert.Equal(expected.Ppqn, actual.Ppqn);
+        Assert.Equal(expected.TempoMap.Changes, actual.TempoMap.Changes);
+        Assert.Equal(expected.MeterMap.Changes, actual.MeterMap.Changes);
+        Assert.Equal(expected.Markers, actual.Markers);
+        Assert.Equal(1179, actual.Tracks.Sum(t => t.Events.OfType<NoteEvent>().Count()));
+        Assert.Equal(expected.EndPosition, actual.EndPosition);
+
+        for (var channel = 0; channel < 16; channel++)
+        {
+            var track = actual.Tracks[channel + 1];
+            Assert.Equal($"Channel {channel + 1}", track.Name);
+            Assert.Equal(
+                expected.Tracks[channel].Events.Where(e => e is NoteEvent or ChannelEvent).Select(e => e with { Id = default }),
+                track.Events.Select(e => e with { Id = default }));
+        }
+
+        var global = expected.Tracks.SelectMany(t => t.Events)
+            .Where(e => e is not (NoteEvent or ChannelEvent))
+            .OrderBy(e => e.Position).ThenBy(e => e.Phase);
+        Assert.Equal(global.Select(e => e with { Id = default }), actual.Tracks[0].Events.Select(e => e with { Id = default }));
+        Assert.Single(actual.Tracks[0].Events.OfType<SysExEvent>());
+        Assert.Equal(11, actual.Tracks[0].Events.OfType<MetaEvent>().Count(e => e.Type == 0x05));
+    }
+
+    [Fact]
     public async Task DemoSong_ImportsWithoutDiagnostics()
     {
         var session = new ProjectSession();

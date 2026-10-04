@@ -22,6 +22,13 @@ that track only; the events read before the damage are kept, and a diagnostic sa
 
 ## Importing
 
+- **Format 0** files are split into one track per used MIDI channel, named `Channel 1` through
+  `Channel 16` in channel order. Channel numbers, note timing, and channel messages are preserved.
+  SysEx, raw packets, and retained meta events are kept once on a leading `MIDI Setup` track,
+  which must also be routed to the playback output. Tempo, meter, and markers still become
+  sequence data, and the original track name becomes the title. No unused channel tracks or
+  empty setup track are added. Files without channel events retain a single track.
+  Formats 1 and 2 retain their authored track structure.
 - **Notes** are paired first-in, first-out per channel and note number. Note-on with velocity 0
   counts as a release with release velocity 0.
 - **Tempo, time signature, and markers** from any track become the sequence's tempo map, meter map,

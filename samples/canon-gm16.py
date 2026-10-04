@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes canon-gm16.mid, a 16-channel General MIDI import fixture for Cadence.
+"""Writes format-1 and format-0 16-channel General MIDI import fixtures for Cadence.
 
 An original arrangement of Pachelbel's Canon in D (public domain), released under the repository's
 MIT licence. It deliberately exercises every MIDI channel and the parts of a Standard MIDI File that
@@ -9,7 +9,7 @@ copyright and text meta events, tempo and meter changes, markers, running status
 styles (0x80 and note-on velocity 0), and same-note retriggers on the tick of the previous release.
 
 The file is written byte by byte with the standard library only, independent of Cadence's own
-writer. Usage: python3 samples/canon-gm16.py  (writes canon-gm16.mid next to this script)
+writer. Usage: python3 samples/canon-gm16.py  (writes both MIDI files next to this script)
 """
 
 import pathlib
@@ -340,6 +340,18 @@ def main():
     data = header + conductor.encode() + b"".join(track.encode() for track in tracks)
     path = pathlib.Path(__file__).with_name("canon-gm16.mid")
     path.write_bytes(data)
+
+    merged = Track(TITLE)
+    merged.events = []
+    for track in [conductor, *tracks]:
+        for tick, order, _, kind, payload in track.events:
+            if track is not conductor and kind == "meta" and payload[0] == 0x03:
+                continue
+            merged._add(tick, order, kind, payload)
+    format0_header = b"MThd" + (6).to_bytes(4, "big") + bytes([0, 0, 0, 1]) + PPQN.to_bytes(2, "big")
+    format0_path = path.with_name("canon-gm16-format0.mid")
+    format0_path.write_bytes(format0_header + merged.encode())
+    print(f"Wrote {format0_path.name}: one physical track, {len(tracks)} MIDI channels")
 
     print(f"Wrote {path.name}: {len(data)} bytes, {len(tracks)} tracks, {sum(t.notes for t in tracks)} notes")
     for track in tracks:

@@ -2,6 +2,7 @@ using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Files;
+using Cadence.Playback;
 using CsCheck;
 using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
 using static Cadence.Tests.Unit.Midi.Files.SmfReaderTests;
@@ -13,6 +14,119 @@ public sealed class SmfImportExportTests
     private static readonly MidiChannel One = MidiChannel.FromIndex(0);
 
     private static SmfImportResult ImportBytes(byte[] bytes) => SmfImporter.Import(SmfReader.Read(bytes).File);
+
+    [Fact]
+    public void Import_FormatZeroSplitsChannelsAndKeepsGlobalEventsOnce()
+    {
+        var result = ImportBytes(File(0, 96, MTrk(
+            0x00, 0xFF, 0x03, 0x04, (byte)'S', (byte)'o', (byte)'n', (byte)'g',
+            0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20,
+            0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08,
+            0x00, 0xF0, 0x08, 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00, 0xF7,
+            0x00, 0xB9, 0x00, 0x7F,
+            0x00, 0xB9, 0x20, 0x00,
+            0x00, 0xC9, 0x00,
+            0x00, 0xB0, 0x00, 0x00,
+            0x00, 0xB0, 0x20, 0x01,
+            0x00, 0xC0, 0x28,
+            0x00, 0xB0, 0x65, 0x00,
+            0x00, 0x64, 0x00,
+            0x00, 0x06, 0x02,
+            0x00, 0x90, 0x3C, 0x64,
+            0x00, 0x99, 0x3C, 0x50,
+            0x0A, 0xE0, 0x00, 0x50,
+            0x00, 0xD0, 0x30,
+            0x00, 0xA0, 0x3C, 0x20,
+            0x00, 0xFF, 0x05, 0x02, (byte)'A', (byte)'h',
+            0x00, 0xFF, 0x06, 0x01, (byte)'A',
+            0x0A, 0x99, 0x3C, 0x00,
+            0x0A, 0x80, 0x3C, 0x40)));
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal("Song", result.Title);
+        Assert.Equal(["MIDI Setup", "Channel 1", "Channel 10"], result.Sequence.Tracks.Select(t => t.Name));
+        var setup = result.Sequence.Tracks[0];
+        Assert.Equal(2, setup.Events.Length);
+        Assert.Equal<byte>([0xF0, 0x43, 0x10, 0x4C, 0, 0, 0x7E, 0, 0xF7], Assert.Single(setup.Events.OfType<SysExEvent>()).Message.Bytes.ToArray());
+        Assert.Equal(10, Assert.Single(setup.Events.OfType<MetaEvent>()).Position.Value);
+        Assert.Equal([new Marker(new Tick(10), "A")], result.Sequence.Markers);
+        Assert.Equal(new Tempo(500_000), Assert.Single(result.Sequence.TempoMap.Changes).Tempo);
+        Assert.Equal(TimeSignature.CommonTime, Assert.Single(result.Sequence.MeterMap.Changes).Signature);
+
+        var part = result.Sequence.Tracks[1];
+        var drum = result.Sequence.Tracks[2];
+        var melodicNote = Assert.Single(part.Events.OfType<NoteEvent>());
+        Assert.Equal((0L, 30L, (byte)64), (melodicNote.Position.Value, melodicNote.Duration.Value, melodicNote.ReleaseVelocity.Value));
+        var drumNote = Assert.Single(drum.Events.OfType<NoteEvent>());
+        Assert.Equal((0L, 20L, (byte)0), (drumNote.Position.Value, drumNote.Duration.Value, drumNote.ReleaseVelocity.Value));
+        Assert.Equal([101, 100, 6], part.Events.OfType<ChannelEvent>()
+            .Where(e => e.Message.Kind == ChannelMessageKind.ControlChange && e.Message.Data1 is not (0 or 32))
+            .Select(e => (int)e.Message.Data1));
+        Assert.All(part.Events.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Message.Channel));
+        Assert.All(drum.Events.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Message.Channel.Number));
+
+        var bindings = result.Sequence.Tracks.ToDictionary(t => t.Id, _ => new PlanTrackBinding(0));
+        var plan = PlaybackPlanCompiler.Compile(result.Sequence, bindings);
+        Assert.Empty(plan.Diagnostics);
+        Assert.Single(plan.Payloads);
+        Assert.Equal(0, plan.Events[0].PayloadIndex);
+        Assert.Equal(ChannelMessageKind.ProgramChange, plan.Events[5].Message.Kind);
+
+        var roundTrip = SmfImporter.Import(SmfReader.Read(SmfWriter.Write(SmfExporter.Export(result.Sequence, result.Title).File)).File);
+        Assert.Empty(roundTrip.Diagnostics);
+        Assert.Equal(result.Title, roundTrip.Title);
+        Assert.Equal(result.Sequence.Tracks.Select(Describe), roundTrip.Sequence.Tracks.Select(Describe));
+    }
+
+    [Fact]
+    public void Import_FormatZeroKeepsRawPacketsAndInvalidMeterOnSetupTrack()
+    {
+        var result = ImportBytes(File(0, 1, MTrk(
+            0x00, 0xF0, 0x02, 0x43, 0x10,
+            0x00, 0xBF, 0x07, 0x64,
+            0x05, 0xF7, 0x02, 0x4C, 0xF7,
+            0x00, 0xFF, 0x58, 0x04, 0x03, 0x03, 0x18, 0x08)));
+
+        Assert.Equal(["MIDI Setup", "Channel 16"], result.Sequence.Tracks.Select(t => t.Name));
+        var setup = result.Sequence.Tracks[0].Events;
+        Assert.Equal([0L, 5L], setup.OfType<RawMidiEvent>().Select(e => e.Position.Value));
+        Assert.Equal<byte>([0xF0, 0x43, 0x10], setup.OfType<RawMidiEvent>().First().Bytes.ToArray());
+        Assert.Equal<byte>([0x4C, 0xF7], setup.OfType<RawMidiEvent>().Last().Bytes.ToArray());
+        Assert.Equal(SmfMetaType.TimeSignature, Assert.Single(setup.OfType<MetaEvent>()).Type);
+        AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTimeSignature);
+        AssertCode(result.Diagnostics, SmfDiagnosticCodes.SysExKeptRaw, SmfDiagnosticSeverity.Info);
+        Assert.Equal(16, Assert.IsType<ChannelEvent>(Assert.Single(result.Sequence.Tracks[1].Events)).Message.Channel.Number);
+    }
+
+    [Fact]
+    public void Import_FormatZeroSeparatesPairingAndRepairsByChannel()
+    {
+        var result = ImportBytes(File(0, 96, MTrk(
+            0x00, 0x91, 0x3C, 0x64,
+            0x00, 0x90, 0x3C, 0x50,
+            0x0A, 0x80, 0x3C, 0x40,
+            0x05, 0x80, 0x3D, 0x40)));
+
+        Assert.Equal(["Channel 1", "Channel 2"], result.Sequence.Tracks.Select(t => t.Name));
+        Assert.Equal(10, Assert.Single(result.Sequence.Tracks[0].Events.OfType<NoteEvent>()).Duration.Value);
+        Assert.Equal(15, Assert.Single(result.Sequence.Tracks[1].Events.OfType<NoteEvent>()).Duration.Value);
+        Assert.Single(result.Sequence.Tracks[0].Events.OfType<ChannelEvent>());
+        AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnpairedNoteOff, SmfDiagnosticSeverity.Info);
+        AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnterminatedNote);
+        Assert.All(result.Diagnostics, d => Assert.Equal(0, d.TrackIndex));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Import_OtherFormatsKeepMultiChannelTrackIntact(int format)
+    {
+        var result = ImportBytes(File(format, 96, MTrk(
+            0x00, 0xB0, 0x07, 0x64,
+            0x00, 0xB9, 0x07, 0x50)));
+
+        Assert.Equal(2, Assert.Single(result.Sequence.Tracks).Events.Length);
+    }
 
     [Fact]
     public void Import_PairsOverlappingNotesFirstInFirstOut()

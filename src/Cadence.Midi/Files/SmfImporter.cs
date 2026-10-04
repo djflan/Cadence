@@ -96,7 +96,14 @@ public static class SmfImporter
                 title = draft.Name;
             }
 
-            tracks.Add(new Track(TrackId.New(), draft.Name ?? string.Empty, draft.Build()));
+            if (file.Format == SmfFormat.SingleTrack)
+            {
+                tracks.AddRange(SplitChannels(draft));
+            }
+            else
+            {
+                tracks.Add(new Track(TrackId.New(), draft.Name ?? string.Empty, draft.Build()));
+            }
         }
 
         var sequence = new Sequence(tempoMap, meterMap, tracks, markers);
@@ -171,6 +178,51 @@ public static class SmfImporter
 
             diagnostics.Warn(SmfDiagnosticCodes.NameTruncated, string.Create(CultureInfo.InvariantCulture, $"A track name was shortened to {Track.MaxNameLength} characters."), index);
             return name[..Track.MaxNameLength];
+        }
+    }
+
+    private static IEnumerable<Track> SplitChannels(TrackDraft draft)
+    {
+        var global = new List<TrackEvent>();
+        var channels = new SortedDictionary<byte, List<TrackEvent>>();
+        foreach (var e in draft.Build())
+        {
+            MidiChannel? channel = e switch
+            {
+                NoteEvent note => note.Channel,
+                ChannelEvent message => message.Message.Channel,
+                _ => null,
+            };
+            if (channel is not { } midiChannel)
+            {
+                global.Add(e);
+                continue;
+            }
+
+            if (!channels.TryGetValue(midiChannel.Index, out var events))
+            {
+                events = [];
+                channels.Add(midiChannel.Index, events);
+            }
+
+            events.Add(e);
+        }
+
+        if (channels.Count == 0)
+        {
+            yield return new Track(TrackId.New(), draft.Name ?? string.Empty, global);
+            yield break;
+        }
+
+        if (global.Count > 0)
+        {
+            yield return new Track(TrackId.New(), "MIDI Setup", global);
+        }
+
+        foreach (var (index, events) in channels)
+        {
+            var name = string.Create(CultureInfo.InvariantCulture, $"Channel {index + 1}");
+            yield return new Track(TrackId.New(), name, events);
         }
     }
 
