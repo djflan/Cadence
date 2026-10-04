@@ -49,17 +49,25 @@ internal readonly struct PlanEvent(long tick, int slot, ChannelMessage message, 
 /// </summary>
 public sealed class PlaybackPlan
 {
-    internal PlaybackPlan(TempoMap tempoMap, PlanEvent[] events, ByteBlock[] payloads, IReadOnlyList<PlanDiagnostic> diagnostics)
+    internal PlaybackPlan(TempoMap tempoMap, MeterMap meterMap, PlanEvent[] events, ByteBlock[] payloads, IReadOnlyList<PlanDiagnostic> diagnostics)
     {
         TempoMap = tempoMap;
+        MeterMap = meterMap;
         Events = events;
         Payloads = payloads;
         Diagnostics = diagnostics;
     }
 
-    public static PlaybackPlan Empty(TempoMap tempoMap) => new(tempoMap, [], [], []);
+    public static PlaybackPlan Empty(TempoMap tempoMap)
+    {
+        ArgumentNullException.ThrowIfNull(tempoMap);
+        return new(tempoMap, MeterMap.Constant(tempoMap.Ppqn, TimeSignature.CommonTime), [], [], []);
+    }
 
     public TempoMap TempoMap { get; }
+
+    /// <summary>The meter map, used to place metronome clicks on beats.</summary>
+    public MeterMap MeterMap { get; }
 
     public int EventCount => Events.Length;
 
@@ -68,6 +76,25 @@ public sealed class PlaybackPlan
     internal PlanEvent[] Events { get; }
 
     internal ByteBlock[] Payloads { get; }
+
+    /// <summary>
+    /// The first beat at or after <paramref name="tick"/>, and whether it is a bar's downbeat. A meter
+    /// change that cuts a bar short starts a new bar, as in <see cref="MeterMap"/>.
+    /// </summary>
+    internal (long Tick, bool Downbeat) NextBeat(long tick)
+    {
+        var position = new Tick(Math.Max(0, tick));
+        var bar = MeterMap.BarStart(position).Value;
+        var beat = MeterMap.SignatureAt(position).TryGetTicksPerBeat(MeterMap.Ppqn, out var span) ? span.Value : MeterMap.Ppqn.TicksPerQuarterNote;
+        var candidate = bar + (((position.Value - bar + beat - 1) / beat) * beat);
+        var candidateBar = MeterMap.BarStart(new Tick(candidate)).Value;
+        if (candidateBar > position.Value && candidateBar < candidate)
+        {
+            candidate = candidateBar;
+        }
+
+        return (candidate, candidate == candidateBar);
+    }
 
     /// <summary>Index of the first event at or after <paramref name="tick"/>.</summary>
     internal int FirstIndexAtOrAfter(long tick)

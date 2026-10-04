@@ -175,6 +175,6 @@ public static class PlaybackPlanCompiler
             .Select(e => e.Event)
             .ToArray();
 
-        return new PlaybackPlan(sequence.TempoMap, ordered, [.. payloads], diagnostics);
+        return new PlaybackPlan(sequence.TempoMap, sequence.MeterMap, ordered, [.. payloads], diagnostics);
     }
 }

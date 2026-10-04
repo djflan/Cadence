@@ -49,6 +49,9 @@ internal sealed class PlaybackFixture : IDisposable
 
     public LoopbackPort Port => Ports[0];
 
+    /// <summary>The open output for each port, as given to the engine.</summary>
+    public IReadOnlyList<IMidiOutput> Outputs => _outputs;
+
     public static NoteEvent Note(long at, long length, int note = 60, int velocity = 100) =>
         new(EventId.New(), new Tick(at), new TickSpan(length), One, new NoteNumber(note), new Velocity(velocity), new Velocity(64));
 
