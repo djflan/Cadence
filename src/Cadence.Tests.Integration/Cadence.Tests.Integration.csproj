@@ -13,6 +13,7 @@
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
     <ProjectReference Include="../Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
+    <ProjectReference Include="../Cadence.Platform.Alsa/Cadence.Platform.Alsa.csproj" />
     <ProjectReference Include="../Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
     <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />

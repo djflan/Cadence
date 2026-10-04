@@ -13,6 +13,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../Cadence.Platform.Alsa/Cadence.Platform.Alsa.csproj" />
     <ProjectReference Include="../Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
     <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
     <ProjectReference Include="../Cadence.Presentation/Cadence.Presentation.csproj" />

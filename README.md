@@ -11,7 +11,7 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) or WinMM on Windows with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows MIDI Services and Linux adapters and note editing are next.
+or WinMM on Windows with measured timing, or the ALSA sequencer on Linux (not yet tested on Linux), show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows MIDI Services and note editing are next.
 
 ### Platform support
 
@@ -19,7 +19,7 @@ play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtu
 | -------- | --- | ----------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
 WinMM: hardware ports and software synths, including SysEx
-| Linux | Builds; not yet verified | Built-in monitor only | ALSA adapter planned; screen-reader support unverified |
+| Linux | Builds; not yet verified | ALSA sequencer (direct sends, SysEx, *Cadence Out* virtual port); untested on Linux | No ALSA input or hot-plug yet; screen-reader support unverified |
 
 ## Goals
 

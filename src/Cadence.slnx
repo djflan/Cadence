@@ -5,6 +5,7 @@
   <Project Path="Cadence.Domain/Cadence.Domain.csproj" />
   <Project Path="Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
   <Project Path="Cadence.Midi/Cadence.Midi.csproj" />
+  <Project Path="Cadence.Platform.Alsa/Cadence.Platform.Alsa.csproj" />
   <Project Path="Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
   <Project Path="Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
   <Project Path="Cadence.Playback/Cadence.Playback.csproj" />

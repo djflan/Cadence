@@ -32,8 +32,20 @@ internal static class PlatformProviders
             // Windows MIDI Services is the planned primary adapter; WinMM works on every Windows version.
             return [new Cadence.Platform.Windows.WinMmProvider()];
         }
+        else if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                var alsa = new Cadence.Platform.Alsa.AlsaProvider();
+                alsa.CreateVirtualOutput(VirtualOutputName);
+                return [alsa];
+            }
+            catch (EndpointUnavailableException ex)
+            {
+                Trace.TraceWarning($"ALSA is unavailable: {ex.Message}");
+            }
+        }
 
-        // ALSA adapters are not implemented yet.
         return [];
     }
 

@@ -20,6 +20,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0013](0013-windows-playback-timing.md) | Windows playback timing: 1 ms timer resolution and MMCSS | Accepted |
 | [0014](0014-winmm-adapter.md) | Windows WinMM output adapter in managed code | Accepted |
 | [0015](0015-winmm-system-exclusive.md) | System exclusive through WinMM without blocking playback | Accepted |
+| [0016](0016-alsa-adapter.md) | Linux ALSA sequencer output adapter in managed code | Accepted |
 
 ## Template
 
