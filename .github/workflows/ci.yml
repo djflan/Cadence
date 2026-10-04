@@ -38,8 +38,10 @@ jobs:
       - name: Build
         run: dotnet build src/Cadence.slnx --no-restore --configuration Release
 
+      # CoreMIDI on hosted macOS runners is unreliable (the MIDI server may not start and virtual
+      # ports can time out), so those tests run only on developer machines.
       - name: Test
-        run: dotnet test src/Cadence.slnx --no-build --configuration Release
+        run: dotnet test src/Cadence.slnx --no-build --configuration Release --filter-not-class Cadence.Tests.Integration.Platform.CoreMidiProviderTests
 
       - name: Check formatting
         if: matrix.os == 'ubuntu-latest'

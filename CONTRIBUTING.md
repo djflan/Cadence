@@ -32,7 +32,7 @@ Warnings are treated as errors and code style is enforced during the build; `.ed
 3. Include tests that do not require contributors to own specific hardware. Platform tests must skip cleanly when their MIDI service is unavailable.
 4. State which hardware behavior was physically verified and which was simulated (for example with a software synth or the MIDI monitor). See [docs/hardware-test-plan.md](docs/hardware-test-plan.md).
 5. Update documentation, and add or update an ADR when you change a consequential design decision.
-6. Make sure build, tests, and `dotnet format --verify-no-changes` pass. CI runs them on Linux, macOS, and Windows.
+6. Make sure build, tests, and `dotnet format --verify-no-changes` pass. CI runs them on Linux, macOS, and Windows, except the CoreMIDI tests, which are unreliable on hosted runners; if you change the CoreMIDI adapter, run them locally on a Mac.
 7. Write commit messages as a short imperative summary, for example `Add WinMM MIDI output adapter for Windows`.
 
 ## Device profiles
