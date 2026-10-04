@@ -21,6 +21,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0014](0014-winmm-adapter.md) | Windows WinMM output adapter in managed code | Accepted |
 | [0015](0015-winmm-system-exclusive.md) | System exclusive through WinMM without blocking playback | Accepted |
 | [0016](0016-alsa-adapter.md) | Linux ALSA sequencer output adapter in managed code | Accepted |
+| [0017](0017-recording-and-note-editing.md) | MIDI recording and note editing | Accepted |
 
 ## Template
 

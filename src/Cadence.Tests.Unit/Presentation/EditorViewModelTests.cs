@@ -1,0 +1,350 @@
+using Cadence.Application.Editing;
+using Cadence.Application.Sessions;
+using Cadence.Domain.Midi;
+using Cadence.Domain.Routing;
+using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
+using Cadence.Midi.Endpoints;
+using Cadence.Midi.Timing;
+using Cadence.Presentation;
+using Cadence.Profiles;
+
+namespace Cadence.Tests.Unit.Presentation;
+
+/// <summary>The piano roll and event list view models, and the transport's recording controls.</summary>
+public sealed class EditorViewModelTests : IAsyncLifetime
+{
+    private readonly VirtualClock _clock = new(TimeSpan.FromSeconds(5));
+    private readonly LoopbackMidiProvider _provider;
+    private readonly EndpointDirectory _endpoints;
+    private readonly ProjectSession _session = new();
+    private readonly PlaybackController _playback;
+    private readonly MainViewModel _vm;
+    private readonly LoopbackPort _synth;
+    private readonly LoopbackPort _keys;
+
+    public EditorViewModelTests()
+    {
+        _provider = new LoopbackMidiProvider(_clock);
+        _synth = _provider.CreatePort("Synth", "synth");
+        _keys = _provider.CreatePort("Keys", "keys");
+        _endpoints = new EndpointDirectory([_provider]);
+        _playback = new PlaybackController(_session, _endpoints, ProfileCatalog.Empty, _clock, startThread: false);
+        _vm = new MainViewModel(_session, _playback, _endpoints, new NoUi(), new ImmediateDispatcher());
+    }
+
+    private EditorViewModel Editor => _vm.Editor;
+
+    private Track Track => _session.Project.Sequence.Tracks[0];
+
+    private static NoteEvent Note(long at, int pitch = 60, long length = 240, int velocity = 100) =>
+        new(new Tick(at), new TickSpan(length), MidiChannel.FromIndex(0), new NoteNumber(pitch), new Velocity(velocity));
+
+    public async ValueTask InitializeAsync()
+    {
+        await _vm.InitializeAsync();
+        var track = new Track(TrackId.New(), "Piano", [Note(0), Note(960, 64), Note(1920, 67)]);
+        _session.Execute(ProjectCommands.AddTrack(track));
+        _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, _synth.OutputId.Value, "Synth") }));
+        _vm.LowerPane = LowerPane.EventList;
+        await Settle();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _vm.DisposeAsync();
+        _endpoints.Dispose();
+        _provider.Dispose();
+    }
+
+    private static Task Settle() => Task.Delay(20, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public void Editor_FollowsTheSelectedTrack()
+    {
+        Assert.Equal(Track.Id, Editor.Track?.Id);
+        Assert.Equal(3, Editor.Track!.Events.Length);
+    }
+
+    [Fact]
+    public void AddNote_UsesTheLastLengthAndSelectsIt()
+    {
+        Editor.NewNoteLength = 120;
+
+        var id = Editor.AddNote(1920, 72);
+
+        var note = Assert.IsType<NoteEvent>(Track.Find(id!.Value));
+        Assert.Equal((1920L, 120L, 72), (note.Position.Value, note.Duration.Value, (int)note.Note.Value));
+        Assert.Equal([id.Value], Editor.SelectedEvents);
+        Assert.Equal("Add Note", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public void MarqueeSelection_FindsNotesInTheRectangle()
+    {
+        Editor.SelectNotesIn(400, 2000, 62, 70);
+
+        Assert.Equal(2, Editor.SelectionCount);
+        Assert.Equal("2 notes", Editor.SelectionSummary);
+
+        Editor.SelectNotesIn(0, 10, 60, 60, SelectionMode.Toggle);
+        Assert.Equal(3, Editor.SelectionCount);
+    }
+
+    [Fact]
+    public void MoveAndCopy_AreSingleUndoSteps()
+    {
+        Editor.SelectAll();
+
+        Editor.MoveSelection(240, 2);
+        Assert.Equal([240L, 1200L, 2160L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal("Move Notes", _session.History.UndoLabel);
+
+        Editor.MoveSelection(1920, 0, copy: true);
+        Assert.Equal(6, Track.Events.Length);
+        Assert.Equal(3, Editor.SelectionCount);
+        Assert.All(Editor.SelectedNotes, n => Assert.True(n.Position.Value >= 1920));
+
+        _vm.UndoCommand.Execute(null);
+        _vm.UndoCommand.Execute(null);
+        Assert.Equal([0L, 960L, 1920L], Track.Events.Select(e => e.Position.Value));
+    }
+
+    [Fact]
+    public void Selection_SurvivesEditsAndUndo()
+    {
+        var first = Track.Events[0].Id;
+        Editor.Select([first]);
+
+        Editor.TransposeSelection(12);
+        _vm.UndoCommand.Execute(null);
+
+        Assert.Equal([first], Editor.SelectedEvents);
+        Assert.Equal("C4", Editor.InfoPitch);
+    }
+
+    [Fact]
+    public void InfoFields_EditTheSelection()
+    {
+        Editor.Select([Track.Events[1].Id]);
+        Assert.Equal("1.2.000", Editor.InfoPosition);
+        Assert.Equal("0.0.240", Editor.InfoLength);
+
+        Editor.InfoVelocity = "64";
+        Editor.InfoPitch = "G4";
+        Editor.InfoLength = "0.1.000";
+        Editor.InfoPosition = "2.1.0";
+
+        var note = Assert.IsType<NoteEvent>(Track.Find(Editor.SelectedEvents.Single()));
+        Assert.Equal((64, 67, 960L, 3840L), ((int)note.Velocity.Value, (int)note.Note.Value, note.Duration.Value, note.Position.Value));
+    }
+
+    [Fact]
+    public void Quantize_WithoutSelection_QuantizesTheWholeTrack()
+    {
+        _session.Execute(ProjectCommands.ReplaceEvents(Track.Id, "Humanize", [.. Track.Events.Select(e => e with { Position = new Tick(e.Position.Value + 37) })]));
+        Editor.SelectNone();
+        Editor.QuantizeGrid = GridOption.For(GridDivision.Eighth);
+
+        Editor.QuantizeCommand.Execute(null);
+
+        Assert.Equal([0L, 960L, 1920L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal("Quantize", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public void CopyAndPaste_PastesAtTheSnappedPlayhead()
+    {
+        Editor.Select([Track.Events[1].Id, Track.Events[2].Id]);
+        Editor.CopyCommand.Execute(null);
+        _vm.SeekTo(3850);
+
+        Editor.PasteCommand.Execute(null);
+
+        Assert.Equal([3840L, 4800L], Editor.SelectedNotes.Select(n => n.Position.Value));
+        Assert.Equal(5, Track.Events.Length);
+    }
+
+    [Fact]
+    public void Duplicate_PlacesTheCopyAfterTheSelection()
+    {
+        Editor.Select([Track.Events[0].Id]);
+        Editor.Snap = GridOption.For(GridDivision.Quarter);
+
+        Editor.DuplicateCommand.Execute(null);
+
+        // The note ends at tick 240; the copy starts at the next quarter-note line.
+        Assert.Equal(960, Editor.SelectedNotes.Single().Position.Value);
+    }
+
+    [Fact]
+    public void Resize_SetsTheLengthForTheNextNote()
+    {
+        Editor.Select([Track.Events[0].Id]);
+
+        Editor.ResizeSelection(NoteEdge.End, 720);
+
+        Assert.Equal(960, ((NoteEvent)Track.Events[0]).Duration.Value);
+        Assert.Equal(960, Editor.NewNoteLength);
+    }
+
+    [Fact]
+    public void ControllerLine_ReplacesTheLaneInTheRange()
+    {
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Name.StartsWith("Modulation", StringComparison.Ordinal));
+        Editor.Snap = GridOption.For(GridDivision.Quarter);
+
+        Editor.DrawControllerLine(0, 0, 3840, 120);
+        Editor.DrawControllerLine(1920, 10, 1920, 10);
+
+        var values = Editor.LaneEvents(Track).Select(e => (e.Position.Value, (int)e.Message.Data2)).ToList();
+        Assert.Equal([(0L, 0), (960L, 30), (1920L, 10), (2880L, 90), (3840L, 120)], values);
+
+        Editor.EraseControllers(0, 2000);
+        Assert.Equal(2, Editor.LaneEvents(Track).Count());
+    }
+
+    [Fact]
+    public void EventList_ShowsAndEditsEvents()
+    {
+        var rows = _vm.EventList.Rows;
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(("Note", "1.2.000", "E4", "100"), (rows[1].Kind, rows[1].Position, rows[1].Data1, rows[1].Data2));
+
+        rows[1].Data2 = "33";
+        rows[1].Data1 = "61";
+
+        var edited = Assert.IsType<NoteEvent>(Track.Events[1]);
+        Assert.Equal((33, 61), ((int)edited.Velocity.Value, (int)edited.Note.Value));
+        Assert.Equal("C♯4", _vm.EventList.Rows[1].Data1);
+    }
+
+    [Fact]
+    public void EventList_EditingOneEvent_KeepsTheOtherRows()
+    {
+        var untouched = _vm.EventList.Rows[0];
+        var replaced = 0;
+        _vm.EventList.Rows.CollectionChanged += (_, e) => replaced += e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Replace ? 1 : 100;
+
+        _vm.EventList.Rows[1].Data2 = "50";
+
+        Assert.Same(untouched, _vm.EventList.Rows[0]);
+        Assert.Equal(1, replaced);
+
+        _vm.EventList.Rows[2].Position = "1.1.100";
+        Assert.Equal(["1.1.000", "1.1.100", "1.2.000"], _vm.EventList.Rows.Select(r => r.Position));
+    }
+
+    [Fact]
+    public void EventList_SharesTheSelection()
+    {
+        Editor.Select([Track.Events[2].Id]);
+        Assert.Equal([Track.Events[2].Id], _vm.EventList.SelectedRows.Select(r => r.Id));
+
+        _vm.EventList.SelectedRows.Clear();
+        _vm.EventList.SelectedRows.Add(_vm.EventList.Rows[0]);
+        _vm.EventList.OnRowsSelected();
+
+        Assert.Equal([Track.Events[0].Id], Editor.SelectedEvents);
+    }
+
+    [Fact]
+    public void EventList_FiltersByKind()
+    {
+        _session.Execute(ProjectCommands.AddEvents(Track.Id, "Add", [new ChannelEvent(Tick.Zero, ChannelMessage.ProgramChange(MidiChannel.FromIndex(0), new ProgramNumber(4)))]));
+
+        _vm.EventList.Filter = EventFilter.All.Single(f => f.Name == "Program Changes");
+
+        var row = Assert.Single(_vm.EventList.Rows);
+        Assert.Equal(("Program", "4"), (row.Kind, row.Data1));
+    }
+
+    [Fact]
+    public async Task Record_FromTheTransport_AddsATakeToTheArmedTrack()
+    {
+        _vm.SelectedInput = _vm.Inputs.Single(i => i.Name == "Keys");
+        _vm.IsCountInEnabled = false;
+        _vm.ToggleArm(_vm.Tracks[0]);
+        await Settle();
+        _vm.SeekTo(3840);
+
+        await _vm.RecordCommand.ExecuteAsync(null);
+        _playback.Engine.Pump();
+        _clock.Advance(TimeSpan.FromMilliseconds(500));
+        _playback.Engine.Pump();
+        _keys.Inject([0x90, 72, 90]);
+        _clock.Advance(TimeSpan.FromMilliseconds(250));
+        _playback.Engine.Pump();
+        _keys.Inject([0x80, 72, 64]);
+        _vm.OnFrame();
+        Assert.True(_vm.IsRecording);
+        Assert.True(_vm.HasInputActivity);
+        _vm.StopCommand.Execute(null);
+
+        var take = Assert.IsType<NoteEvent>(Track.Events[^1]);
+        Assert.Equal((4800L, 480L, 72), (take.Position.Value, take.Duration.Value, (int)take.Note.Value));
+        Assert.False(_vm.IsRecording);
+        Assert.Contains(_vm.Messages, m => m.Text == "Recorded 1 note on Piano.");
+
+        // The note was also echoed to the track's output while it was played.
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x90, 72, 90]);
+    }
+
+    [Fact]
+    public void MoveTrackContent_ShiftsOrCopiesTheWholeRegion()
+    {
+        _vm.MoveTrackContent(_vm.Tracks[0], 3840, copy: false);
+        Assert.Equal([3840L, 4800L, 5760L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal("Move Region", _session.History.UndoLabel);
+
+        _vm.MoveTrackContent(_vm.Tracks[0], -3840, copy: true);
+        Assert.Equal(6, Track.Events.Length);
+        Assert.Equal(0, Track.Events[0].Position.Value);
+        Assert.Equal("Copy Region", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public void TempoAndMeter_AreEditableFromTheTransport()
+    {
+        _vm.CommitTempo("96.5");
+        _vm.CommitMeter("3/4");
+        _vm.CommitTempo("fast");
+        _vm.OnFrame();
+
+        Assert.Equal(96.5, _session.Project.Sequence.TempoMap.TempoAt(Tick.Zero).BeatsPerMinute, 2);
+        Assert.Equal(new TimeSignature(3, 4), _session.Project.Sequence.MeterMap.SignatureAt(Tick.Zero));
+        Assert.Equal("3/4", _vm.MeterText);
+    }
+
+    [Fact]
+    public void ShowPane_TogglesTheLowerPane()
+    {
+        _vm.ShowPaneCommand.Execute(LowerPane.PianoRoll);
+        Assert.Equal((LowerPane.PianoRoll, true), (_vm.LowerPane, _vm.IsEditorVisible));
+        Assert.False(_vm.EventList.IsActive);
+
+        _vm.ShowPaneCommand.Execute(LowerPane.PianoRoll);
+        Assert.False(_vm.IsEditorVisible);
+
+        _vm.ShowPaneCommand.Execute(LowerPane.EventList);
+        Assert.True(_vm.EventList.IsActive);
+    }
+
+    private sealed class ImmediateDispatcher : IUiDispatcher
+    {
+        public bool CheckAccess() => true;
+
+        public void Post(Action action) => action();
+    }
+
+    private sealed class NoUi : IUserInteraction
+    {
+        public Task<string?> PickOpenFileAsync(string title, IReadOnlyList<FileFilter> filters) => Task.FromResult<string?>(null);
+
+        public Task<string?> PickSaveFileAsync(string title, string suggestedName, FileFilter filter) => Task.FromResult<string?>(null);
+
+        public Task<bool> ConfirmAsync(string title, string message, string confirmLabel, bool destructive) => Task.FromResult(true);
+
+        public Task<UnsavedChangesChoice> AskToSaveChangesAsync(string projectName) => Task.FromResult(UnsavedChangesChoice.Discard);
+    }
+}

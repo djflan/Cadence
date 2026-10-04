@@ -37,6 +37,7 @@ public sealed class PlaybackEngine : IDisposable
     private readonly IMonotonicClock _clock;
     private readonly PlaybackOptions _options;
     private readonly ConcurrentQueue<Command> _commands = new();
+    private readonly ConcurrentQueue<ImmediateMessage> _immediateSends = new();
     private readonly AutoResetEvent _workSignal = new(false);
     private readonly ActiveNote[] _active;
     private int _activeCount;
@@ -51,6 +52,17 @@ public sealed class PlaybackEngine : IDisposable
     private bool _playing;
     private Cursor _immediate;
     private Cursor _scheduled;
+    private MetronomeClick? _click;
+    private bool _clickEnabled;
+    private TimedClick[] _countIn = [];
+    private int _countInIndex;
+
+    // The immediate cursor's tick-to-time mapping, published for input timestamping (seqlock).
+    private int _anchorVersion;
+    private Anchor _anchor;
+    private Anchor _previousAnchor;
+    private long _countInUntil;
+    private long _loopWraps;
 
     // Caller-visible state.
     private PlaybackPlan _latestPlan;
@@ -94,18 +106,104 @@ public sealed class PlaybackEngine : IDisposable
         Enqueue(new OutputsCommand([.. outputs]));
     }
 
-    /// <summary>Starts (or restarts) playback from <paramref name="from"/>, or from <see cref="Position"/>, chasing controller state.</summary>
-    public void Play(Tick? from = null)
+    /// <summary>
+    /// Starts (or restarts) playback from <paramref name="from"/>, or from <see cref="Position"/>, chasing
+    /// controller state. With <paramref name="countIn"/>, the transport first waits out the count-in,
+    /// sounding its clicks on the metronome (if one is set), then plays.
+    /// </summary>
+    public void Play(Tick? from = null, CountIn? countIn = null)
     {
         var tick = from ?? Position;
         Volatile.Write(ref _positionTick, tick.Value);
-        Enqueue(new PlayCommand(tick.Value, ChaseState.Compute(Volatile.Read(ref _latestPlan), tick.Value)));
+        Volatile.Write(ref _countInUntil, countIn is null ? 0 : (_clock.Now + countIn.Duration).Ticks);
+
+        Enqueue(new PlayCommand(tick.Value, ChaseState.Compute(Volatile.Read(ref _latestPlan), tick.Value), countIn));
     }
 
-    /// <summary>Moves the playhead. While playing, sounding notes are released and controller state is chased.</summary>
+    /// <summary>How many times playback has wrapped from the loop's end to its start, ever. Compare two readings to tell whether a pass looped.</summary>
+    public long LoopWraps => Interlocked.Read(ref _loopWraps);
+
+    /// <summary>True while a count-in requested by <see cref="Play"/> is still running.</summary>
+    public bool IsCountingIn => State == TransportState.Playing && _clock.Now.Ticks < Volatile.Read(ref _countInUntil);
+
+    /// <summary>
+    /// Sets the metronome's sound and output slot, or <see langword="null"/> for none. Clicks sound on
+    /// every beat while playing when <paramref name="enabled"/>; count-in clicks sound whenever a
+    /// metronome is set.
+    /// </summary>
+    public void SetMetronome(MetronomeClick? click, bool enabled) => Enqueue(new MetronomeCommand(click, enabled));
+
+    /// <summary>
+    /// Sends a channel message to <paramref name="output"/> on the playback thread as soon as possible,
+    /// for MIDI thru and auditioning. Safe to call from any thread, including MIDI input callbacks.
+    /// </summary>
+    public void SendNow(IMidiOutput output, ChannelMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        _immediateSends.Enqueue(new ImmediateMessage(output, message));
+        _workSignal.Set();
+    }
+
+    /// <summary>
+    /// Maps a clock time (such as a MIDI input timestamp) to the song position playing at that moment,
+    /// following loops and seeks. Times during a count-in map to the bars before the start position.
+    /// Safe to call from any thread.
+    /// </summary>
+    /// <returns>False when the transport is stopped, or the time maps before the start of the song.</returns>
+    public bool TryGetTickAt(TimeSpan time, out Tick tick)
+    {
+        Anchor current, previous;
+        var spinner = default(SpinWait);
+        while (true)
+        {
+            var version = Volatile.Read(ref _anchorVersion);
+            if ((version & 1) == 0)
+            {
+                current = _anchor;
+                previous = _previousAnchor;
+                Interlocked.MemoryBarrier();
+                if (Volatile.Read(ref _anchorVersion) == version)
+                {
+                    break;
+                }
+            }
+
+            spinner.SpinOnce();
+        }
+
+        if (!current.Playing || current.Tempo is null)
+        {
+            tick = Tick.Zero;
+            return false;
+        }
+
+        // An input that arrived just before a loop wrap or seek belongs to the pass it was played in.
+        var anchor = time < current.Time && previous.Playing && previous.Tempo is not null && time >= previous.Time ? previous : current;
+        var songTime = anchor.SongTime + (time - anchor.Time);
+        if (songTime < TimeSpan.Zero)
+        {
+            tick = Tick.Zero;
+            return false;
+        }
+
+        var value = anchor.Tempo!.TickAt(songTime).Value;
+
+        // An input stamped after a loop wrap that the playback thread has not processed yet belongs
+        // to the next pass, at the start of the loop.
+        if (anchor.LoopEnd > anchor.LoopStart && value >= anchor.LoopEnd)
+        {
+            value = anchor.LoopStart + ((value - anchor.LoopEnd) % (anchor.LoopEnd - anchor.LoopStart));
+        }
+
+        tick = new Tick(value);
+        return true;
+    }
+
+    /// <summary>Moves the playhead. While playing, sounding notes are released and controller state is chased; a count-in ends.</summary>
     public void Seek(Tick position)
     {
         Volatile.Write(ref _positionTick, position.Value);
+        Volatile.Write(ref _countInUntil, 0);
         Enqueue(new SeekCommand(position.Value, ChaseState.Compute(Volatile.Read(ref _latestPlan), position.Value)));
     }
 
@@ -138,6 +236,11 @@ public sealed class PlaybackEngine : IDisposable
             while (_commands.TryDequeue(out var command))
             {
                 Execute(command, now);
+            }
+
+            while (_immediateSends.TryDequeue(out var immediate))
+            {
+                Record(Send(immediate.Output, immediate.Message, MidiTimestamp.Immediate), TimeSpan.Zero);
             }
 
             if (!_playing)
@@ -179,22 +282,38 @@ public sealed class PlaybackEngine : IDisposable
                 }
 
                 _plan = load.Plan;
+                if (_playing)
+                {
+                    PublishAnchor(playing: true);
+                }
+
                 break;
             case OutputsCommand outputs:
                 ReleaseAll(now);
                 _outputs = outputs.Outputs;
                 _slotScheduled = [.. outputs.Outputs.Select(o => o?.Endpoint.Capabilities.HasFlag(EndpointCapabilities.ScheduledDelivery) == true)];
                 _sustain = new bool[outputs.Outputs.Length * ChannelsPerSlot];
+                ResyncClicks();
+                break;
+            case MetronomeCommand metronome:
+                _click = metronome.Click;
+                _clickEnabled = metronome.Enabled;
+                ResyncClicks();
                 break;
             case PlayCommand play:
-                Locate(play.Tick, play.Chase, now);
+                var startAt = now + (play.CountIn?.Duration ?? TimeSpan.Zero);
+                Locate(play.Tick, play.Chase, now, startAt);
+                _countIn = play.CountIn is { } countIn ? [.. countIn.Clicks.Select(c => new TimedClick(now + c.Offset, c.Downbeat))] : [];
+                _countInIndex = 0;
                 _playing = true;
                 Volatile.Write(ref _state, (int)TransportState.Playing);
+                PublishAnchor(playing: true);
                 break;
             case SeekCommand seek:
                 if (_playing)
                 {
-                    Locate(seek.Tick, seek.Chase, now);
+                    Locate(seek.Tick, seek.Chase, now, now);
+                    PublishAnchor(playing: true);
                 }
 
                 break;
@@ -207,10 +326,18 @@ public sealed class PlaybackEngine : IDisposable
                 ReleaseAll(now);
                 ReleaseSustain();
                 _playing = false;
+                _countIn = [];
+                Volatile.Write(ref _countInUntil, 0);
                 Volatile.Write(ref _state, (int)TransportState.Stopped);
+                PublishAnchor(playing: false);
                 break;
             case LoopCommand loop:
                 _loop = loop.Loop;
+                if (_playing)
+                {
+                    PublishAnchor(playing: true);
+                }
+
                 break;
             case PanicCommand:
                 ReleaseAll(now);
@@ -219,7 +346,8 @@ public sealed class PlaybackEngine : IDisposable
         }
     }
 
-    private void Locate(long tick, ChaseMessage[] chase, TimeSpan now)
+    /// <summary>Moves both cursors so <paramref name="tick"/> plays at <paramref name="startAt"/> (later than now during a count-in).</summary>
+    private void Locate(long tick, ChaseMessage[] chase, TimeSpan now, TimeSpan startAt)
     {
         ReleaseAll(now);
         ReleaseSustain();
@@ -228,8 +356,31 @@ public sealed class PlaybackEngine : IDisposable
             SendChannel(message.Slot, message.Message, MidiTimestamp.Immediate);
         }
 
-        _immediate = Cursor.At(_plan, tick, now);
-        _scheduled = Cursor.At(_plan, tick, now);
+        _countIn = [];
+        _immediate = Cursor.At(_plan, tick, startAt);
+        _scheduled = Cursor.At(_plan, tick, startAt);
+    }
+
+    /// <summary>Publishes the immediate cursor's mapping for <see cref="TryGetTickAt"/>, keeping the previous one.</summary>
+    private void PublishAnchor(bool playing)
+    {
+        Interlocked.Increment(ref _anchorVersion);
+        _previousAnchor = _anchor;
+        var engaged = _loop is { } loop && _immediate.AnchorTick < loop.End.Value ? loop : null;
+        _anchor = new Anchor(playing, _immediate.AnchorTime, _immediate.AnchorSongTime, _plan.TempoMap, engaged?.Start.Value ?? 0, engaged?.End.Value ?? 0);
+        Interlocked.Increment(ref _anchorVersion);
+    }
+
+    /// <summary>Points both cursors' next click at the first beat they have not yet passed.</summary>
+    private void ResyncClicks()
+    {
+        if (!_playing)
+        {
+            return;
+        }
+
+        (_immediate.NextClick, _immediate.NextClickIsDownbeat) = _plan.NextBeat(Math.Max(_immediate.AnchorTick, _immediate.ProcessedThrough + 1));
+        (_scheduled.NextClick, _scheduled.NextClickIsDownbeat) = _plan.NextBeat(Math.Max(_scheduled.AnchorTick, _scheduled.ProcessedThrough + 1));
     }
 
     /// <summary>Moves a cursor onto a new plan at the first tick it has not yet processed.</summary>
@@ -239,6 +390,10 @@ public sealed class PlaybackEngine : IDisposable
         var time = TimeOf(in cursor, firstUnprocessed);
         cursor = Cursor.At(next, firstUnprocessed, time);
     }
+
+    /// <summary>True when the metronome sounds through an output of this delivery class.</summary>
+    private bool ClicksIn(bool scheduledClass) =>
+        _click is { } click && InClass(click.Slot, scheduledClass);
 
     private TimeSpan Advance(ref Cursor cursor, bool scheduledClass, TimeSpan horizon, TimeSpan now)
     {
@@ -264,18 +419,41 @@ public sealed class PlaybackEngine : IDisposable
             var hasEvent = cursor.Index < events.Length && !(looping && events[cursor.Index].Tick >= loop!.End.Value);
             var eventTime = hasEvent ? TimeOf(in cursor, events[cursor.Index].Tick) : Never;
             var release = NextRelease(scheduledClass, out var releaseTime);
+            var clicks = ClicksIn(scheduledClass);
+            var clickTime = clicks && _clickEnabled && !(looping && cursor.NextClick >= loop!.End.Value) ? TimeOf(in cursor, cursor.NextClick) : Never;
+            var countInTime = clicks && _countInIndex < _countIn.Length ? _countIn[_countInIndex].Time : Never;
 
-            if (release >= 0 && releaseTime <= horizon && releaseTime <= eventTime && releaseTime <= wrapTime)
+            if (release >= 0 && releaseTime <= horizon && releaseTime <= eventTime && releaseTime <= wrapTime && releaseTime <= clickTime && releaseTime <= countInTime)
             {
                 Release(release, now);
                 continue;
             }
 
-            if (wrapTime <= horizon && wrapTime <= eventTime)
+            if (countInTime <= horizon)
+            {
+                DispatchClick(_countIn[_countInIndex].Downbeat, countInTime, scheduledClass, now);
+                _countInIndex++;
+                continue;
+            }
+
+            if (wrapTime <= horizon && wrapTime <= eventTime && wrapTime <= clickTime)
             {
                 ReleaseClass(scheduledClass, wrapTime, now);
                 cursor = Cursor.At(_plan, loop!.Start.Value, wrapTime);
+                if (!scheduledClass)
+                {
+                    Interlocked.Increment(ref _loopWraps);
+                    PublishAnchor(playing: true);
+                }
+
                 wraps++;
+                continue;
+            }
+
+            if (clickTime <= horizon && clickTime <= eventTime)
+            {
+                DispatchClick(cursor.NextClickIsDownbeat, clickTime, scheduledClass, now);
+                (cursor.NextClick, cursor.NextClickIsDownbeat) = _plan.NextBeat(cursor.NextClick + 1);
                 continue;
             }
 
@@ -287,7 +465,7 @@ public sealed class PlaybackEngine : IDisposable
             }
 
             cursor.ProcessedThrough = TickAtTime(in cursor, horizon);
-            return Min(eventTime, Min(releaseTime, wrapTime));
+            return Min(Min(eventTime, Min(releaseTime, wrapTime)), Min(clickTime, countInTime));
         }
     }
 
@@ -337,6 +515,34 @@ public sealed class PlaybackEngine : IDisposable
         {
             result = Send(output, e.Message, timestamp);
             TrackSustain(e.Slot, e.Message);
+        }
+
+        Record(result, lateness);
+    }
+
+    private void DispatchClick(bool downbeat, TimeSpan due, bool scheduledClass, TimeSpan now)
+    {
+        var click = _click!;
+        var output = _outputs[click.Slot]!;
+        var lateness = now - due;
+        if (lateness > _options.MaxNoteLateness)
+        {
+            Statistics.RecordSkippedLateNote();
+            return;
+        }
+
+        if (_activeCount == _active.Length)
+        {
+            Statistics.RecordNoteOverflow();
+            return;
+        }
+
+        var note = downbeat ? click.AccentNote : click.BeatNote;
+        var on = ChannelMessage.NoteOn(click.Channel, note, downbeat ? click.AccentVelocity : click.BeatVelocity);
+        var result = Send(output, on, scheduledClass ? MidiTimestamp.At(due) : MidiTimestamp.Immediate);
+        if (result == SendResult.Sent)
+        {
+            _active[_activeCount++] = new ActiveNote(output, ChannelMessage.NoteOff(click.Channel, note, Velocity.DefaultRelease), due, due + click.Length, scheduledClass);
         }
 
         Record(result, lateness);
@@ -487,16 +693,32 @@ public sealed class PlaybackEngine : IDisposable
         public TimeSpan AnchorTime;
         public TimeSpan AnchorSongTime;
         public long ProcessedThrough;
+        public long NextClick;
+        public bool NextClickIsDownbeat;
 
-        public static Cursor At(PlaybackPlan plan, long tick, TimeSpan time) => new()
+        public static Cursor At(PlaybackPlan plan, long tick, TimeSpan time)
         {
-            Index = plan.FirstIndexAtOrAfter(tick),
-            AnchorTick = tick,
-            AnchorTime = time,
-            AnchorSongTime = plan.TempoMap.TimeAt(new Tick(tick)),
-            ProcessedThrough = tick - 1,
-        };
+            var (click, downbeat) = plan.NextBeat(tick);
+            return new()
+            {
+                Index = plan.FirstIndexAtOrAfter(tick),
+                AnchorTick = tick,
+                AnchorTime = time,
+                AnchorSongTime = plan.TempoMap.TimeAt(new Tick(tick)),
+                ProcessedThrough = tick - 1,
+                NextClick = click,
+                NextClickIsDownbeat = downbeat,
+            };
+        }
     }
+
+    /// <summary>A published tick-to-time mapping: <see cref="SongTime"/> plays at clock time <see cref="Time"/>.</summary>
+    /// <remarks><see cref="LoopStart"/> and <see cref="LoopEnd"/> are the loop the cursor will wrap at, or both zero.</remarks>
+    private readonly record struct Anchor(bool Playing, TimeSpan Time, TimeSpan SongTime, TempoMap? Tempo, long LoopStart, long LoopEnd);
+
+    private readonly record struct TimedClick(TimeSpan Time, bool Downbeat);
+
+    private readonly record struct ImmediateMessage(IMidiOutput Output, ChannelMessage Message);
 
     private readonly record struct ActiveNote(IMidiOutput Output, ChannelMessage Off, TimeSpan StartTime, TimeSpan ReleaseTime, bool Scheduled);
 
@@ -506,7 +728,9 @@ public sealed class PlaybackEngine : IDisposable
 
     private sealed record OutputsCommand(IMidiOutput?[] Outputs) : Command;
 
-    private sealed record PlayCommand(long Tick, ChaseMessage[] Chase) : Command;
+    private sealed record PlayCommand(long Tick, ChaseMessage[] Chase, CountIn? CountIn) : Command;
+
+    private sealed record MetronomeCommand(MetronomeClick? Click, bool Enabled) : Command;
 
     private sealed record SeekCommand(long Tick, ChaseMessage[] Chase) : Command;
 

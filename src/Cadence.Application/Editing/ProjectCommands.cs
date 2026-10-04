@@ -38,6 +38,49 @@ public static class ProjectCommands
     public static IProjectCommand ReplaceEvent(TrackId track, TrackEvent trackEvent) =>
         EditTrack("Edit Event", track, t => t.Replace(trackEvent));
 
+    /// <summary>
+    /// Removes <paramref name="remove"/> and adds <paramref name="add"/> on one track in a single step.
+    /// An event in both is replaced. Events not on the track are ignored when removing.
+    /// </summary>
+    public static IProjectCommand EditEvents(TrackId track, string label, IEnumerable<EventId> remove, IEnumerable<TrackEvent> add)
+    {
+        var removed = remove.ToHashSet();
+        var added = add.ToList();
+        removed.UnionWith(added.Select(e => e.Id));
+        return EditTrack(label, track, t =>
+        {
+            if (added.Count == 0 && !t.Events.Any(e => removed.Contains(e.Id)))
+            {
+                return t;
+            }
+
+            return t.WithEvents(t.Events.Where(e => !removed.Contains(e.Id)).Concat(added));
+        });
+    }
+
+    /// <summary>Replaces events (matched by ID) with edited versions, e.g. the result of an <see cref="EventEdits"/> operation.</summary>
+    public static IProjectCommand ReplaceEvents(TrackId track, string label, IReadOnlyCollection<TrackEvent> events) =>
+        events.Count == 0 ? new ProjectCommand(label, p => p) : EditEvents(track, label, [], events);
+
+    public static IProjectCommand AddEvents(TrackId track, string label, IReadOnlyCollection<TrackEvent> events) =>
+        EditEvents(track, label, [], events);
+
+    public static IProjectCommand RemoveEvents(TrackId track, IReadOnlyCollection<EventId> events) =>
+        EditEvents(track, events.Count == 1 ? "Delete Event" : "Delete Events", events, []);
+
+    /// <summary>
+    /// Adds recorded events to a track. With <paramref name="replaceRange"/>, events starting inside that
+    /// range are removed first (replace recording); otherwise the take is merged (overdub).
+    /// </summary>
+    public static IProjectCommand Record(TrackId track, IReadOnlyCollection<TrackEvent> take, TickRange? replaceRange) =>
+        EditTrack("Record", track, t =>
+        {
+            var kept = replaceRange is { } range
+                ? [.. t.Events.Where(e => e.Position < range.Start || e.Position >= range.End || e is MetaEvent)]
+                : t.Events;
+            return take.Count == 0 && kept.Length == t.Events.Length ? t : t.WithEvents(kept.Concat(take));
+        });
+
     /// <summary>Sets a route, replacing any existing route for the same track.</summary>
     public static IProjectCommand SetRoute(TrackRoute route) =>
         new ProjectCommand("Change Routing", p => Equals(p.Routing.Find(route.Track), route) ? p : p with { Routing = p.Routing.With(route) });
@@ -50,6 +93,21 @@ public static class ProjectCommands
         new ProjectCommand("Change Tempo", p => p.Sequence.TempoMap.TempoAt(position) == tempo && p.Sequence.TempoMap.Changes.Any(c => c.Position == position)
             ? p
             : p with { Sequence = p.Sequence.WithTempoMap(p.Sequence.TempoMap.With(new TempoChange(position, tempo))) });
+
+    /// <summary>Sets the time signature from <paramref name="position"/> (a bar line) onward.</summary>
+    /// <exception cref="ArgumentException">A beat of this signature is not a whole number of ticks at the project's resolution.</exception>
+    public static IProjectCommand SetTimeSignature(Tick position, TimeSignature signature) =>
+        new ProjectCommand("Change Time Signature", p =>
+        {
+            var meter = p.Sequence.MeterMap;
+            if (meter.Changes.Any(c => c.Position == position && c.Signature == signature))
+            {
+                return p;
+            }
+
+            var changes = meter.Changes.Where(c => c.Position != position).Append(new MeterChange(position, signature));
+            return p with { Sequence = p.Sequence.WithMeterMap(new MeterMap(meter.Ppqn, changes)) };
+        });
 
     /// <summary>Applies several commands as one undoable step.</summary>
     public static IProjectCommand Batch(string label, IEnumerable<IProjectCommand> commands)

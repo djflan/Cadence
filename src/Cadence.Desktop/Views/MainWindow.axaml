@@ -6,264 +6,499 @@
         x:Class="Cadence.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
-        Width="1360" Height="840" MinWidth="980" MinHeight="620"
+        Width="1440" Height="900" MinWidth="1040" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         DragDrop.AllowDrop="True">
   <Panel>
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="12,8,12,0">
+  <Grid RowDefinitions="Auto,*,Auto">
 
-    <!-- Top bar: identity, transport, file actions -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,*" Margin="4,4,4,10">
-      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-        <PathIcon Data="{StaticResource Icon.Logo}" Width="20" Height="20" Foreground="{StaticResource Cadence.Accent}" />
-        <TextBlock Text="Cadence" Classes="title" VerticalAlignment="Center" />
-        <Border Width="1" Height="18" Background="{StaticResource Cadence.BorderStrong}" />
-        <TextBlock Text="{Binding ProjectName}" VerticalAlignment="Center" Classes="secondary" MaxWidth="280" TextTrimming="CharacterEllipsis" />
-        <Border Classes="chip" IsVisible="{Binding IsDirty}" AutomationProperties.Name="Unsaved changes">
-          <TextBlock Text="Edited" FontSize="11" Classes="secondary" />
-        </Border>
-      </StackPanel>
-
-      <Border Grid.Column="1" Classes="panel" Padding="10,6">
-        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Classes="transport" Command="{Binding ReturnToStartCommand}" ToolTip.Tip="Return to start (Home)" AutomationProperties.Name="Return to start">
-            <PathIcon Data="{StaticResource Icon.Start}" Width="14" Height="14" />
-          </Button>
-          <Button Classes="transport" Command="{Binding StopCommand}" ToolTip.Tip="Stop; press again to return to start" AutomationProperties.Name="Stop">
-            <PathIcon Data="{StaticResource Icon.Stop}" Width="13" Height="13" />
-          </Button>
-          <Button Classes="transport play" Command="{Binding PlayPauseCommand}" ToolTip.Tip="Play or pause (Space)" AutomationProperties.Name="{Binding PlayButtonText}">
-            <Panel>
-              <PathIcon Data="{StaticResource Icon.Play}" Width="16" Height="16" Margin="2,0,0,0" IsVisible="{Binding !IsPlaying}" />
-              <PathIcon Data="{StaticResource Icon.Pause}" Width="16" Height="16" IsVisible="{Binding IsPlaying}" />
-            </Panel>
-          </Button>
-          <ToggleButton Classes="transport" IsChecked="{Binding IsLoopEnabled, Mode=OneWay}" Command="{Binding ToggleLoopCommand}" ToolTip.Tip="Loop four bars from the playhead (L)" AutomationProperties.Name="Loop">
-            <PathIcon Classes="stroke" Data="{StaticResource Icon.Loop}" Width="16" Height="16" />
+    <!-- Control bar: view toggles and undo on the left, transport and LCD in the centre, panic on the right. -->
+    <Border Grid.Row="0" Classes="bar" BorderThickness="0,0,0,1" Height="50">
+      <Grid ColumnDefinitions="*,Auto,*" Margin="8,0">
+        <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+          <ToggleButton Classes="tool" IsChecked="{Binding IsInspectorVisible}" ToolTip.Tip="Show or hide the inspector (I)" AutomationProperties.Name="Inspector">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.Inspector}" />
           </ToggleButton>
-          <Border Width="1" Height="26" Background="{StaticResource Cadence.BorderStrong}" Margin="8,0" />
-          <StackPanel VerticalAlignment="Center" MinWidth="128">
-            <TextBlock Text="{Binding PositionText}" Classes="readout" AutomationProperties.Name="Position in bars, beats, and ticks" />
-            <TextBlock Text="{Binding TimeText}" Classes="muted" FontFamily="{StaticResource Cadence.MonoFont}" AutomationProperties.Name="Elapsed time" />
-          </StackPanel>
-          <StackPanel VerticalAlignment="Center" Margin="10,0,4,0">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-              <TextBlock Text="{Binding TempoText}" FontFamily="{StaticResource Cadence.MonoFont}" FontSize="16" AutomationProperties.Name="Tempo" />
-              <TextBlock Text="BPM" Classes="muted" VerticalAlignment="Bottom" />
+          <ToggleButton Classes="tool" IsChecked="{Binding IsEditorVisible}" ToolTip.Tip="Show or hide the editors (P: piano roll, D: event list)" AutomationProperties.Name="Editors">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.EditorPane}" />
+          </ToggleButton>
+          <Border Classes="separator" Height="18" />
+          <Button Classes="tool" Command="{Binding UndoCommand}" ToolTip.Tip="Undo (Ctrl/Cmd+Z)" AutomationProperties.Name="Undo">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.Undo}" />
+          </Button>
+          <Button Classes="tool" Command="{Binding RedoCommand}" ToolTip.Tip="Redo (Ctrl/Cmd+Shift+Z)" AutomationProperties.Name="Redo">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.Redo}" />
+          </Button>
+          <DropDownButton x:Name="FileMenuButton" Classes="ghost" Content="File" Margin="6,0,0,0" FontSize="12" AutomationProperties.Name="File menu">
+            <DropDownButton.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                <MenuItem Header="New Project" Command="{Binding NewProjectCommand}" InputGesture="Ctrl+N" />
+                <MenuItem Header="Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
+                <Separator />
+                <MenuItem Header="Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
+                <MenuItem Header="Save As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
+                <Separator />
+                <MenuItem Header="Import MIDI File…" Command="{Binding ImportMidiCommand}" InputGesture="Ctrl+I" />
+                <MenuItem Header="Export MIDI File…" Command="{Binding ExportMidiCommand}" InputGesture="Ctrl+E" />
+              </MenuFlyout>
+            </DropDownButton.Flyout>
+          </DropDownButton>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Classes="transport">
+            <StackPanel Orientation="Horizontal" Spacing="1">
+              <Button Command="{Binding ReturnToStartCommand}" ToolTip.Tip="Go to start (Home)" AutomationProperties.Name="Go to start">
+                <PathIcon Data="{StaticResource Icon.Start}" Width="12" Height="12" />
+              </Button>
+              <Button Command="{Binding PreviousBarCommand}" ToolTip.Tip="Back one bar (,)" AutomationProperties.Name="Rewind one bar">
+                <PathIcon Data="{StaticResource Icon.Rewind}" Width="14" Height="14" />
+              </Button>
+              <Button Command="{Binding NextBarCommand}" ToolTip.Tip="Forward one bar (.)" AutomationProperties.Name="Forward one bar">
+                <PathIcon Data="{StaticResource Icon.Forward}" Width="14" Height="14" />
+              </Button>
+              <Button Command="{Binding StopCommand}" ToolTip.Tip="Stop; press again to go to the start" AutomationProperties.Name="Stop">
+                <PathIcon Data="{StaticResource Icon.Stop}" Width="11" Height="11" />
+              </Button>
+              <ToggleButton Classes="play" IsChecked="{Binding IsPlaying, Mode=OneWay}" Command="{Binding PlayPauseCommand}" ToolTip.Tip="Play or stop (Space)" AutomationProperties.Name="{Binding PlayButtonText}">
+                <PathIcon Data="{StaticResource Icon.Play}" Width="13" Height="13" />
+              </ToggleButton>
+              <ToggleButton Classes="record" IsChecked="{Binding IsRecording, Mode=OneWay}" Command="{Binding RecordCommand}" ToolTip.Tip="Record into the armed or selected track (R)" AutomationProperties.Name="Record">
+                <PathIcon Data="{StaticResource Icon.Record}" Width="12" Height="12" />
+              </ToggleButton>
             </StackPanel>
-            <TextBlock Text="{Binding MeterText}" Classes="muted" AutomationProperties.Name="Time signature" />
-          </StackPanel>
-          <Border Width="1" Height="26" Background="{StaticResource Cadence.BorderStrong}" Margin="8,0" />
-          <Button Classes="transport" Command="{Binding PanicCommand}" ToolTip.Tip="Panic: silence every output (Ctrl/Cmd+.)" AutomationProperties.Name="Panic, silence all outputs">
-            <PathIcon Data="{StaticResource Icon.Panic}" Width="14" Height="14" Foreground="{StaticResource Cadence.Danger}" />
+          </Border>
+          <Border Classes="transport">
+            <StackPanel Orientation="Horizontal" Spacing="1">
+              <ToggleButton Classes="cycle" IsChecked="{Binding IsLoopEnabled, Mode=OneWay}" Command="{Binding ToggleLoopCommand}" ToolTip.Tip="Cycle: loop four bars from the playhead (L), or drag in the ruler" AutomationProperties.Name="Cycle">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Cycle}" Width="15" Height="15" />
+              </ToggleButton>
+            </StackPanel>
+          </Border>
+
+          <!-- LCD -->
+          <Border Classes="lcd" Height="40" Padding="12,2">
+            <StackPanel Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+              <StackPanel VerticalAlignment="Center" Spacing="0">
+                <TextBlock Text="{Binding PositionText}" Classes="lcd" FontSize="19" FontWeight="Medium" MinWidth="118" AutomationProperties.Name="Position in bars, beats, and ticks" />
+                <TextBlock Text="BAR  BEAT  TICK" Classes="lcdLabel" />
+              </StackPanel>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding TimeText}" Classes="lcd" FontSize="13" MinWidth="84" Margin="0,3,0,2" AutomationProperties.Name="Elapsed time" />
+                <TextBlock Text="TIME" Classes="lcdLabel" />
+              </StackPanel>
+              <Border Width="1" Background="#2A2A2E" Margin="0,4" />
+              <StackPanel VerticalAlignment="Center">
+                <TextBox x:Name="TempoBox" Classes="lcd" Text="{Binding TempoText, Mode=OneWay}" FontSize="15" Width="56" Margin="0,1,0,1"
+                         ToolTip.Tip="Tempo in BPM. Click to type a new tempo." AutomationProperties.Name="Tempo" />
+                <TextBlock Text="TEMPO" Classes="lcdLabel" />
+              </StackPanel>
+              <StackPanel VerticalAlignment="Center">
+                <TextBox x:Name="MeterBox" Classes="lcd" Text="{Binding MeterText, Mode=OneWay}" FontSize="15" Width="40" Margin="0,1,0,1"
+                         ToolTip.Tip="Time signature. Click to type, e.g. 3/4." AutomationProperties.Name="Time signature" />
+                <TextBlock Text="SIGNATURE" Classes="lcdLabel" />
+              </StackPanel>
+              <Border Width="1" Background="#2A2A2E" Margin="0,4" />
+              <StackPanel VerticalAlignment="Center" Spacing="3" ToolTip.Tip="MIDI input activity">
+                <Ellipse Width="7" Height="7" HorizontalAlignment="Center" Fill="#2A3A2E" IsVisible="{Binding !HasInputActivity}" />
+                <Ellipse Width="7" Height="7" HorizontalAlignment="Center" Fill="#5BE08A" IsVisible="{Binding HasInputActivity}" />
+                <TextBlock Text="IN" Classes="lcdLabel" HorizontalAlignment="Center" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="transport">
+            <StackPanel Orientation="Horizontal" Spacing="1">
+              <ToggleButton Classes="mode" IsChecked="{Binding IsCountInEnabled, Mode=OneWay}" Command="{Binding ToggleCountInCommand}" ToolTip.Tip="Count in before recording" AutomationProperties.Name="Count-in">
+                <TextBlock Text="1234" FontSize="9.5" FontWeight="Bold" LetterSpacing="-0.3" />
+              </ToggleButton>
+              <ToggleButton Classes="mode" IsChecked="{Binding IsMetronomeEnabled, Mode=OneWay}" Command="{Binding ToggleMetronomeCommand}" ToolTip.Tip="Metronome click (K)" AutomationProperties.Name="Metronome">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Metronome}" Width="15" Height="15" />
+              </ToggleButton>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2" VerticalAlignment="Center">
+          <Button Classes="tool" Command="{Binding PanicCommand}" ToolTip.Tip="Panic: silence every output (Ctrl/Cmd+.)" AutomationProperties.Name="Panic, silence all outputs">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.Panic}" Foreground="#E07A7D" />
           </Button>
         </StackPanel>
-      </Border>
-
-      <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" VerticalAlignment="Center">
-        <Button Classes="transport" Command="{Binding UndoCommand}" ToolTip.Tip="Undo (Ctrl/Cmd+Z)" AutomationProperties.Name="Undo">
-          <PathIcon Classes="stroke" Data="{StaticResource Icon.Undo}" Width="16" Height="16" />
-        </Button>
-        <Button Classes="transport" Command="{Binding RedoCommand}" ToolTip.Tip="Redo (Ctrl/Cmd+Shift+Z)" AutomationProperties.Name="Redo">
-          <PathIcon Classes="stroke" Data="{StaticResource Icon.Redo}" Width="16" Height="16" />
-        </Button>
-        <DropDownButton x:Name="FileMenuButton" Classes="ghost" Content="File" Margin="6,0,0,0" AutomationProperties.Name="File menu">
-          <DropDownButton.Flyout>
-            <MenuFlyout Placement="BottomEdgeAlignedRight">
-              <MenuItem Header="New Project" Command="{Binding NewProjectCommand}" InputGesture="Ctrl+N" />
-              <MenuItem Header="Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
-              <Separator />
-              <MenuItem Header="Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
-              <MenuItem Header="Save As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
-              <Separator />
-              <MenuItem Header="Import MIDI File…" Command="{Binding ImportMidiCommand}" InputGesture="Ctrl+I" />
-              <MenuItem Header="Export MIDI File…" Command="{Binding ExportMidiCommand}" InputGesture="Ctrl+E" />
-            </MenuFlyout>
-          </DropDownButton.Flyout>
-        </DropDownButton>
-      </StackPanel>
-    </Grid>
+      </Grid>
+    </Border>
 
     <!-- Workspace -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,8,340">
-      <Border Classes="panel" ClipToBounds="True">
-        <Grid RowDefinitions="Auto,*">
-          <Grid ColumnDefinitions="Auto,*,Auto" Margin="14,10,10,6">
-            <TextBlock Text="TRACKS" Classes="overline" VerticalAlignment="Center" />
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
-              <TextBlock Text="Zoom" Classes="muted" VerticalAlignment="Center" />
-              <Slider x:Name="ZoomSlider" Minimum="6" Maximum="160" Value="{Binding Zoom}" Width="140" ToolTip.Tip="Zoom (⌘/Ctrl + scroll, pinch, or ⌘/Ctrl + = and −)" VerticalAlignment="Center" AutomationProperties.Name="Timeline zoom" />
-              <Button Classes="ghost" Command="{Binding AddTrackCommand}" ToolTip.Tip="Add a track (Ctrl/Cmd+T)" AutomationProperties.Name="Add track">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource Icon.Plus}" Width="11" Height="11" />
-                  <TextBlock Text="Track" />
-                </StackPanel>
-              </Button>
-            </StackPanel>
-          </Grid>
-
-          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <Grid ColumnDefinitions="272,*">
-              <StackPanel>
-                <Border Height="{x:Static controls:TimelineView.RulerHeight}" BorderBrush="{StaticResource Cadence.Border}" BorderThickness="0,0,0,1" />
-                <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItems="{Binding SelectedTracks}" SelectionMode="Multiple"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Tracks">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:TrackViewModel">
-                      <Grid ColumnDefinitions="4,*,Auto" AutomationProperties.Name="{Binding Name}">
-                        <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" CornerRadius="0" Margin="0,10" />
-                        <StackPanel Grid.Column="1" Margin="12,8,6,8" Spacing="3" VerticalAlignment="Center">
-                          <TextBox Classes="inline" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Track name" />
-                          <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Border Classes="chip" Classes.ready="{Binding IsReady}" Classes.attention="{Binding NeedsAttention}" Classes.offline="{Binding IsOffline}"
-                                    ToolTip.Tip="{Binding RouteText}" AutomationProperties.Name="{Binding HealthText}">
-                              <StackPanel Orientation="Horizontal" Spacing="4">
-                                <PathIcon Data="{StaticResource Icon.Check}" Width="9" Height="9" IsVisible="{Binding IsReady}" />
-                                <PathIcon Data="{StaticResource Icon.Warning}" Width="9" Height="9" IsVisible="{Binding NeedsAttention}" />
-                                <PathIcon Data="{StaticResource Icon.Offline}" Width="9" Height="9" IsVisible="{Binding IsOffline}" />
-                                <TextBlock Text="{Binding HealthText}" FontSize="11" />
-                              </StackPanel>
-                            </Border>
-                            <TextBlock Text="{Binding Summary}" Classes="muted" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                          </StackPanel>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,10,0" VerticalAlignment="Center">
-                          <ToggleButton Classes="pill mute" Content="M" IsChecked="{Binding IsMuted}" ToolTip.Tip="Mute" AutomationProperties.Name="Mute" />
-                          <ToggleButton Classes="pill solo" Content="S" IsChecked="{Binding IsSoloed}" ToolTip.Tip="Solo" AutomationProperties.Name="Solo" />
-                        </StackPanel>
-                      </Grid>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-              </StackPanel>
-
-              <ScrollViewer x:Name="TimelineScroller" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <Panel>
-                  <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}" IsVisible="{Binding Tracks.Count}"
-                                         AutomationProperties.Name="Timeline. Click to move the playhead." />
-                  <controls:PlayheadOverlay x:Name="Playhead" IsVisible="{Binding Tracks.Count}" />
-                </Panel>
-              </ScrollViewer>
-
-              <!-- Empty state -->
-              <StackPanel Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Margin="0,80,0,0"
-                          IsVisible="{Binding !Tracks.Count}">
-                <PathIcon Data="{StaticResource Icon.Logo}" Width="36" Height="36" Foreground="{StaticResource Cadence.BorderStrong}" />
-                <TextBlock Text="Start with a MIDI file or a new track" Classes="title" HorizontalAlignment="Center" />
-                <TextBlock Text="Cadence keeps what an instrument understands separate from where it is connected." Classes="secondary" HorizontalAlignment="Center" />
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                  <Button Classes="primary" Content="Import MIDI…" Command="{Binding ImportMidiCommand}" />
-                  <Button Content="Add Track" Command="{Binding AddTrackCommand}" />
-                </StackPanel>
-              </StackPanel>
-            </Grid>
-          </ScrollViewer>
-        </Grid>
-      </Border>
-
-      <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" AutomationProperties.Name="Resize inspector" />
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
 
       <!-- Inspector -->
-      <Border Grid.Column="2" Classes="panel">
+      <Border Grid.Column="0" Classes="pane" Width="236" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,0"
+              IsVisible="{Binding IsInspectorVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <Panel Margin="16">
-            <TextBlock Text="Select a track to set up its instrument and output. Shift-click or ⌘/Ctrl-click to select several." Classes="secondary" TextWrapping="Wrap"
-                       IsVisible="{Binding !Selection.HasSelection}" />
-            <StackPanel Spacing="14" DataContext="{Binding Selection}" x:DataType="vm:SelectionViewModel" IsVisible="{Binding HasSelection}">
-              <StackPanel Spacing="4">
-                <TextBlock Text="{Binding IsMultiple, Converter={x:Static theme:SelectionHeaderConverter.Instance}}" Classes="overline" />
-                <TextBlock Text="{Binding Title}" Classes="title" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" Classes="muted" TextWrapping="Wrap" />
-              </StackPanel>
+          <StackPanel>
+            <Border Padding="10,10,10,10" IsVisible="{Binding !Selection.HasSelection}">
+              <TextBlock Text="Select a track to set its output, instrument, and voice. Shift-click or ⌘/Ctrl-click to select several." Classes="muted" TextWrapping="Wrap" />
+            </Border>
 
-              <Border Classes="card">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="INSTRUMENT PROFILE" Classes="overline" />
-                  <TextBlock Text="What the instrument understands: voices, controllers, setup messages." Classes="muted" TextWrapping="Wrap" />
-                  <ComboBox ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding Profile}" HorizontalAlignment="Stretch" AutomationProperties.Name="Instrument profile" />
-                  <ItemsControl ItemsSource="{Binding ProfileNotices}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="x:String">
-                        <TextBlock Text="{Binding}" Classes="muted" TextWrapping="Wrap" FontSize="11" />
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
+            <StackPanel DataContext="{Binding Selection}" x:DataType="vm:SelectionViewModel" IsVisible="{Binding HasSelection}">
+              <Grid ColumnDefinitions="Auto,*" Margin="10,10,10,8">
+                <Border Width="4" CornerRadius="1" Margin="0,1,8,1"
+                        Background="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectedTrack.ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}, FallbackValue={x:Null}}" />
+                <StackPanel Grid.Column="1" Spacing="1">
+                  <TextBlock Text="{Binding Title}" Classes="title" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Subtitle}" Classes="muted" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Subtitle}" />
                 </StackPanel>
-              </Border>
+              </Grid>
 
-              <Border Classes="card">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="OUTPUT" Classes="overline" />
-                  <TextBlock Text="Where the messages go: a hardware port, virtual bus, or built-in monitor." Classes="muted" TextWrapping="Wrap" />
-                  <ComboBox ItemsSource="{Binding OutputChoices}" SelectedItem="{Binding Output}" HorizontalAlignment="Stretch" AutomationProperties.Name="MIDI output">
+              <Expander Classes="section" Header="Routing" IsExpanded="True">
+                <Grid ColumnDefinitions="64,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                  <TextBlock Text="Output" Classes="label" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding OutputChoices}" SelectedItem="{Binding Output}" HorizontalAlignment="Stretch" AutomationProperties.Name="MIDI output"
+                            ToolTip.Tip="Where the messages go: a hardware port, virtual bus, or the built-in monitor.">
                     <ComboBox.ItemTemplate>
                       <DataTemplate x:DataType="vm:OutputOption">
-                        <StackPanel>
-                          <TextBlock Text="{Binding Name}" />
-                          <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" />
-                        </StackPanel>
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Detail}" />
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
-                  <Button Classes="link" Content="Use this output for all tracks" HorizontalAlignment="Left"
+                  <TextBlock Grid.Row="1" Text="Instrument" Classes="label" />
+                  <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding Profile}" HorizontalAlignment="Stretch" AutomationProperties.Name="Instrument profile"
+                            ToolTip.Tip="What the instrument understands: voices, controllers, setup messages." />
+                  <TextBlock Grid.Row="2" Text="Channel" Classes="label" />
+                  <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding ChannelChoices}" SelectedItem="{Binding Channel}" HorizontalAlignment="Stretch" AutomationProperties.Name="Channel" />
+                  <TextBlock Grid.Row="3" Text="Transpose" Classes="label" />
+                  <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Transpose}" Minimum="-48" Maximum="48" Increment="1" FormatString="+0;-0;0"
+                                 PlaceholderText="Mixed" AutomationProperties.Name="Transpose in semitones" />
+                  <Button Grid.Row="4" Grid.Column="1" Classes="link" Content="Use this output for all tracks" HorizontalAlignment="Left"
                           Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).UseOutputForAllTracksCommand}" />
-                  <Grid ColumnDefinitions="*,12,110" RowDefinitions="Auto,Auto">
-                    <TextBlock Text="Channel" Classes="muted" />
-                    <TextBlock Grid.Column="2" Text="Transpose" Classes="muted" />
-                    <ComboBox Grid.Row="1" ItemsSource="{Binding ChannelChoices}" SelectedItem="{Binding Channel}" HorizontalAlignment="Stretch" AutomationProperties.Name="Channel" />
-                    <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding Transpose}" Minimum="-48" Maximum="48" Increment="1" FormatString="+0;-0;0"
-                                   PlaceholderText="Mixed" AutomationProperties.Name="Transpose in semitones" />
-                  </Grid>
-                </StackPanel>
-              </Border>
+                </Grid>
+              </Expander>
 
-              <Border Classes="card">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="VOICE" Classes="overline" />
-                  <ComboBox ItemsSource="{Binding Banks}" SelectedItem="{Binding VoiceBank}" HorizontalAlignment="Stretch" IsEnabled="{Binding CanEditVoice}" AutomationProperties.Name="Voice bank" />
-                  <ComboBox ItemsSource="{Binding Programs}" SelectedItem="{Binding VoiceProgram}" HorizontalAlignment="Stretch" IsEnabled="{Binding Programs.Count}"
+              <Expander Classes="section" Header="Voice" IsExpanded="True">
+                <StackPanel Spacing="6">
+                  <ComboBox ItemsSource="{Binding Banks}" SelectedItem="{Binding VoiceBank}" HorizontalAlignment="Stretch" IsVisible="{Binding CanEditVoice}" AutomationProperties.Name="Voice bank" />
+                  <ComboBox ItemsSource="{Binding Programs}" SelectedItem="{Binding VoiceProgram}" HorizontalAlignment="Stretch" IsVisible="{Binding CanEditVoice}" IsEnabled="{Binding Programs.Count}"
                             AutomationProperties.Name="Voice program" MaxDropDownHeight="360" />
                   <TextBlock Text="{Binding VoiceHint}" Classes="muted" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding ProfileNotices}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" Classes="muted" TextWrapping="Wrap" FontSize="10" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Button Classes="raised" Content="Initialize Instrument…" IsEnabled="{Binding CanInitialize}" IsVisible="{Binding IsSingle}" HorizontalAlignment="Stretch"
+                          Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).InitializeInstrumentCommand}"
+                          ToolTip.Tip="Send the profile's setup messages, asking before anything that resets the instrument" />
                 </StackPanel>
-              </Border>
+              </Expander>
 
-              <ItemsControl ItemsSource="{Binding Problems}">
+              <ItemsControl ItemsSource="{Binding Problems}" Margin="10,8,10,0">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="x:String">
                     <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
-                      <PathIcon Data="{StaticResource Icon.Warning}" Width="12" Height="12" Foreground="{StaticResource Cadence.Warning}" VerticalAlignment="Top" Margin="0,2,8,0" />
-                      <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Classes="secondary" />
+                      <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Foreground="{StaticResource Cadence.Warning}" VerticalAlignment="Top" Margin="0,2,6,0" />
+                      <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Classes="muted" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Initialize Instrument…" IsEnabled="{Binding CanInitialize}" IsVisible="{Binding IsSingle}"
-                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).InitializeInstrumentCommand}"
-                        ToolTip.Tip="Send the profile's setup messages, asking before anything that resets the instrument" />
-                <Button Classes="danger" Content="{Binding IsMultiple, Converter={x:Static theme:DeleteLabelConverter.Instance}}"
-                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DeleteTracksCommand}" ToolTip.Tip="Delete (⌫)" />
-              </StackPanel>
             </StackPanel>
-          </Panel>
+
+            <Expander Classes="section" Header="Recording" IsExpanded="True">
+              <Grid ColumnDefinitions="64,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                <TextBlock Text="Input" Classes="label" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Inputs}" SelectedItem="{Binding SelectedInput}" HorizontalAlignment="Stretch" AutomationProperties.Name="MIDI input" />
+                <TextBlock Grid.Row="1" Text="Takes" Classes="label" />
+                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="TakeModeBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Take mode">
+                  <ComboBoxItem Content="Merge (overdub)" />
+                  <ComboBoxItem Content="Replace" />
+                </ComboBox>
+                <TextBlock Grid.Row="2" Text="Count-in" Classes="label" />
+                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="CountInBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Count-in length">
+                  <ComboBoxItem Content="1 bar" />
+                  <ComboBoxItem Content="2 bars" />
+                </ComboBox>
+                <TextBlock Grid.Row="3" Text="Click on" Classes="label" />
+                <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding MetronomeOutputs}" SelectedItem="{Binding MetronomeOutput}" HorizontalAlignment="Stretch" AutomationProperties.Name="Metronome output"
+                          ToolTip.Tip="Where the metronome clicks (General MIDI wood blocks on channel 10).">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:OutputOption">
+                      <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <CheckBox Grid.Row="4" Grid.Column="1" Content="Click while playing" IsChecked="{Binding ClickWhilePlaying}" />
+                <CheckBox Grid.Row="5" Grid.Column="1" Content="MIDI thru" IsChecked="{Binding IsThruEnabled}"
+                          ToolTip.Tip="Play what you hear through the armed or selected track's output." />
+              </Grid>
+            </Expander>
+          </StackPanel>
         </ScrollViewer>
       </Border>
-    </Grid>
 
-    <!-- Messages and MIDI monitor -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,8,*" Height="150" Margin="0,8,0,0">
-      <Border Classes="panel">
-        <Grid RowDefinitions="Auto,*">
-          <Grid ColumnDefinitions="*,Auto" Margin="14,8,8,2">
-            <TextBlock Text="MESSAGES" Classes="overline" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Classes="ghost" Content="Clear" Command="{Binding ClearMessagesCommand}" Padding="8,2" />
+      <!-- Arrangement above, editors below -->
+      <Grid x:Name="MainArea" Grid.Column="1" RowDefinitions="*,Auto,Auto,330">
+
+        <Grid Grid.Row="0" RowDefinitions="28,30,*" ColumnDefinitions="252,*">
+          <!-- Arrangement header -->
+          <Border Grid.ColumnSpan="2" Classes="header">
+            <Grid ColumnDefinitions="252,*,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="2" Margin="8,0" VerticalAlignment="Center">
+                <TextBlock Text="Tracks" Classes="title" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <Button Classes="tool" Command="{Binding AddTrackCommand}" ToolTip.Tip="New track (Ctrl/Cmd+T)" AutomationProperties.Name="New track">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Plus}" Width="13" Height="13" />
+                </Button>
+                <Button Classes="tool" Command="{Binding DuplicateTracksCommand}" ToolTip.Tip="Duplicate the selected tracks (Ctrl/Cmd+D)" AutomationProperties.Name="Duplicate tracks">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Duplicate}" Width="13" Height="13" />
+                </Button>
+                <Button Classes="tool" Command="{Binding DeleteTracksCommand}" ToolTip.Tip="Delete the selected tracks (⌫)" AutomationProperties.Name="Delete tracks">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Trash}" Width="13" Height="13" />
+                </Button>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="8,0" VerticalAlignment="Center">
+                <Button Classes="tool" Command="{Binding ZoomOutCommand}" ToolTip.Tip="Zoom out (Ctrl/Cmd+−)" AutomationProperties.Name="Zoom out">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.ZoomOut}" Width="13" Height="13" />
+                </Button>
+                <Slider x:Name="ZoomSlider" Minimum="6" Maximum="160" Value="{Binding Zoom}" Width="110" VerticalAlignment="Center"
+                        ToolTip.Tip="Zoom (⌘/Ctrl + scroll, pinch, or scroll over the ruler)" AutomationProperties.Name="Timeline zoom" />
+                <Button Classes="tool" Command="{Binding ZoomInCommand}" ToolTip.Tip="Zoom in (Ctrl/Cmd+=)" AutomationProperties.Name="Zoom in">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.ZoomIn}" Width="13" Height="13" />
+                </Button>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Ruler row -->
+          <Border Grid.Row="1" Background="#2B2B2E" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,1" />
+          <controls:RulerView x:Name="Ruler" Grid.Row="1" Grid.Column="1" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}"
+                              IsRecording="{Binding IsRecording}" AutomationProperties.Name="Bar ruler. Click to move the playhead; drag the top strip to set the cycle." />
+
+          <!-- Track headers, scrolled with the lanes -->
+          <ScrollViewer x:Name="TrackHeaderScroller" Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
+                        Background="#1F1F21">
+            <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,0">
+              <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItems="{Binding SelectedTracks}" SelectionMode="Multiple"
+                       ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Tracks">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:TrackViewModel">
+                    <Grid ColumnDefinitions="3,24,Auto,*,Auto" AutomationProperties.Name="{Binding Name}">
+                      <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Number}" Classes="muted" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      <Border Grid.Column="2" Width="26" Height="26" CornerRadius="3" VerticalAlignment="Center" Margin="0,0,8,0"
+                              Background="{Binding ColorIndex, Converter={x:Static theme:TrackTintConverter.Instance}, ConverterParameter=0.28}">
+                        <PathIcon Classes="stroke" Data="{StaticResource Icon.Piano}" Width="15" Height="15"
+                                  Foreground="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" />
+                      </Border>
+                      <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2" Margin="0,0,4,0">
+                        <TextBox Classes="inline" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Track name" />
+                        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="{Binding RouteText}" AutomationProperties.Name="{Binding HealthText}">
+                          <PathIcon Data="{StaticResource Icon.Check}" Width="8" Height="8" Foreground="{StaticResource Cadence.Success}" IsVisible="{Binding IsReady}" />
+                          <PathIcon Data="{StaticResource Icon.Warning}" Width="8" Height="8" Foreground="{StaticResource Cadence.Warning}" IsVisible="{Binding NeedsAttention}" />
+                          <PathIcon Data="{StaticResource Icon.Offline}" Width="8" Height="8" Foreground="#9A6B6D" IsVisible="{Binding IsOffline}" />
+                          <TextBlock Text="{Binding StatusLine}" Classes="muted" FontSize="10.5" TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                        </StackPanel>
+                      </StackPanel>
+                      <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <ToggleButton Classes="trackButton mute" Content="M" IsChecked="{Binding IsMuted}" ToolTip.Tip="Mute (M)" AutomationProperties.Name="Mute" />
+                        <ToggleButton Classes="trackButton solo" Content="S" IsChecked="{Binding IsSoloed}" ToolTip.Tip="Solo (S)" AutomationProperties.Name="Solo" />
+                        <ToggleButton Classes="trackButton arm" IsChecked="{Binding IsArmed}" ToolTip.Tip="Arm for recording" AutomationProperties.Name="Record arm">
+                          <PathIcon Data="{StaticResource Icon.Record}" Width="8" Height="8" />
+                        </ToggleButton>
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </ScrollViewer>
+
+          <!-- Lanes -->
+          <ScrollViewer x:Name="TimelineScroller" Grid.Row="2" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                        Background="#222224">
+            <Panel>
+              <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}"
+                                     RecordingLane="{Binding RecordingLane}" RecordingPreview="{Binding RecordingPreview}"
+                                     AutomationProperties.Name="Arrangement. Click a track's lane to select it; double-click to edit its notes." />
+              <controls:PlayheadOverlay x:Name="Playhead" IsRecording="{Binding IsRecording}" IsVisible="{Binding Tracks.Count}" />
+            </Panel>
+          </ScrollViewer>
+
+          <!-- Empty state -->
+          <StackPanel Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                      IsVisible="{Binding !Tracks.Count}">
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.PianoRoll}" Width="34" Height="34" Foreground="{StaticResource Cadence.BorderStrong}" />
+            <TextBlock Text="Start with a MIDI file or a new track" Classes="title" HorizontalAlignment="Center" />
+            <TextBlock Text="Drop a .mid or .cadence file anywhere on the window." Classes="secondary" HorizontalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+              <Button Classes="primary" Content="Import MIDI…" Command="{Binding ImportMidiCommand}" />
+              <Button Classes="raised" Content="New Track" Command="{Binding AddTrackCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+        <GridSplitter x:Name="EditorSplitter" Grid.Row="1" Classes="hairline" Height="1" ResizeDirection="Rows" IsVisible="{Binding IsEditorVisible}"
+                      AutomationProperties.Name="Resize editors" />
+
+        <!-- Lower pane header: tabs and the active editor's tools -->
+        <Border x:Name="EditorHeader" Grid.Row="2" Classes="header" BorderThickness="0,1,0,1">
+          <Grid ColumnDefinitions="Auto,*,Auto" Height="28">
+            <StackPanel Orientation="Horizontal">
+              <RadioButton Classes="tab" GroupName="LowerPane" IsChecked="{Binding LowerPane, Mode=OneWay, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=PianoRoll}"
+                           Command="{Binding ShowPaneCommand}" CommandParameter="{x:Static vm:LowerPane.PianoRoll}" AutomationProperties.Name="Piano roll">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.PianoRoll}" Width="13" Height="13" />
+                  <TextBlock Text="Piano Roll" />
+                </StackPanel>
+              </RadioButton>
+              <RadioButton Classes="tab" GroupName="LowerPane" IsChecked="{Binding LowerPane, Mode=OneWay, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=EventList}"
+                           Command="{Binding ShowPaneCommand}" CommandParameter="{x:Static vm:LowerPane.EventList}" AutomationProperties.Name="Event list">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.List}" Width="13" Height="13" />
+                  <TextBlock Text="Event List" />
+                </StackPanel>
+              </RadioButton>
+              <RadioButton Classes="tab" GroupName="LowerPane" IsChecked="{Binding LowerPane, Mode=OneWay, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Monitor}"
+                           Command="{Binding ShowPaneCommand}" CommandParameter="{x:Static vm:LowerPane.Monitor}" AutomationProperties.Name="MIDI monitor">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Monitor}" Width="13" Height="13" />
+                  <TextBlock Text="MIDI Monitor" />
+                </StackPanel>
+              </RadioButton>
+              <RadioButton Classes="tab" GroupName="LowerPane" IsChecked="{Binding LowerPane, Mode=OneWay, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Messages}"
+                           Command="{Binding ShowPaneCommand}" CommandParameter="{x:Static vm:LowerPane.Messages}" AutomationProperties.Name="Messages">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Messages}" Width="13" Height="13" />
+                  <TextBlock Text="Messages" />
+                </StackPanel>
+              </RadioButton>
+            </StackPanel>
+
+            <!-- Piano roll tools -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="8,0" VerticalAlignment="Center" DataContext="{Binding Editor}" x:DataType="vm:EditorViewModel"
+                        IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=PianoRoll}">
+              <ToggleButton Classes="tool" IsChecked="{Binding IsArrow}" ToolTip.Tip="Arrow: select, move, and resize (1)" AutomationProperties.Name="Arrow tool">
+                <PathIcon Data="{StaticResource Icon.Arrow}" Width="13" Height="13" />
+              </ToggleButton>
+              <ToggleButton Classes="tool" IsChecked="{Binding IsPencil}" ToolTip.Tip="Pencil: draw notes and controller lines (2)" AutomationProperties.Name="Pencil tool">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Pencil}" Width="14" Height="14" />
+              </ToggleButton>
+              <ToggleButton Classes="tool" IsChecked="{Binding IsEraser}" ToolTip.Tip="Eraser: delete notes and controller points (3)" AutomationProperties.Name="Eraser tool">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Eraser}" Width="14" Height="14" />
+              </ToggleButton>
+              <Border Classes="separator" Height="16" />
+              <ToggleButton Classes="tool" IsChecked="{Binding IsSnapEnabled}" ToolTip.Tip="Snap to grid (hold ⌘/Ctrl while dragging to ignore it)" AutomationProperties.Name="Snap">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Magnet}" Width="14" Height="14" />
+              </ToggleButton>
+              <ComboBox ItemsSource="{x:Static vm:GridOption.All}" SelectedItem="{Binding Snap}" Width="74" AutomationProperties.Name="Snap grid" ToolTip.Tip="Grid" />
+              <Border Classes="separator" Height="16" />
+              <Button Classes="tool" Command="{Binding QuantizeCommand}" Width="30" ToolTip.Tip="Quantize the selection, or the whole track (Q)" AutomationProperties.Name="Quantize">
+                <TextBlock Text="Q" FontWeight="Bold" FontSize="12" />
+              </Button>
+              <ComboBox ItemsSource="{x:Static vm:GridOption.All}" SelectedItem="{Binding QuantizeGrid}" Width="74" AutomationProperties.Name="Quantize grid" ToolTip.Tip="Quantize to" />
+              <NumericUpDown Classes="compact" Value="{Binding QuantizeStrength}" Minimum="0" Maximum="100" Increment="10" Width="50" FormatString="0'%'" ShowButtonSpinner="False"
+                             ToolTip.Tip="Quantize strength (scroll or type)" AutomationProperties.Name="Quantize strength" />
+              <TextBlock Text="Swing" Classes="label" Margin="4,0,0,0" />
+              <NumericUpDown Classes="compact" Value="{Binding Swing}" Minimum="50" Maximum="75" Increment="1" Width="40" FormatString="0" ShowButtonSpinner="False"
+                             ToolTip.Tip="Swing: 50 is straight, 66 is a triplet feel" AutomationProperties.Name="Swing" />
+              <Border Classes="separator" Height="16" />
+              <ComboBox ItemsSource="{x:Static vm:ControllerLane.Standard}" SelectedItem="{Binding Lane}" Width="150" AutomationProperties.Name="Controller lane" ToolTip.Tip="What the lower lane shows and edits" />
+              <ToggleButton Classes="tool" IsChecked="{Binding FollowPlayhead}" ToolTip.Tip="Follow the playhead" AutomationProperties.Name="Follow playhead">
+                <PathIcon Classes="stroke" Data="{StaticResource Icon.Follow}" Width="14" Height="14" />
+              </ToggleButton>
+            </StackPanel>
+
+            <!-- Event list tools -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="8,0" VerticalAlignment="Center" DataContext="{Binding EventList}" x:DataType="vm:EventListViewModel"
+                        IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=EventList}">
+              <TextBlock Text="{Binding CountText}" Classes="muted" VerticalAlignment="Center" />
+              <ComboBox ItemsSource="{x:Static vm:EventFilter.All}" SelectedItem="{Binding Filter}" Width="160" AutomationProperties.Name="Show events" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="8,0" VerticalAlignment="Center"
+                        IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Messages}">
+              <Button Classes="ghost" Content="Clear" Command="{Binding ClearMessagesCommand}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="8,0" VerticalAlignment="Center"
+                        IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Monitor}">
+              <TextBlock Text="{Binding MonitorName}" Classes="muted" VerticalAlignment="Center" />
+            </StackPanel>
           </Grid>
-          <ListBox Grid.Row="1" Classes="dense" ItemsSource="{Binding Messages}" Background="Transparent" Margin="0,2,0,8" ClipToBounds="True"
-                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Messages">
+        </Border>
+
+        <!-- Lower pane content -->
+        <Panel Grid.Row="3" x:Name="EditorPane" IsVisible="{Binding IsEditorVisible}" Background="{StaticResource Cadence.Panel}">
+
+          <!-- Piano roll -->
+          <Grid RowDefinitions="Auto,*" IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=PianoRoll}">
+            <Border Background="#262628" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,0,1" Padding="8,3" DataContext="{Binding Editor}" x:DataType="vm:EditorViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Track.Name, FallbackValue='No track'}" Classes="title" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" MaxWidth="160" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="Position" Classes="label" />
+                <TextBox Classes="field commit" Text="{Binding InfoPosition, UpdateSourceTrigger=LostFocus}" Width="80" IsEnabled="{Binding HasSelection}" AutomationProperties.Name="Selection position" />
+                <TextBlock Text="Length" Classes="label" Margin="6,0,0,0" />
+                <TextBox Classes="field commit" Text="{Binding InfoLength, UpdateSourceTrigger=LostFocus}" Width="72" IsEnabled="{Binding HasSelection}" AutomationProperties.Name="Note length" />
+                <TextBlock Text="Pitch" Classes="label" Margin="6,0,0,0" />
+                <TextBox Classes="field commit" Text="{Binding InfoPitch, UpdateSourceTrigger=LostFocus}" Width="48" IsEnabled="{Binding HasSelection}" AutomationProperties.Name="Pitch" />
+                <TextBlock Text="Velocity" Classes="label" Margin="6,0,0,0" />
+                <TextBox Classes="field commit" Text="{Binding InfoVelocity, UpdateSourceTrigger=LostFocus}" Width="40" IsEnabled="{Binding HasSelection}" AutomationProperties.Name="Velocity" />
+                <TextBlock Text="Channel" Classes="label" Margin="6,0,0,0" />
+                <TextBox Classes="field commit" Text="{Binding InfoChannel, UpdateSourceTrigger=LostFocus}" Width="34" IsEnabled="{Binding HasSelection}" AutomationProperties.Name="Channel" />
+                <TextBlock Text="{Binding SelectionSummary}" Classes="muted" VerticalAlignment="Center" Margin="10,0,0,0" />
+              </StackPanel>
+            </Border>
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
+              <controls:PianoRollView x:Name="PianoRoll" Project="{Binding Project}" IsRecording="{Binding IsRecording}"
+                                      AutomationProperties.Name="Piano roll. Arrow keys move and transpose the selected notes." />
+              <ScrollBar x:Name="PianoRollVertical" Grid.Column="1" Orientation="Vertical" AllowAutoHide="False" />
+              <ScrollBar x:Name="PianoRollHorizontal" Grid.Row="1" Orientation="Horizontal" AllowAutoHide="False" />
+            </Grid>
+          </Grid>
+
+          <!-- Event list -->
+          <Grid RowDefinitions="Auto,*" IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=EventList}">
+            <Border Background="#262628" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,0,1" Height="22">
+              <Grid ColumnDefinitions="100,100,44,80,70,100,*" Margin="0,0,0,0">
+                <TextBlock Text="POSITION" Classes="overline" VerticalAlignment="Center" Margin="10,0" />
+                <TextBlock Grid.Column="1" Text="STATUS" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
+                <TextBlock Grid.Column="2" Text="CH" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
+                <TextBlock Grid.Column="3" Text="NUM" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
+                <TextBlock Grid.Column="4" Text="VAL" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
+                <TextBlock Grid.Column="5" Text="LENGTH" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
+              </Grid>
+            </Border>
+            <ListBox x:Name="EventListBox" Grid.Row="1" Classes="grid" ItemsSource="{Binding EventList.Rows}" SelectedItems="{Binding EventList.SelectedRows}" SelectionMode="Multiple"
+                     Background="Transparent" AutomationProperties.Name="Events">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:EventRow">
+                  <Grid ColumnDefinitions="100,100,44,80,70,100,*">
+                    <TextBox Classes="cell commit" Text="{Binding Position, UpdateSourceTrigger=LostFocus}" Margin="4,0,0,0" AutomationProperties.Name="Position" />
+                    <TextBlock Grid.Column="1" Text="{Binding Kind}" VerticalAlignment="Center" Margin="6,0" FontSize="11.5" Classes="secondary" />
+                    <TextBox Grid.Column="2" Classes="cell commit" Text="{Binding Channel, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding !CanEditData}" AutomationProperties.Name="Channel" />
+                    <TextBox Grid.Column="3" Classes="cell commit" Text="{Binding Data1, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding !CanEditData}" AutomationProperties.Name="Note or number" />
+                    <TextBox Grid.Column="4" Classes="cell commit" Text="{Binding Data2, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding !CanEditData}" AutomationProperties.Name="Value" />
+                    <TextBox Grid.Column="5" Classes="cell commit" Text="{Binding Length, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding !CanEditLength}" AutomationProperties.Name="Length" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+
+          <!-- MIDI monitor -->
+          <ListBox x:Name="MonitorList" Classes="dense" ItemsSource="{Binding MonitorEntries}" ClipToBounds="True" AutomationProperties.Name="MIDI monitor"
+                   IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Monitor}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:MonitorEntry">
+                <TextBlock Text="{Binding Text}" FontFamily="{StaticResource Cadence.MonoFont}" FontSize="11.5" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <!-- Messages -->
+          <ListBox Classes="dense" ItemsSource="{Binding Messages}" ClipToBounds="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Messages"
+                   IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Messages}">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:MessageItem">
-                <Grid ColumnDefinitions="56,72,*">
+                <Grid ColumnDefinitions="64,80,*">
                   <TextBlock Text="{Binding SeverityText}" Classes="muted" />
                   <TextBlock Grid.Column="1" Text="{Binding Source}" Classes="muted" />
                   <TextBlock Grid.Column="2" Text="{Binding Text}" TextWrapping="Wrap" />
@@ -271,36 +506,25 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-        </Grid>
-      </Border>
-      <Border Grid.Column="2" Classes="panel">
-        <Grid RowDefinitions="Auto,*">
-          <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,10,8,4">
-            <TextBlock Text="MIDI MONITOR" Classes="overline" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding MonitorName}" Classes="muted" VerticalAlignment="Center" />
-          </StackPanel>
-          <ListBox x:Name="MonitorList" Grid.Row="1" Classes="dense" ItemsSource="{Binding MonitorEntries}" Background="Transparent" Margin="0,2,0,8" ClipToBounds="True" AutomationProperties.Name="MIDI monitor">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:MonitorEntry">
-                <TextBlock Text="{Binding Text}" FontFamily="{StaticResource Cadence.MonoFont}" FontSize="12" />
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </Grid>
-      </Border>
+        </Panel>
+      </Grid>
     </Grid>
 
     <!-- Status bar -->
-    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="6,6,6,8">
-      <TextBlock Text="{Binding OutputsText}" Classes="muted" />
-      <TextBlock Grid.Column="2" Text="{Binding TimingText}" Classes="muted" AutomationProperties.Name="Playback timing" />
-    </Grid>
+    <Border Grid.Row="2" Background="#19191B" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,1,0,0" Height="22">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,0">
+        <TextBlock Text="{Binding OutputsText}" Classes="muted" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="muted" VerticalAlignment="Center" Margin="16,0,0,0"
+                   Text="{Binding SelectedInput.Name, StringFormat='MIDI in: {0}', FallbackValue=''}" />
+        <TextBlock x:Name="LastMessage" Grid.Column="2" Classes="muted" VerticalAlignment="Center" Margin="16,0" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="3" Text="{Binding TimingText}" Classes="muted" VerticalAlignment="Center" AutomationProperties.Name="Playback timing" />
+      </Grid>
+    </Border>
   </Grid>
 
   <!-- Shown while a supported file is dragged over the window. -->
   <Border x:Name="DropOverlay" IsVisible="False" IsHitTestVisible="False" Margin="8"
-          Background="#CC0E1014" BorderBrush="{StaticResource Cadence.Accent}" BorderThickness="2"
-          CornerRadius="{StaticResource Cadence.PanelRadius}">
+          Background="#CC1C1E22" BorderBrush="{StaticResource Cadence.Accent}" BorderThickness="2" CornerRadius="4">
     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
       <PathIcon Data="{StaticResource Icon.Logo}" Width="32" Height="32" Foreground="{StaticResource Cadence.Accent}" />
       <TextBlock x:Name="DropText" Classes="title" HorizontalAlignment="Center" />
