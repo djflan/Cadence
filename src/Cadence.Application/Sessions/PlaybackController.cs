@@ -161,11 +161,19 @@ public sealed class PlaybackController : IAsyncDisposable
         }
     }
 
+    /// <summary>Stops playback (releasing sounding notes), stops the playback thread, then closes every output.</summary>
     public async ValueTask DisposeAsync()
     {
         Engine.Stop();
-        Engine.Pump();
-        _thread?.Dispose();
+        if (_thread is not null)
+        {
+            // The thread applies the Stop on its way out; pumping here would race it.
+            _thread.Dispose();
+        }
+        else
+        {
+            Engine.Pump();
+        }
         foreach (var output in _open.Values)
         {
             output.Dispose();

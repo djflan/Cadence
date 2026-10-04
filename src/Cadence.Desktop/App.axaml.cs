@@ -19,10 +19,11 @@ public partial class App : Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var window = new MainWindow();
-            var viewModel = Compose(window, PlatformProviders.Create(SystemMonotonicClock.Instance));
+            var platformProviders = PlatformProviders.Create(SystemMonotonicClock.Instance).ToList();
+            var viewModel = Compose(window, platformProviders);
             window.Attach(viewModel);
             desktop.MainWindow = window;
-            desktop.ShutdownRequested += (_, _) => viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            desktop.Exit += (_, _) => Shutdown(viewModel, platformProviders);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -51,6 +52,28 @@ public partial class App : Avalonia.Application
         var viewModel = new MainViewModel(session, playback, endpoints, new DialogService(window), new AvaloniaDispatcher(), monitor);
         _ = viewModel.InitializeAsync();
         return viewModel;
+    }
+
+    /// <summary>
+    /// Stops playback (releasing sounding notes), closes MIDI ports, and releases platform providers.
+    /// Errors are logged rather than thrown: nothing useful can be done with them while quitting.
+    /// </summary>
+    private static void Shutdown(MainViewModel viewModel, IEnumerable<IMidiEndpointProvider> platformProviders)
+    {
+        try
+        {
+            viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            foreach (var provider in platformProviders)
+            {
+                provider.Dispose();
+            }
+        }
+#pragma warning disable CA1031 // Quitting must not crash; the failure is recorded instead.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            System.Diagnostics.Trace.TraceError($"Error while shutting down: {ex}");
+        }
     }
 
     /// <summary>Where users put their own profiles, e.g. ~/Library/Application Support/Cadence/profiles on macOS.</summary>

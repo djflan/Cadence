@@ -35,6 +35,7 @@ public sealed class PlaybackThread : IDisposable
     }
 
     /// <summary>Set if the engine threw; the thread stops pumping after a fault.</summary>
+    /// <remarks>Disposing pumps once more on the playback thread, so a <see cref="PlaybackEngine.Stop"/> issued just before takes effect.</remarks>
     public Exception? Fault { get; private set; }
 
     public void Dispose()
@@ -78,6 +79,10 @@ public sealed class PlaybackThread : IDisposable
                     }
                 }
             }
+
+            // Apply anything queued before shutdown (typically Stop), so sounding notes are released
+            // by the thread that owns the engine rather than by a concurrent caller.
+            _engine.Pump();
         }
         catch (ObjectDisposedException) when (_stopping)
         {
