@@ -11,14 +11,14 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track (or several at once) to a device profile and an output independently, play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows and Linux MIDI adapters and note editing are next.
+play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) or WinMM on Windows with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows MIDI Services and Linux adapters and note editing are next.
 
 ### Platform support
 
 | Platform | App | MIDI output | Notes |
 | -------- | --- | ----------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
-| Windows | Builds and runs; not yet verified | Built-in monitor only | Windows MIDI adapter is the next platform slice |
+| Windows | Builds and runs; UI not yet verified | WinMM: hardware ports and software synths (no SysEx yet) | 1 ms timer and MMCSS playback thread; Windows MIDI Services adapter planned |
 | Linux | Builds; not yet verified | Built-in monitor only | ALSA adapter planned; screen-reader support unverified |
 
 ## Goals

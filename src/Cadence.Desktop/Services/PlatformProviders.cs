@@ -27,8 +27,13 @@ internal static class PlatformProviders
                 Trace.TraceWarning($"CoreMIDI is unavailable: {ex.Message}");
             }
         }
+        else if (OperatingSystem.IsWindows())
+        {
+            // Windows MIDI Services is the planned primary adapter; WinMM works on every Windows version.
+            return [new Cadence.Platform.Windows.WinMmProvider()];
+        }
 
-        // Windows MIDI Services and ALSA adapters are not implemented yet.
+        // ALSA adapters are not implemented yet.
         return [];
     }
 
