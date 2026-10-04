@@ -13,15 +13,15 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-or WinMM on Windows with measured timing, or the ALSA sequencer on Linux (not yet tested on Linux), show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows MIDI Services and note editing are next.
+Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
 
 ### Platform support
 
-| Platform | App | MIDI output | Notes |
-| -------- | --- | ----------- | ----- |
-| macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
-| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Verified with a VST synth through a Windows MIDI Services loopback; see [docs/windows-vst-loopback.md](docs/windows-vst-loopback.md) |
-| Linux | Builds; not yet verified | ALSA sequencer (direct sends, SysEx, *Cadence Out* virtual port); untested on Linux | No ALSA input or hot-plug yet; screen-reader support unverified |
+| Platform | App | MIDI output | MIDI input (recording, thru) | Notes |
+| -------- | --- | ----------- | ---------------------------- | ----- |
+| macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | CoreMIDI, with adapter timestamps | Development platform; native menu bar; real-time playback thread |
+| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Not yet | Verified with a VST synth through a Windows MIDI Services loopback; see [docs/windows-vst-loopback.md](docs/windows-vst-loopback.md) |
+| Linux | Builds; not yet verified | ALSA sequencer (direct sends, SysEx, *Cadence Out* virtual port); untested on Linux | Not yet | No hot-plug yet; screen-reader support unverified |
 
 ## Goals
 
@@ -129,10 +129,11 @@ onto the window to open it. Hardware checks are listed in
 
 | Action | Shortcut |
 | ------ | -------- |
-| Play / pause | Space |
+| Play / stop | Space |
+| Record (punch in and out while playing) / metronome | R / K |
 | Return to start / go to end | Home / End |
 | Previous / next bar | , / . |
-| Loop four bars from the playhead | L |
+| Cycle four bars from the playhead | L, or drag in the ruler's top strip |
 | Panic (silence every output) | Ctrl/Cmd + . |
 | Select tracks | Click; Shift-click for a range; Ctrl/Cmd-click to add or remove; ↑ / ↓ (Shift to extend) |
 | Select all tracks | Ctrl/Cmd + A |
@@ -142,13 +143,45 @@ onto the window to open it. Hardware checks are listed in
 | New, Open, Save, Save As | Ctrl/Cmd + N, O, S, Shift + S |
 | Import / Export MIDI | Ctrl/Cmd + I / E |
 | Zoom timeline | Ctrl/Cmd + scroll, trackpad pinch, scroll over the bar ruler, or Ctrl/Cmd + = / − |
+| Show inspector / piano roll / event list | I / P / D |
 | Keyboard shortcut reference | Ctrl/Cmd + / |
+
+### Editing notes
+
+Double-click a track's lane (or press P) to open it in the piano roll, below the arrangement.
+
+| In the piano roll | How |
+| ----------------- | --- |
+| Arrow, pencil, eraser tools | 1 / 2 / 3, or the buttons in the pane header |
+| Select | Click; Shift-click to add or remove; drag on empty space for a marquee; Ctrl/Cmd + A |
+| Add a note | Double-click, or click with the pencil (drag to set its length) |
+| Move / copy / resize | Drag notes; Alt/Option-drag copies; drag a note's edge to resize; hold Ctrl/Cmd to ignore the grid |
+| Nudge / transpose | ← → by a grid step (Shift: four), ↑ ↓ by a semitone (Shift: an octave) |
+| Velocity | Drag stems in the velocity lane; draw a ramp with the pencil; Alt/Option + ↑ / ↓ |
+| Controllers | Pick a lane (modulation, volume, pan, expression, sustain, pitch bend, pressure) and draw lines with the pencil; erase with the eraser |
+| Quantize | Q (Shift + Q also quantizes note ends), with grid, strength, and swing in the header |
+| Copy, cut, paste at the playhead, duplicate, delete | Ctrl/Cmd + C, X, V, D; Delete |
+| Exact values | Type a position, length, pitch, velocity, or channel in the strip above the notes |
+| Hear a key | Click the keyboard |
+
+The event list (D) shows every event on the track with editable position, channel, data, and
+length, filtered by kind, and shares its selection with the piano roll. Every edit is one undo step.
+
+### Recording
+
+Arm a track with its red button (or record into the selected track), then press R. From a stop,
+Cadence counts in (one or two bars) and starts recording; while playing, R punches in and out.
+Space stops and adds the take as one undo step. Takes merge with what is there, or replace it
+(**Recording ▸ Takes** in the inspector). With a cycle set, every pass is merged. MIDI thru plays
+what you play through the armed or selected track's output, and the metronome clicks on that output
+(or one you choose) while recording, or always if *Click while playing* is on. Recording uses
+CoreMIDI input, so it works on macOS today.
 
 With several tracks selected, the inspector changes output, profile, channel, transpose, and voice
 for all of them at once (one undo step); values that differ show *Mixed*.
 
-On macOS, all commands are also in the standard menu bar (File, Edit, Track, Transport, View,
-Window, Help, and *About Cadence* in the application menu).
+On macOS, all commands are also in the standard menu bar (File, Edit, Track, MIDI, Transport,
+View, Window, Help, and *About Cadence* in the application menu).
 
 Accessibility: every control has a screen-reader name, status is always shown with an icon and a
 word as well as colour, and all transport and file actions have keyboard shortcuts. Linux

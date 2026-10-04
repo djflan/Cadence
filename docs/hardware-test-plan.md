@@ -29,6 +29,24 @@ Record the date, macOS version, interface, and results for each run.
 | 10 | Save, quit, unplug, reopen the project | The route is kept and explained as disconnected; reconnecting restores it |
 | 11 | Edit while playing (mute a track, change transpose) | Changes are heard within a beat; no stuck notes |
 
+## Recording and thru
+
+These need an instrument whose MIDI OUT is connected to the interface's MIDI IN. Set the inspector's
+**Recording ▸ Input** to the interface (or leave *All MIDI Inputs*).
+
+| # | Step | Expected |
+| - | ---- | -------- |
+| 12 | Select a track routed to the instrument and play its keys, with **MIDI thru** on | You hear what you play through the track's output, on the track's channel; the LCD's **IN** light blinks |
+| 13 | Turn **MIDI thru** off and play | Nothing is echoed; the IN light still blinks |
+| 14 | Arm the track (red button), press R | One bar of count-in clicks (channel 10 wood blocks), then recording; the playhead turns red |
+| 15 | Play a phrase, press Space | The take appears in the track and the piano roll; one **Undo** removes it all |
+| 16 | Play the take back | Notes sound where they were played (compare against the click); note the apparent latency in milliseconds |
+| 17 | Set a two-bar cycle (drag in the ruler's top strip), record over several passes | Every pass is merged into the track; a note held across the wrap ends at the cycle's end |
+| 18 | Choose **Takes ▸ Replace**, record over part of the phrase | Only the notes that start inside the recorded range are replaced |
+| 19 | While playing, press R, play, press R again | Recording punches in and out; playback continues |
+| 20 | Hold a key, change the selected track, release the key | The note releases on the instrument it started on; nothing hangs |
+| 21 | Move the sustain pedal and pitch wheel while recording | Sustain (CC 64) and pitch bend appear in the event list and the controller lanes |
+
 ## Timing measurement (optional)
 
 Loop the demo for one minute and note the status bar's *p95* and *late* values. For a deeper check,
