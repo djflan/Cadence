@@ -11,7 +11,15 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track to a device profile and an output independently, play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows and Linux MIDI adapters and note editing are next.
+Cadence is in early development and not yet ready for production use or live performance. Today it can import a Standard MIDI File, route each track (or several at once) to a device profile and an output independently, play it through CoreMIDI on macOS (hardware, IAC, or its own *Cadence Out* virtual port for software synths) with measured timing, show what was sent in a built-in MIDI monitor, and save and reopen projects safely. Windows and Linux MIDI adapters and note editing are next.
+
+### Platform support
+
+| Platform | App | MIDI output | Notes |
+| -------- | --- | ----------- | ----- |
+| macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
+| Windows | Builds and runs; not yet verified | Built-in monitor only | Windows MIDI adapter is the next platform slice |
+| Linux | Builds; not yet verified | Built-in monitor only | ALSA adapter planned; screen-reader support unverified |
 
 ## Goals
 
@@ -86,7 +94,7 @@ The repository is intentionally minimal while the first vertical slice is design
 
 ## Building
 
-Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (10.0.300 or a later 10.0 feature band; see `global.json`), then from the repository root run:
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (10.0.300 or a later 10.0 feature band; see `global.json`). Any editor works; in Visual Studio, use a version that supports .NET 10 and opens `src/Cadence.slnx`. From the repository root run:
 
 ```sh
 dotnet restore src/Cadence.slnx

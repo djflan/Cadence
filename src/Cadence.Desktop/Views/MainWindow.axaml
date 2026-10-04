@@ -259,14 +259,15 @@
             <TextBlock Text="MESSAGES" Classes="overline" VerticalAlignment="Center" />
             <Button Grid.Column="1" Classes="ghost" Content="Clear" Command="{Binding ClearMessagesCommand}" Padding="8,2" />
           </Grid>
-          <ListBox Grid.Row="1" Classes="dense" ItemsSource="{Binding Messages}" Background="Transparent" Margin="0,2,0,8" ClipToBounds="True" AutomationProperties.Name="Messages">
+          <ListBox Grid.Row="1" Classes="dense" ItemsSource="{Binding Messages}" Background="Transparent" Margin="0,2,0,8" ClipToBounds="True"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Messages">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:MessageItem">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBlock Text="{Binding SeverityText}" Classes="muted" Width="56" />
-                  <TextBlock Text="{Binding Source}" Classes="muted" Width="64" />
-                  <TextBlock Text="{Binding Text}" TextWrapping="Wrap" MaxWidth="560" />
-                </StackPanel>
+                <Grid ColumnDefinitions="56,72,*">
+                  <TextBlock Text="{Binding SeverityText}" Classes="muted" />
+                  <TextBlock Grid.Column="1" Text="{Binding Source}" Classes="muted" />
+                  <TextBlock Grid.Column="2" Text="{Binding Text}" TextWrapping="Wrap" />
+                </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
