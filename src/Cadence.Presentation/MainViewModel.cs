@@ -22,6 +22,23 @@ public enum MessageSeverity
     Error,
 }
 
+/// <summary>The tabs of the lower pane.</summary>
+public enum LowerPane
+{
+    PianoRoll,
+    EventList,
+    Monitor,
+    Messages,
+}
+
+/// <summary>An input choice; <see cref="Id"/> is null for "all inputs".</summary>
+public sealed record InputOption(EndpointId? Id, string Name)
+{
+    public static readonly InputOption All = new(null, "All MIDI Inputs");
+
+    public override string ToString() => Name;
+}
+
 /// <summary>A line in the messages panel. Severity is always also spelled out in text.</summary>
 public sealed record MessageItem(MessageSeverity Severity, string Source, string Text)
 {
@@ -45,6 +62,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly MidiMonitor? _monitor;
     private IReadOnlyList<EndpointDescriptor> _outputDescriptors = [];
     private int _refreshing;
+    private long _lastInputCount;
+    private int _inputActivityFrames;
 
     public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null)
     {
@@ -56,11 +75,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _monitor = monitor;
         Project = session.Project;
         Selection = new SelectionViewModel(this);
+        Editor = new EditorViewModel(this);
+        EventList = new EventListViewModel(this, Editor);
         SelectedTracks.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
+            SyncEditor();
+            ApplyThru();
         };
+        ApplyMetronome();
 
         // Session work may finish on a thread-pool thread; view state is only touched on the UI thread.
         _session.Changed += (_, _) => _dispatcher.Run(OnSessionChanged);
@@ -92,6 +116,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The inspector for <see cref="SelectedTracks"/>.</summary>
     public SelectionViewModel Selection { get; }
+
+    /// <summary>The piano roll for the first selected track.</summary>
+    public EditorViewModel Editor { get; }
+
+    /// <summary>The event list for the first selected track.</summary>
+    public EventListViewModel EventList { get; }
+
+    public ObservableCollection<InputOption> Inputs { get; } = [InputOption.All];
+
+    /// <summary>Choices for the metronome output: <see cref="OutputOption.None"/> means the record or selected track's output.</summary>
+    public ObservableCollection<OutputOption> MetronomeOutputs { get; } = [];
 
     /// <summary>The first selected track, or null.</summary>
     public TrackViewModel? SelectedTrack => SelectedTracks.Count > 0 ? SelectedTracks[0] : null;
@@ -134,6 +169,118 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public partial string OutputsText { get; private set; } = string.Empty;
 
     public string PlayButtonText => IsPlaying ? "Pause" : "Play";
+
+    [ObservableProperty]
+    public partial bool IsRecording { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsCountingIn { get; private set; }
+
+    /// <summary>True for a moment after MIDI input arrives, for the activity indicator.</summary>
+    [ObservableProperty]
+    public partial bool HasInputActivity { get; private set; }
+
+    /// <summary>Notes of the take being recorded, for drawing live.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<Application.Recording.RecordingNote> RecordingPreview { get; private set; } = [];
+
+    /// <summary>Index of the track being recorded, or -1.</summary>
+    [ObservableProperty]
+    public partial int RecordingLane { get; private set; } = -1;
+
+    /// <summary>The track armed for recording; when none is armed, recording goes to the selected track.</summary>
+    [ObservableProperty]
+    public partial TrackViewModel? ArmedTrack { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsMetronomeEnabled { get; set; } = true;
+
+    /// <summary>Click during playback as well as while recording.</summary>
+    [ObservableProperty]
+    public partial bool ClickWhilePlaying { get; set; }
+
+    [ObservableProperty]
+    public partial OutputOption? MetronomeOutput { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCountInEnabled { get; set; } = true;
+
+    /// <summary>Bars of count-in when <see cref="IsCountInEnabled"/>: 1 or 2.</summary>
+    [ObservableProperty]
+    public partial int CountInBars { get; set; } = 1;
+
+    /// <summary>Replace what is under a take instead of merging with it.</summary>
+    [ObservableProperty]
+    public partial bool IsReplaceRecording { get; set; }
+
+    /// <summary>Echo MIDI input to the armed or selected track's output.</summary>
+    [ObservableProperty]
+    public partial bool IsThruEnabled { get; set; } = true;
+
+    [ObservableProperty]
+    public partial InputOption? SelectedInput { get; set; } = InputOption.All;
+
+    [ObservableProperty]
+    public partial bool IsInspectorVisible { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool IsEditorVisible { get; set; } = true;
+
+    [ObservableProperty]
+    public partial LowerPane LowerPane { get; set; } = LowerPane.PianoRoll;
+
+    partial void OnIsMetronomeEnabledChanged(bool value) => ApplyMetronome();
+
+    partial void OnClickWhilePlayingChanged(bool value) => ApplyMetronome();
+
+    partial void OnMetronomeOutputChanged(OutputOption? value)
+    {
+        ApplyMetronome();
+        _ = RefreshAsync();
+    }
+
+    partial void OnIsThruEnabledChanged(bool value) => ApplyThru();
+
+    partial void OnSelectedInputChanged(InputOption? value)
+    {
+        _playback.SelectInputs(value?.Id is { } id ? [id] : null);
+        _ = RefreshAsync();
+    }
+
+    partial void OnCountInBarsChanged(int value)
+    {
+        var clamped = Math.Clamp(value, 1, 4);
+        if (clamped != value)
+        {
+            CountInBars = clamped;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleMetronome() => IsMetronomeEnabled = !IsMetronomeEnabled;
+
+    [RelayCommand]
+    private void ToggleCountIn() => IsCountInEnabled = !IsCountInEnabled;
+
+    [RelayCommand]
+    private void ToggleInspector() => IsInspectorVisible = !IsInspectorVisible;
+
+    /// <summary>Shows a lower pane tab, or hides the pane if that tab is already showing.</summary>
+    [RelayCommand]
+    private void ShowPane(LowerPane pane)
+    {
+        if (IsEditorVisible && LowerPane == pane)
+        {
+            IsEditorVisible = false;
+            return;
+        }
+
+        LowerPane = pane;
+        IsEditorVisible = true;
+    }
+
+    [RelayCommand]
+    private void ToggleEditor() => IsEditorVisible = !IsEditorVisible;
 
     public const double MinZoom = 6;
     public const double MaxZoom = 160;
@@ -228,6 +375,27 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var tick = engine.Position;
         IsPlaying = engine.State == TransportState.Playing;
         OnPropertyChanged(nameof(PlayButtonText));
+        IsRecording = _playback.Recorder.IsRecording;
+        IsCountingIn = engine.IsCountingIn;
+        if (IsRecording && _playback.Recorder.RecordingTrack is { } recording)
+        {
+            RecordingLane = Tracks.IndexOf(Tracks.FirstOrDefault(t => t.Id == recording)!);
+            RecordingPreview = _playback.Recorder.Preview(tick, Project.Loop);
+        }
+        else if (RecordingLane >= 0 || RecordingPreview.Count > 0)
+        {
+            RecordingLane = -1;
+            RecordingPreview = [];
+        }
+
+        var received = _playback.Recorder.MessagesReceived;
+        if (received != _lastInputCount)
+        {
+            _lastInputCount = received;
+            _inputActivityFrames = 4;
+        }
+
+        HasInputActivity = _inputActivityFrames-- > 0;
         PlayheadTick = tick.Value;
         PositionText = Formatting.Position(sequence.MeterMap.ToBarBeatTick(tick));
         TimeText = Formatting.Time(sequence.TempoMap.TimeAt(tick));
@@ -402,7 +570,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (_playback.Engine.State == TransportState.Playing)
         {
-            _playback.Stop();
+            StopTransport();
             return;
         }
 
@@ -415,12 +583,147 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (_playback.Engine.State == TransportState.Playing)
         {
-            _playback.Stop();
+            StopTransport();
         }
         else
         {
             SeekTo(0);
         }
+    }
+
+    /// <summary>The track a new take goes to: the armed track, else the first selected track.</summary>
+    public TrackViewModel? RecordTarget => ArmedTrack ?? SelectedTrack;
+
+    /// <summary>
+    /// Starts recording on the armed (or selected) track: from a stop with the count-in, or punching in
+    /// while playing. While recording, punches out and keeps playing.
+    /// </summary>
+    [RelayCommand]
+    private async Task RecordAsync()
+    {
+        if (_playback.Recorder.IsRecording)
+        {
+            ReportTake(_playback.FinishRecording());
+            return;
+        }
+
+        if (RecordTarget is not { } target)
+        {
+            AddMessage(MessageSeverity.Warning, "Record", "Add or select a track to record into.");
+            return;
+        }
+
+        if (target.IsOffline)
+        {
+            AddMessage(MessageSeverity.Info, "Record", $"\"{target.Name}\" has no output, so you will not hear what you play. Choose an output in the inspector.");
+        }
+
+        var options = new RecordOptions(IsCountInEnabled ? CountInBars : 0, IsReplaceRecording);
+        await RunAsync("Record", () => _playback.RecordAsync(target.Id, options));
+        ApplyThru();
+        IsRecording = true;
+    }
+
+    /// <summary>Arms <paramref name="track"/> for recording, or disarms it if it is armed.</summary>
+    public void ToggleArm(TrackViewModel track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArmedTrack = ArmedTrack == track ? null : track;
+        foreach (var t in Tracks)
+        {
+            t.IsArmed = t == ArmedTrack;
+        }
+
+        ApplyThru();
+    }
+
+    [RelayCommand]
+    private void ToggleArmSelected()
+    {
+        if (SelectedTrack is { } track)
+        {
+            ToggleArm(track);
+        }
+    }
+
+    /// <summary>Sets the tempo at the playhead's tempo segment from text such as "96" or "132.5".</summary>
+    public void CommitTempo(string text)
+    {
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var bpm) || bpm is < 10 or > 999)
+        {
+            OnPropertyChanged(nameof(TempoText));
+            return;
+        }
+
+        var tempo = Project.Sequence.TempoMap;
+        var at = tempo.Changes.Last(c => c.Position.Value <= PlayheadTick).Position;
+        Execute(ProjectCommands.SetTempo(at, Tempo.FromBeatsPerMinute(bpm)));
+        TempoText = Formatting.Tempo(Tempo.FromBeatsPerMinute(bpm));
+    }
+
+    /// <summary>Sets the time signature at the playhead's meter segment from text such as "3/4".</summary>
+    public void CommitMeter(string text)
+    {
+        var parts = text.Split('/', StringSplitOptions.TrimEntries);
+        if (parts.Length != 2
+            || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var numerator)
+            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var denominator)
+            || numerator is < 1 or > 32 || denominator is not (2 or 4 or 8 or 16)
+            || !new TimeSignature(numerator, denominator).TryGetTicksPerBeat(Project.Sequence.Ppqn, out _))
+        {
+            OnPropertyChanged(nameof(MeterText));
+            return;
+        }
+
+        var meter = Project.Sequence.MeterMap;
+        var at = meter.Changes.Last(c => c.Position.Value <= PlayheadTick).Position;
+        Execute(ProjectCommands.SetTimeSignature(at, new TimeSignature(numerator, denominator)));
+    }
+
+    internal void Audition(TrackId track, Domain.Midi.NoteNumber note, Domain.Midi.Velocity velocity) => _playback.Audition(track, note, velocity);
+
+    internal void EndAudition() => _playback.EndAudition();
+
+    private void StopTransport()
+    {
+        var recording = _playback.Recorder.IsRecording;
+        var take = _playback.Stop();
+        if (recording)
+        {
+            ReportTake(take);
+        }
+    }
+
+    private void ReportTake(Application.Recording.RecordedTake? take)
+    {
+        IsRecording = false;
+        RecordingPreview = [];
+        RecordingLane = -1;
+        if (take is null)
+        {
+            return;
+        }
+
+        var notes = take.Events.Count(e => e is NoteEvent);
+        var others = take.Events.Length - notes;
+        var name = Tracks.FirstOrDefault(t => t.Id == take.Track)?.Name ?? "the track";
+        AddMessage(MessageSeverity.Info, "Record", take.Events.IsEmpty
+            ? "Nothing was played, so the take was discarded."
+            : string.Create(CultureInfo.InvariantCulture, $"Recorded {notes} note{(notes == 1 ? string.Empty : "s")}{(others > 0 ? $" and {others} other event{(others == 1 ? string.Empty : "s")}" : string.Empty)} on {name}."));
+    }
+
+    private void ApplyMetronome()
+    {
+        var mode = !IsMetronomeEnabled ? MetronomeMode.Off : ClickWhilePlaying ? MetronomeMode.Always : MetronomeMode.WhileRecording;
+        _playback.SetMetronome(new MetronomeSettings(mode, MetronomeOutput?.Id));
+    }
+
+    private void ApplyThru() => _playback.SetThruTrack(IsThruEnabled ? (_playback.Recorder.RecordingTrack ?? RecordTarget?.Id) : null);
+
+    private void SyncEditor()
+    {
+        var track = SelectedTrack is { } selected ? Project.Sequence.FindTrack(selected.Id) : null;
+        Editor.Sync(track, SelectedTrack?.ColorIndex ?? 0);
     }
 
     [RelayCommand]
@@ -599,6 +902,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsDirty = _session.IsDirty;
         IsLoopEnabled = Project.Loop is not null;
         SyncTracks();
+        SyncEditor();
         await RefreshAsync();
     }
 
@@ -630,7 +934,51 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         SyncOutputs();
+        SyncInputs();
         SyncTracks();
+    }
+
+    private void SyncInputs()
+    {
+        // Built-in buses are listed so they can be chosen, but "All MIDI Inputs" leaves them out.
+        var available = _playback.InputEndpoints;
+        var wanted = new List<InputOption> { InputOption.All };
+        wanted.AddRange(available.Select(e => new InputOption(e.Id, e.DisplayName)));
+        if (SelectedInput is { Id: not null } chosen && !wanted.Contains(chosen))
+        {
+            wanted.Add(chosen with { Name = $"{chosen.Name} (disconnected)" });
+        }
+
+        if (!wanted.SequenceEqual(Inputs))
+        {
+            var selected = SelectedInput;
+            Inputs.Clear();
+            foreach (var option in wanted)
+            {
+                Inputs.Add(option);
+            }
+
+            SelectedInput = Inputs.FirstOrDefault(o => o.Id == selected?.Id) ?? InputOption.All;
+        }
+
+        var outputs = new List<OutputOption> { OutputOption.None with { Name = "Track Output", Detail = "The record or selected track's output" } };
+        outputs.AddRange(Outputs);
+        if (!outputs.SequenceEqual(MetronomeOutputs))
+        {
+            var selected = MetronomeOutput;
+            MetronomeOutputs.Clear();
+            foreach (var option in outputs)
+            {
+                MetronomeOutputs.Add(option);
+            }
+
+            MetronomeOutput = MetronomeOutputs.FirstOrDefault(o => o.Id == selected?.Id) ?? MetronomeOutputs[0];
+        }
+
+        foreach (var problem in _playback.InputProblems)
+        {
+            AddMessage(MessageSeverity.Warning, "Inputs", problem);
+        }
     }
 
     private void SyncOutputs()
@@ -684,6 +1032,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
 
             existing.Sync(i + 1, tracks[i], _playback.Routes.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
+        }
+
+        if (ArmedTrack is { } armed && !Tracks.Contains(armed))
+        {
+            ArmedTrack = null;
         }
 
         for (var i = SelectedTracks.Count - 1; i >= 0; i--)

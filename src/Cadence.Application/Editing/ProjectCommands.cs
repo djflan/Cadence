@@ -94,6 +94,21 @@ public static class ProjectCommands
             ? p
             : p with { Sequence = p.Sequence.WithTempoMap(p.Sequence.TempoMap.With(new TempoChange(position, tempo))) });
 
+    /// <summary>Sets the time signature from <paramref name="position"/> (a bar line) onward.</summary>
+    /// <exception cref="ArgumentException">A beat of this signature is not a whole number of ticks at the project's resolution.</exception>
+    public static IProjectCommand SetTimeSignature(Tick position, TimeSignature signature) =>
+        new ProjectCommand("Change Time Signature", p =>
+        {
+            var meter = p.Sequence.MeterMap;
+            if (meter.Changes.Any(c => c.Position == position && c.Signature == signature))
+            {
+                return p;
+            }
+
+            var changes = meter.Changes.Where(c => c.Position != position).Append(new MeterChange(position, signature));
+            return p with { Sequence = p.Sequence.WithMeterMap(new MeterMap(meter.Ppqn, changes)) };
+        });
+
     /// <summary>Applies several commands as one undoable step.</summary>
     public static IProjectCommand Batch(string label, IEnumerable<IProjectCommand> commands)
     {

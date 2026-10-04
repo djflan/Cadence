@@ -35,6 +35,18 @@ public sealed partial class TrackViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSoloed { get; set; }
 
+    /// <summary>Armed for recording. View state only: arming is not saved or undoable.</summary>
+    [ObservableProperty]
+    public partial bool IsArmed { get; set; }
+
+    partial void OnIsArmedChanged(bool value)
+    {
+        if (!_syncing && value != (_owner.ArmedTrack == this))
+        {
+            _owner.ToggleArm(this);
+        }
+    }
+
     /// <summary>One-based position in the track list.</summary>
     [ObservableProperty]
     public partial int Number { get; private set; }
