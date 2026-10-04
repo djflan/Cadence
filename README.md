@@ -160,6 +160,10 @@ Cadence welcomes focused contributions to sequencing, MIDI interoperability, dev
 
 Compatibility names must be used factually and must not imply vendor affiliation, certification, sponsorship, or endorsement.
 
+## Supporting Cadence
+
+If Cadence is useful to you, you can support its development through [Ko-fi](https://ko-fi.com/djflan) or [GitHub Sponsors](https://github.com/sponsors/djflan).
+
 ## License
 
 Cadence is licensed under the [MIT License](LICENSE).

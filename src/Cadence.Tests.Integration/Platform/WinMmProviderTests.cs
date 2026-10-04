@@ -32,6 +32,21 @@ public sealed class WinMmProviderTests
         return synth;
     }
 
+    private static async Task<IMidiOutput> OpenSoftwareSynthAsync(WinMmProvider provider)
+    {
+        var synth = RequireSoftwareSynth(provider);
+        try
+        {
+            return await provider.OpenOutputAsync(synth.Id, Ct);
+        }
+        catch (EndpointUnavailableException ex)
+        {
+            // Machines without an audio device (such as CI runners) list the synthesizer but cannot open it.
+            Assert.Skip($"The WinMM software synthesizer could not be opened: {ex.Message}");
+            throw;
+        }
+    }
+
     [Fact]
     public void Provider_EnumeratesOutputsWithUniqueIds()
     {
@@ -79,10 +94,9 @@ public sealed class WinMmProviderTests
     {
         RequireWindows();
         using var provider = new WinMmProvider();
-        var synth = RequireSoftwareSynth(provider);
         var states = new List<EndpointState>();
 
-        var output = await provider.OpenOutputAsync(synth.Id, Ct);
+        var output = await OpenSoftwareSynthAsync(provider);
         output.StateChanged += (_, e) => states.Add(e.State);
 
         Assert.Equal(EndpointState.Open, output.State);
@@ -106,8 +120,7 @@ public sealed class WinMmProviderTests
     {
         RequireWindows();
         using var provider = new WinMmProvider();
-        var synth = RequireSoftwareSynth(provider);
-        using var output = await provider.OpenOutputAsync(synth.Id, Ct);
+        using var output = await OpenSoftwareSynthAsync(provider);
 
         // GM System On resets the synth; it makes no sound. Sending more messages than there are
         // buffers proves finished buffers are reclaimed, and a 2 KB message proves a buffer can grow.
@@ -144,8 +157,7 @@ public sealed class WinMmProviderTests
     {
         RequireWindows();
         var provider = new WinMmProvider();
-        var synth = RequireSoftwareSynth(provider);
-        var output = await provider.OpenOutputAsync(synth.Id, Ct);
+        var output = await OpenSoftwareSynthAsync(provider);
 
         provider.Dispose();
 
