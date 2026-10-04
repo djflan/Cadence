@@ -60,7 +60,6 @@ C or C++ components may be introduced where native MIDI APIs or measured high-re
 Cadence/
 ├── LICENSE
 ├── README.md
-├── AGENT_HANDOFF.md
 └── src/
     ├── Cadence.slnx
     ├── SubModules/
@@ -70,7 +69,6 @@ Cadence/
 - `src/Cadence.slnx` is the solution entry point.
 - `src/SubModules/` is reserved for shared source submodules.
 - Each normal project belongs in its own direct child folder under `src/`.
-- `AGENT_HANDOFF.md` contains the detailed product, architecture, safety, testing, and delivery brief for implementation agents and contributors.
 
 The repository is intentionally minimal while the first vertical slice is designed. Empty architectural layers should not be generated simply to match a diagram.
 
@@ -92,7 +90,7 @@ Cadence welcomes focused contributions to sequencing, MIDI interoperability, dev
 
 Before contributing:
 
-1. Read `AGENT_HANDOFF.md` for architectural constraints and the definition of done.
+1. Read the architectural principle above and respect the dependency direction between projects.
 2. Keep device profiles independent from MIDI endpoint implementations.
 3. Include tests that do not require contributors to own specific hardware.
 4. Identify hardware behavior that was simulated rather than physically verified.

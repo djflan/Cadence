@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local agent briefing (not distributed)
+AGENT_HANDOFF.md
