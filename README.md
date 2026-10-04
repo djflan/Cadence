@@ -18,7 +18,7 @@ or WinMM on Windows with measured timing, or the ALSA sequencer on Linux (not ye
 | Platform | App | MIDI output | Notes |
 | -------- | --- | ----------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | Development platform; native menu bar; real-time playback thread |
-WinMM: hardware ports and software synths, including SysEx
+| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Verified with a VST synth through a Windows MIDI Services loopback; see [docs/windows-vst-loopback.md](docs/windows-vst-loopback.md) |
 | Linux | Builds; not yet verified | ALSA sequencer (direct sends, SysEx, *Cadence Out* virtual port); untested on Linux | No ALSA input or hot-plug yet; screen-reader support unverified |
 
 ## Goals
