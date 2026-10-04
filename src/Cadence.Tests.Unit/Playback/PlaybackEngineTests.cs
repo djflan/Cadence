@@ -293,11 +293,21 @@ public sealed class PlaybackEngineTests
     [Fact]
     public void Pump_WaitsForScheduledEventsMinusLookAhead()
     {
-        using var f = new PlaybackFixture();
+        using var f = new PlaybackFixture(new PlaybackOptions { PositionUpdateInterval = TimeSpan.FromSeconds(1) });
         f.Load(Note(100, 10));
         f.Engine.Play(Tick.Zero);
 
         Assert.Equal(TimeSpan.FromMilliseconds(80), f.PumpAt(0));
+    }
+
+    [Fact]
+    public void Pump_WakesRegularlyWhilePlayingSoThePlayheadMovesSmoothly()
+    {
+        using var f = new PlaybackFixture();
+        f.Load(Note(100, 10));
+        f.Engine.Play(Tick.Zero);
+
+        Assert.Equal(PlaybackOptions.Default.PositionUpdateInterval, f.PumpAt(0));
     }
 
     [Fact]

@@ -150,7 +150,8 @@ public sealed class PlaybackEngine : IDisposable
             Volatile.Write(ref _positionTick, Math.Max(_immediate.AnchorTick, TickAtTime(in _immediate, now)));
 
             var wake = nextScheduled == Never ? nextImmediate : Min(nextImmediate, nextScheduled - _options.LookAhead);
-            return wake == Never ? Timeout.InfiniteTimeSpan : Max(TimeSpan.Zero, wake - now);
+            var wait = wake == Never ? _options.PositionUpdateInterval : Max(TimeSpan.Zero, wake - now);
+            return Min(wait, _options.PositionUpdateInterval);
         }
         finally
         {

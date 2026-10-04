@@ -10,6 +10,12 @@ public sealed record PlaybackOptions
     /// </summary>
     public TimeSpan LookAhead { get; init; } = TimeSpan.FromMilliseconds(20);
 
+    /// <summary>
+    /// The longest the engine sleeps while playing, so <see cref="PlaybackEngine.Position"/> keeps moving
+    /// smoothly through sparse passages (for example when only a soloed track is sounding).
+    /// </summary>
+    public TimeSpan PositionUpdateInterval { get; init; } = TimeSpan.FromMilliseconds(10);
+
     /// <summary>Dispatches later than this count as late in <see cref="TimingStatistics"/>.</summary>
     public TimeSpan LateThreshold { get; init; } = TimeSpan.FromMilliseconds(2);
 
