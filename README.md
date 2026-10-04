@@ -9,7 +9,7 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 > [!NOTE]
 > Cadence is an independent open-source project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. Yamaha, XG, QY100, and other product names and trademarks belong to their respective owners and are used solely to describe compatibility.
 
-![Cadence main window](docs/images/cadence-main-window.png)
+![Cadence main window](docs/images/cadence-sequencer.png)
 
 ## Status
 
