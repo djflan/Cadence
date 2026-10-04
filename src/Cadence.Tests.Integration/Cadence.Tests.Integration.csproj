@@ -9,6 +9,7 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../Cadence.Application/Cadence.Application.csproj" />
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
     <ProjectReference Include="../Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
