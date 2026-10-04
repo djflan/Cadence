@@ -1,0 +1,6 @@
+# Keep LF everywhere (matches .editorconfig, so `dotnet format --verify-no-changes` passes on Windows).
+* text=auto eol=lf
+
+*.png binary
+*.mid binary
+*.midi binary
