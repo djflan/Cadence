@@ -242,6 +242,20 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Zoom_StepsAndStaysInRange()
+    {
+        _vm.ZoomInCommand.Execute(null);
+        Assert.Equal(50, _vm.Zoom, precision: 6);
+        _vm.ZoomOutCommand.Execute(null);
+        Assert.Equal(40, _vm.Zoom, precision: 6);
+
+        _vm.ZoomBy(1000);
+        Assert.Equal(MainViewModel.MaxZoom, _vm.Zoom);
+        _vm.Zoom = 0;
+        Assert.Equal(MainViewModel.MinZoom, _vm.Zoom);
+    }
+
+    [Fact]
     public async Task Errors_AreReportedAsMessagesNotThrown()
     {
         var bad = Path.Combine(_directory, "broken.mid");

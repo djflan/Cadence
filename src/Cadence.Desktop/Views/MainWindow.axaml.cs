@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Cadence.Presentation;
@@ -36,8 +38,54 @@ public partial class MainWindow : Window
             }
         };
 
-        AddKeyBindings(viewModel);
+        TimelineScroller.AddHandler(PointerWheelChangedEvent, OnTimelineWheel, RoutingStrategies.Tunnel);
+        TimelineScroller.AddHandler(InputElement.PointerTouchPadGestureMagnifyEvent, OnTimelinePinch, RoutingStrategies.Tunnel);
+
+        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var nativeMenuBar = OperatingSystem.IsMacOS();
+        if (nativeMenuBar)
+        {
+            AppMenu.Install(this, viewModel, command);
+            FileMenuButton.IsVisible = false;
+        }
+
+        AddKeyBindings(viewModel, command, skipMenuGestures: nativeMenuBar);
         Closing += OnClosing;
+    }
+
+    /// <summary>⌘/Ctrl + scroll zooms around the pointer; so does plain scrolling over the bar ruler.</summary>
+    private void OnTimelineWheel(object? sender, PointerWheelEventArgs e)
+    {
+        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var overRuler = e.GetPosition(Timeline).Y < Controls.TimelineView.RulerHeight;
+        if ((!e.KeyModifiers.HasFlag(command) && !overRuler) || e.Delta.Y == 0)
+        {
+            return;
+        }
+
+        ZoomAround(e.GetPosition(TimelineScroller).X, Math.Pow(1.12, e.Delta.Y));
+        e.Handled = true;
+    }
+
+    private void OnTimelinePinch(object? sender, PointerDeltaEventArgs e)
+    {
+        ZoomAround(e.GetPosition(TimelineScroller).X, 1 + e.Delta.X);
+        e.Handled = true;
+    }
+
+    /// <summary>Zooms while keeping the musical position under <paramref name="viewportX"/> in place.</summary>
+    private void ZoomAround(double viewportX, double factor)
+    {
+        if (_viewModel is null || factor <= 0)
+        {
+            return;
+        }
+
+        var tick = Timeline.XToTick(TimelineScroller.Offset.X + viewportX);
+        _viewModel.ZoomBy(factor);
+        TimelineScroller.UpdateLayout();
+        var x = Timeline.TickToX(tick) - viewportX;
+        TimelineScroller.Offset = new Vector(Math.Max(0, x), TimelineScroller.Offset.Y);
     }
 
     private void OnFrame()
@@ -57,11 +105,16 @@ public partial class MainWindow : Window
         Timeline.VisibleWidth = TimelineScroller.Viewport.Width;
     }
 
-    private void AddKeyBindings(MainViewModel vm)
+    private void AddKeyBindings(MainViewModel vm, KeyModifiers command, bool skipMenuGestures)
     {
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
-        void Bind(Key key, KeyModifiers modifiers, System.Windows.Input.ICommand target) =>
-            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(key, modifiers), Command = target });
+        void Bind(Key key, KeyModifiers modifiers, System.Windows.Input.ICommand target)
+        {
+            var isMenuGesture = modifiers.HasFlag(command) && AppMenu.MenuGestures.Contains((key, modifiers & ~command));
+            if (!(skipMenuGestures && isMenuGesture))
+            {
+                KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(key, modifiers), Command = target });
+            }
+        }
 
         Bind(Key.Space, KeyModifiers.None, vm.PlayPauseCommand);
         Bind(Key.Home, KeyModifiers.None, vm.ReturnToStartCommand);
@@ -76,6 +129,8 @@ public partial class MainWindow : Window
         Bind(Key.I, command, vm.ImportMidiCommand);
         Bind(Key.E, command, vm.ExportMidiCommand);
         Bind(Key.T, command, vm.AddTrackCommand);
+        Bind(Key.OemPlus, command, vm.ZoomInCommand);
+        Bind(Key.OemMinus, command, vm.ZoomOutCommand);
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)

@@ -120,6 +120,32 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public string PlayButtonText => IsPlaying ? "Pause" : "Play";
 
+    public const double MinZoom = 6;
+    public const double MaxZoom = 160;
+    public const double ZoomStep = 1.25;
+
+    /// <summary>Timeline scale in pixels per quarter note, shared by the slider, menu, keys, and gestures.</summary>
+    [ObservableProperty]
+    public partial double Zoom { get; set; } = 40;
+
+    partial void OnZoomChanged(double value)
+    {
+        var clamped = Math.Clamp(value, MinZoom, MaxZoom);
+        if (clamped != value)
+        {
+            Zoom = clamped;
+        }
+    }
+
+    /// <summary>Multiplies the zoom by <paramref name="factor"/>, staying within range.</summary>
+    public void ZoomBy(double factor) => Zoom = Math.Clamp(Zoom * factor, MinZoom, MaxZoom);
+
+    [RelayCommand]
+    private void ZoomIn() => ZoomBy(ZoomStep);
+
+    [RelayCommand]
+    private void ZoomOut() => ZoomBy(1 / ZoomStep);
+
     /// <summary>Loads routes and outputs for the initial project.</summary>
     public Task InitializeAsync() => SyncAndRefreshAsync();
 

@@ -65,7 +65,7 @@
         <Button Classes="transport" Command="{Binding RedoCommand}" ToolTip.Tip="Redo (Ctrl/Cmd+Shift+Z)" AutomationProperties.Name="Redo">
           <PathIcon Classes="stroke" Data="{StaticResource Icon.Redo}" Width="16" Height="16" />
         </Button>
-        <DropDownButton Classes="ghost" Content="File" Margin="6,0,0,0" AutomationProperties.Name="File menu">
+        <DropDownButton x:Name="FileMenuButton" Classes="ghost" Content="File" Margin="6,0,0,0" AutomationProperties.Name="File menu">
           <DropDownButton.Flyout>
             <MenuFlyout Placement="BottomEdgeAlignedRight">
               <MenuItem Header="New Project" Command="{Binding NewProjectCommand}" InputGesture="Ctrl+N" />
@@ -89,7 +89,7 @@
             <TextBlock Text="TRACKS" Classes="overline" VerticalAlignment="Center" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
               <TextBlock Text="Zoom" Classes="muted" VerticalAlignment="Center" />
-              <Slider x:Name="ZoomSlider" Minimum="6" Maximum="160" Value="40" Width="140" VerticalAlignment="Center" AutomationProperties.Name="Timeline zoom" />
+              <Slider x:Name="ZoomSlider" Minimum="6" Maximum="160" Value="{Binding Zoom}" Width="140" ToolTip.Tip="Zoom (⌘/Ctrl + scroll, pinch, or ⌘/Ctrl + = and −)" VerticalAlignment="Center" AutomationProperties.Name="Timeline zoom" />
               <Button Classes="ghost" Command="{Binding AddTrackCommand}" ToolTip.Tip="Add a track (Ctrl/Cmd+T)" AutomationProperties.Name="Add track">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource Icon.Plus}" Width="11" Height="11" />
@@ -136,7 +136,7 @@
 
               <ScrollViewer x:Name="TimelineScroller" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <Panel>
-                  <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding #ZoomSlider.Value}" IsVisible="{Binding Tracks.Count}"
+                  <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}" IsVisible="{Binding Tracks.Count}"
                                          AutomationProperties.Name="Timeline. Click to move the playhead." />
                   <controls:PlayheadOverlay x:Name="Playhead" IsVisible="{Binding Tracks.Count}" />
                 </Panel>

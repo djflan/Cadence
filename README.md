@@ -125,6 +125,10 @@ A demo song is included in `samples/cadence-demo.mid`. Hardware checks are liste
 | New, Open, Save, Save As | Ctrl/Cmd + N, O, S, Shift + S |
 | Import / Export MIDI | Ctrl/Cmd + I / E |
 | Add track | Ctrl/Cmd + T |
+| Zoom timeline | Ctrl/Cmd + scroll, trackpad pinch, scroll over the bar ruler, or Ctrl/Cmd + = / − |
+
+On macOS, all commands are also in the standard menu bar (File, Edit, Track, Transport, View,
+Window, Help, and *About Cadence* in the application menu).
 
 Accessibility: every control has a screen-reader name, status is always shown with an icon and a
 word as well as colour, and all transport and file actions have keyboard shortcuts. Linux
