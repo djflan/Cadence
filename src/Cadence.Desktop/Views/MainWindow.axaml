@@ -70,6 +70,8 @@
             <MenuFlyout Placement="BottomEdgeAlignedRight">
               <MenuItem Header="New Project" Command="{Binding NewProjectCommand}" InputGesture="Ctrl+N" />
               <MenuItem Header="Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
+              <Separator />
+              <MenuItem Header="Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
               <MenuItem Header="Save As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
               <Separator />
               <MenuItem Header="Import MIDI File…" Command="{Binding ImportMidiCommand}" InputGesture="Ctrl+I" />
