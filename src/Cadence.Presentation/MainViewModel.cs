@@ -221,27 +221,64 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task OpenAsync()
     {
-        if (!await ResolveUnsavedChangesAsync() || await _ui.PickOpenFileAsync("Open Project", [FileFilters.Project]) is not { } path)
+        if (await ResolveUnsavedChangesAsync() && await _ui.PickOpenFileAsync("Open Project", [FileFilters.Project]) is { } path)
+        {
+            await OpenProjectAsync(path);
+        }
+    }
+
+    /// <summary>True for files Cadence can open by dropping them on the window: projects and MIDI files.</summary>
+    public static bool CanOpenFile(string path) => IsProject(path) || IsMidi(path);
+
+    /// <summary>
+    /// Opens a dropped project, or imports a dropped MIDI file, after resolving unsaved changes.
+    /// </summary>
+    public async Task OpenFileAsync(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!CanOpenFile(path))
+        {
+            AddMessage(MessageSeverity.Warning, "Open", $"{Path.GetFileName(path)} is not a Cadence project or MIDI file.");
+            return;
+        }
+
+        if (!await ResolveUnsavedChangesAsync())
         {
             return;
         }
 
-        await RunAsync("Open", async () =>
+        if (IsProject(path))
         {
-            _playback.Stop();
-            var report = await _session.OpenAsync(path);
-            if (report.RecoveredFromBackup)
-            {
-                AddMessage(MessageSeverity.Warning, "Open", $"The project file was damaged ({report.Problem}). Cadence opened the backup copy; save to repair the file.");
-            }
-
-            if (report.RecoveryAvailable && await _ui.ConfirmAsync("Restore unsaved work?", "Cadence found autosaved changes newer than this project. Restore them?", "Restore", destructive: false))
-            {
-                await _session.RestoreRecoveryAsync();
-                AddMessage(MessageSeverity.Info, "Open", "Restored autosaved changes. Save to keep them.");
-            }
-        });
+            await OpenProjectAsync(path);
+        }
+        else
+        {
+            await ImportMidiFileAsync(path);
+        }
     }
+
+    private static bool IsProject(string path) => HasExtension(path, FileFilters.Project);
+
+    private static bool IsMidi(string path) => HasExtension(path, FileFilters.Midi);
+
+    private static bool HasExtension(string path, FileFilter filter) =>
+        filter.Extensions.Any(e => Path.GetExtension(path).Equals("." + e, StringComparison.OrdinalIgnoreCase));
+
+    private Task OpenProjectAsync(string path) => RunAsync("Open", async () =>
+    {
+        _playback.Stop();
+        var report = await _session.OpenAsync(path);
+        if (report.RecoveredFromBackup)
+        {
+            AddMessage(MessageSeverity.Warning, "Open", $"The project file was damaged ({report.Problem}). Cadence opened the backup copy; save to repair the file.");
+        }
+
+        if (report.RecoveryAvailable && await _ui.ConfirmAsync("Restore unsaved work?", "Cadence found autosaved changes newer than this project. Restore them?", "Restore", destructive: false))
+        {
+            await _session.RestoreRecoveryAsync();
+            AddMessage(MessageSeverity.Info, "Open", "Restored autosaved changes. Save to keep them.");
+        }
+    });
 
     [RelayCommand]
     private Task SaveAsync() => _session.FilePath is null ? SaveAsAsync() : RunAsync("Save", () => _session.SaveAsync());
@@ -258,19 +295,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task ImportMidiAsync()
     {
-        if (!await ResolveUnsavedChangesAsync() || await _ui.PickOpenFileAsync("Import MIDI File", [FileFilters.Midi]) is not { } path)
+        if (await ResolveUnsavedChangesAsync() && await _ui.PickOpenFileAsync("Import MIDI File", [FileFilters.Midi]) is { } path)
         {
-            return;
+            await ImportMidiFileAsync(path);
         }
-
-        await RunAsync("Import", async () =>
-        {
-            _playback.Stop();
-            var report = await _session.ImportMidiAsync(path);
-            ReportMidi("Import", report.ImportDiagnostics);
-            AddMessage(MessageSeverity.Info, "Import", $"Imported {Path.GetFileName(path)} with {_session.Project.Sequence.Tracks.Length} tracks. Choose an output for each track to hear it.");
-        });
     }
+
+    private Task ImportMidiFileAsync(string path) => RunAsync("Import", async () =>
+    {
+        _playback.Stop();
+        var report = await _session.ImportMidiAsync(path);
+        ReportMidi("Import", report.ImportDiagnostics);
+        AddMessage(MessageSeverity.Info, "Import", $"Imported {Path.GetFileName(path)} with {_session.Project.Sequence.Tracks.Length} tracks. Choose an output for each track to hear it.");
+    });
 
     [RelayCommand]
     private async Task ExportMidiAsync()

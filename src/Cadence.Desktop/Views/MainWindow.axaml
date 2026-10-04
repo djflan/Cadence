@@ -7,7 +7,9 @@
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
         Width="1360" Height="840" MinWidth="980" MinHeight="620"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True">
+  <Panel>
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="12,8,12,0">
 
     <!-- Top bar: identity, transport, file actions -->
@@ -79,7 +81,6 @@
             </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
-        <Button Classes="primary" Content="Save" Command="{Binding SaveCommand}" ToolTip.Tip="Save (Ctrl/Cmd+S)" />
       </StackPanel>
     </Grid>
 
@@ -292,4 +293,16 @@
       <TextBlock Grid.Column="2" Text="{Binding TimingText}" Classes="muted" AutomationProperties.Name="Playback timing" />
     </Grid>
   </Grid>
+
+  <!-- Shown while a supported file is dragged over the window. -->
+  <Border x:Name="DropOverlay" IsVisible="False" IsHitTestVisible="False" Margin="8"
+          Background="#CC0E1014" BorderBrush="{StaticResource Cadence.Accent}" BorderThickness="2"
+          CornerRadius="{StaticResource Cadence.PanelRadius}">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+      <PathIcon Data="{StaticResource Icon.Logo}" Width="32" Height="32" Foreground="{StaticResource Cadence.Accent}" />
+      <TextBlock x:Name="DropText" Classes="title" HorizontalAlignment="Center" />
+      <TextBlock x:Name="DropDetail" Classes="secondary" HorizontalAlignment="Center" />
+    </StackPanel>
+  </Border>
+  </Panel>
 </Window>

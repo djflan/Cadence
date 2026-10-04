@@ -241,6 +241,50 @@ public sealed class MainViewModelTests : IAsyncLifetime
         Assert.Equal("4/4", _vm.MeterText);
     }
 
+    [Theory]
+    [InlineData("song.cadence", true)]
+    [InlineData("SONG.MID", true)]
+    [InlineData("tune.midi", true)]
+    [InlineData("notes.txt", false)]
+    [InlineData("noextension", false)]
+    public void CanOpenFile_AcceptsProjectsAndMidiFiles(string path, bool expected) =>
+        Assert.Equal(expected, MainViewModel.CanOpenFile(path));
+
+    [Fact]
+    public async Task DroppedMidiFile_IsImported()
+    {
+        await _vm.OpenFileAsync(await WriteDemoMidiAsync());
+        await Settle();
+
+        Assert.Equal("Piano", Assert.Single(_vm.Tracks).Name);
+    }
+
+    [Fact]
+    public async Task DroppedProject_IsOpenedAfterAskingAboutUnsavedChanges()
+    {
+        await ImportAsync();
+        var path = Path.Combine(_directory, "dropped.cadence");
+        await new ProjectSession().SaveAsync(path, TestContext.Current.CancellationToken);
+
+        _ui.SaveChoice = UnsavedChangesChoice.Cancel;
+        await _vm.OpenFileAsync(path);
+        Assert.Single(_vm.Tracks);
+
+        _ui.SaveChoice = UnsavedChangesChoice.Discard;
+        await _vm.OpenFileAsync(path);
+        await Settle();
+        Assert.Empty(_vm.Tracks);
+        Assert.Equal("Untitled", _vm.ProjectName);
+    }
+
+    [Fact]
+    public async Task DroppedUnsupportedFile_IsExplained()
+    {
+        await _vm.OpenFileAsync(Path.Combine(_directory, "readme.txt"));
+
+        Assert.Contains(_vm.Messages, m => m.Severity == MessageSeverity.Warning && m.Text.Contains("not a Cadence project or MIDI file", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Zoom_StepsAndStaysInRange()
     {

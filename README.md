@@ -112,7 +112,8 @@ dotnet run --project src/Cadence.Desktop
 
 Without any hardware, route tracks to **Cadence Monitor** and watch the messages in the MIDI
 monitor panel, or route to **Cadence Out** and select it as the input of a software synth or DAW.
-A demo song is included in `samples/cadence-demo.mid`. Hardware checks are listed in
+A demo song is included in `samples/cadence-demo.mid`; drag it (or any `.mid` or `.cadence` file)
+onto the window to open it. Hardware checks are listed in
 [docs/hardware-test-plan.md](docs/hardware-test-plan.md).
 
 | Action | Shortcut |

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Cadence.Presentation;
 
@@ -51,6 +52,43 @@ public partial class MainWindow : Window
 
         AddKeyBindings(viewModel, command, skipMenuGestures: nativeMenuBar);
         Closing += OnClosing;
+
+        AddHandler(DragDrop.DragEnterEvent, OnDragOver);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DragLeaveEvent, (_, _) => DropOverlay.IsVisible = false);
+        AddHandler(DragDrop.DropEvent, OnDrop);
+    }
+
+    /// <summary>The first dropped file Cadence can open, as a local path.</summary>
+    private static string? DroppedFile(DragEventArgs e) =>
+        e.DataTransfer.TryGetFiles()?
+            .Select(item => item.TryGetLocalPath())
+            .FirstOrDefault(path => path is not null && MainViewModel.CanOpenFile(path));
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        var path = DroppedFile(e);
+        e.DragEffects = path is null ? DragDropEffects.None : DragDropEffects.Copy;
+        DropOverlay.IsVisible = path is not null;
+        if (path is not null)
+        {
+            var isProject = path.EndsWith(".cadence", StringComparison.OrdinalIgnoreCase);
+            DropText.Text = isProject ? "Drop to open project" : "Drop to import MIDI file";
+            DropDetail.Text = System.IO.Path.GetFileName(path);
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        DropOverlay.IsVisible = false;
+        e.Handled = true;
+        if (_viewModel is not null && DroppedFile(e) is { } path)
+        {
+            Activate();
+            await _viewModel.OpenFileAsync(path);
+        }
     }
 
     /// <summary>⌘/Ctrl + scroll zooms around the pointer; so does plain scrolling over the bar ruler.</summary>
