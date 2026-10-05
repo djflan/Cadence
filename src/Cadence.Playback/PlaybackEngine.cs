@@ -63,6 +63,7 @@ public sealed class PlaybackEngine : IDisposable
     private Anchor _previousAnchor;
     private long _countInUntil;
     private long _loopWraps;
+    private ChaseMessage[] _stoppedChase = [];
 
     // Caller-visible state.
     private PlaybackPlan _latestPlan;
@@ -286,6 +287,10 @@ public sealed class PlaybackEngine : IDisposable
                 {
                     PublishAnchor(playing: true);
                 }
+                else
+                {
+                    ChaseWhileStopped();
+                }
 
                 break;
             case OutputsCommand outputs:
@@ -294,6 +299,12 @@ public sealed class PlaybackEngine : IDisposable
                 _slotScheduled = [.. outputs.Outputs.Select(o => o?.Endpoint.Capabilities.HasFlag(EndpointCapabilities.ScheduledDelivery) == true)];
                 _sustain = new bool[outputs.Outputs.Length * ChannelsPerSlot];
                 ResyncClicks();
+                _stoppedChase = [];
+                if (!_playing)
+                {
+                    ChaseWhileStopped();
+                }
+
                 break;
             case MetronomeCommand metronome:
                 _click = metronome.Click;
@@ -314,6 +325,10 @@ public sealed class PlaybackEngine : IDisposable
                 {
                     Locate(seek.Tick, seek.Chase, now, now);
                     PublishAnchor(playing: true);
+                }
+                else
+                {
+                    ChaseWhileStopped();
                 }
 
                 break;
@@ -343,6 +358,29 @@ public sealed class PlaybackEngine : IDisposable
                 ReleaseAll(now);
                 SweepAllChannels();
                 break;
+        }
+    }
+
+    /// <summary>
+    /// While stopped, sends the program and controller state at the playhead so live input (thru,
+    /// auditioning) hears each track's instrument without pressing play. Unchanged state is not resent.
+    /// </summary>
+    private void ChaseWhileStopped()
+    {
+        // Include events at the playhead: a program change at the very start sets the track's instrument.
+        // Pedals are left alone so a sustain held in the song does not latch notes played live.
+        var chase = ChaseState.Compute(_plan, Volatile.Read(ref _positionTick) + 1)
+            .Where(c => c.Message.Kind != ChannelMessageKind.ControlChange || c.Message.Data1 is < 64 or > 69)
+            .ToArray();
+        if (chase.AsSpan().SequenceEqual(_stoppedChase))
+        {
+            return;
+        }
+
+        _stoppedChase = chase;
+        foreach (var message in chase)
+        {
+            SendChannel(message.Slot, message.Message, MidiTimestamp.Immediate);
         }
     }
 

@@ -39,7 +39,8 @@ public partial class App : Avalonia.Application
         // and verifiable with no hardware attached. Platform providers are added alongside it.
         var builtIn = new LoopbackMidiProvider(clock, EndpointCapabilities.ScheduledDelivery | EndpointCapabilities.SystemExclusive);
         var monitorPort = builtIn.CreatePort("Cadence Monitor", "monitor");
-        var providers = new List<IMidiEndpointProvider> { builtIn };
+        var keyboard = new ComputerKeyboardProvider(clock);
+        var providers = new List<IMidiEndpointProvider> { builtIn, keyboard };
         providers.AddRange(platformProviders);
         var endpoints = new EndpointDirectory(providers);
 
@@ -49,7 +50,7 @@ public partial class App : Avalonia.Application
         var session = new ProjectSession();
         var playback = new PlaybackController(session, endpoints, profiles, clock, playbackThreadSetup: PlatformProviders.ConfigurePlaybackThread);
         var monitor = new MidiMonitor(builtIn.OpenInputAsync(monitorPort.InputId).AsTask().GetAwaiter().GetResult());
-        var viewModel = new MainViewModel(session, playback, endpoints, new DialogService(window), new AvaloniaDispatcher(), monitor);
+        var viewModel = new MainViewModel(session, playback, endpoints, new DialogService(window), new AvaloniaDispatcher(), monitor, new ComputerKeyboardViewModel(keyboard));
         _ = viewModel.InitializeAsync();
         return viewModel;
     }
