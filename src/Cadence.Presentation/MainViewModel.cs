@@ -65,8 +65,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private long _lastInputCount;
     private int _inputActivityFrames;
 
-    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null)
+    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null, ComputerKeyboardViewModel? keyboard = null)
     {
+        Keyboard = keyboard;
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _playback = playback ?? throw new ArgumentNullException(nameof(playback));
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
@@ -85,9 +86,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             ApplyThru();
         };
         ApplyMetronome();
+        if (keyboard is not null)
+        {
+            keyboard.ChannelSource = () => (_playback.Recorder.RecordingTrack ?? RecordTarget?.Id) is { } track ? _playback.ChannelFor(track).Index : 0;
+            keyboard.RefreshChannel();
+        }
 
         // Session work may finish on a thread-pool thread; view state is only touched on the UI thread.
-        _session.Changed += (_, _) => _dispatcher.Run(OnSessionChanged);
+        _session.Changed += (_, _) => _dispatcher.Run(() =>
+        {
+            OnSessionChanged();
+            Keyboard?.RefreshChannel();
+        });
         _endpoints.EndpointsChanged += (_, _) => _dispatcher.Post(() => _ = RefreshAsync());
         foreach (var failure in _playback.Profiles.Failures)
         {
@@ -122,6 +132,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The event list for the first selected track.</summary>
     public EventListViewModel EventList { get; }
+
+    /// <summary>Plays notes from the computer keyboard, or null when the host does not offer it.</summary>
+    public ComputerKeyboardViewModel? Keyboard { get; }
 
     public ObservableCollection<InputOption> Inputs { get; } = [InputOption.All];
 
@@ -722,7 +735,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _playback.SetMetronome(new MetronomeSettings(mode, MetronomeOutput?.Id));
     }
 
-    private void ApplyThru() => _playback.SetThruTrack(IsThruEnabled ? (_playback.Recorder.RecordingTrack ?? RecordTarget?.Id) : null);
+    private void ApplyThru()
+    {
+        _playback.SetThruTrack(IsThruEnabled ? (_playback.Recorder.RecordingTrack ?? RecordTarget?.Id) : null);
+        Keyboard?.RefreshChannel();
+    }
 
     private void SyncEditor()
     {
@@ -965,6 +982,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SyncOutputs();
         SyncInputs();
         SyncTracks();
+        Keyboard?.RefreshChannel();
     }
 
     private void SyncInputs()
@@ -1137,6 +1155,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Keyboard?.ReleaseAll();
         _monitor?.Dispose();
         await _playback.DisposeAsync();
     }

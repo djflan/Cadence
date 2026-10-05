@@ -50,6 +50,12 @@ public partial class MainWindow : Window
         viewModel.Tracks.CollectionChanged += (_, _) => SyncSelectedLanes();
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         AddHandler(KeyDownEvent, OnShortcutKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, OnKeyboardKeyUp, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) =>
+        {
+            _keyboardToggleHeld = false;
+            viewModel.Keyboard?.ReleaseAll();
+        };
         viewModel.MonitorEntries.CollectionChanged += (_, _) =>
         {
             if (viewModel.MonitorEntries.Count > 0 && MonitorList.IsVisible)
@@ -540,6 +546,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (vm.Keyboard is { } keyboard && HandleKeyboardKeyDown(keyboard, e))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (PianoRoll.IsFocused && PianoRoll.HandleKey(e.Key, modifiers))
         {
             e.Handled = true;
@@ -629,6 +641,100 @@ public partial class MainWindow : Window
                 ShowShortcuts();
                 e.Handled = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Computer keyboard notes, by physical position so the layout is the same on AZERTY and others:
+    /// the home row plays white keys from C, the row above plays black keys.
+    /// </summary>
+    private static int? KeyboardSemitone(PhysicalKey key) => key switch
+    {
+        PhysicalKey.A => 0,
+        PhysicalKey.W => 1,
+        PhysicalKey.S => 2,
+        PhysicalKey.E => 3,
+        PhysicalKey.D => 4,
+        PhysicalKey.F => 5,
+        PhysicalKey.T => 6,
+        PhysicalKey.G => 7,
+        PhysicalKey.Y => 8,
+        PhysicalKey.H => 9,
+        PhysicalKey.U => 10,
+        PhysicalKey.J => 11,
+        PhysicalKey.K => 12,
+        PhysicalKey.O => 13,
+        PhysicalKey.L => 14,
+        PhysicalKey.P => 15,
+        PhysicalKey.Semicolon => 16,
+        PhysicalKey.Quote => 17,
+        _ => null,
+    };
+
+    /// <summary>
+    /// ` toggles the computer keyboard. While it is on, note keys and Z/X (octave) and C/V (velocity)
+    /// belong to it; everything else, including Space and command shortcuts, still works.
+    /// </summary>
+    private bool HandleKeyboardKeyDown(ComputerKeyboardViewModel keyboard, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None)
+        {
+            return false;
+        }
+
+        if (e.PhysicalKey == PhysicalKey.Backquote)
+        {
+            // Auto-repeat sends more key-downs while held; toggle once per press.
+            if (!_keyboardToggleHeld)
+            {
+                _keyboardToggleHeld = true;
+                keyboard.IsEnabled = !keyboard.IsEnabled;
+            }
+
+            return true;
+        }
+
+        if (!keyboard.IsEnabled)
+        {
+            return false;
+        }
+
+        if (KeyboardSemitone(e.PhysicalKey) is { } semitone)
+        {
+            keyboard.Press(semitone);
+            return true;
+        }
+
+        switch (e.PhysicalKey)
+        {
+            case PhysicalKey.Z:
+                keyboard.OctaveDownCommand.Execute(null);
+                return true;
+            case PhysicalKey.X:
+                keyboard.OctaveUpCommand.Execute(null);
+                return true;
+            case PhysicalKey.C:
+                keyboard.VelocityDownCommand.Execute(null);
+                return true;
+            case PhysicalKey.V:
+                keyboard.VelocityUpCommand.Execute(null);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void OnKeyboardKeyUp(object? sender, KeyEventArgs e)
+    {
+        if (e.PhysicalKey == PhysicalKey.Backquote)
+        {
+            _keyboardToggleHeld = false;
+        }
+
+        if (_viewModel?.Keyboard
+        {
+            keyboard.Release(semitone);
+            e.Handled = true;
         }
     }
 

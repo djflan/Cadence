@@ -249,6 +249,12 @@ public sealed class PlaybackController : IAsyncDisposable
         return take;
     }
 
+    /// <summary>The channel <paramref name="track"/> plays on: its route's channel, else its first event's, else channel 1.</summary>
+    public MidiChannel ChannelFor(TrackId track) =>
+        Routes.FirstOrDefault(r => r.Track == track)?.Route?.Channel
+        ?? FirstChannel(_session.Project.Sequence.FindTrack(track))
+        ?? MidiChannel.FromIndex(0);
+
     /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a piano key.</summary>
     public void Audition(TrackId track, NoteNumber note, Velocity velocity)
     {

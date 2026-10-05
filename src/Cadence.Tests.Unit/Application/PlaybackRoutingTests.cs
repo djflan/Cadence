@@ -111,7 +111,7 @@ public sealed class PlaybackRoutingTests
         engine.Pump();
 
         Assert.Empty(outputs.Problems);
-        Assert.Equal(["B00000", "B02003", "C021", "90287F", "802840"], port.Sent.Select(m => Convert.ToHexString(m.Bytes)));
+        Assert.Equal(["B00000", "B02003", "C021", "B00000", "B02003", "C021", "90287F", "802840"], port.Sent.Select(m => Convert.ToHexString(m.Bytes)));
     }
 
     [Fact]

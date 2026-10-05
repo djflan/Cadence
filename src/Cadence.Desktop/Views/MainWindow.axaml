@@ -117,6 +117,42 @@
               </ToggleButton>
             </StackPanel>
           </Border>
+
+          <!-- Computer keyboard: play and record notes from the keyboard. -->
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                      DataContext="{Binding Keyboard}" x:DataType="vm:ComputerKeyboardViewModel"
+                      IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Border Classes="transport">
+              <StackPanel Orientation="Horizontal" Spacing="1">
+                <ToggleButton Classes="keys" IsChecked="{Binding IsEnabled, Mode=OneWay}" Command="{Binding ToggleCommand}"
+                              ToolTip.Tip="Computer keyboard (`): play notes with A–' (white) and W E T Y U O P (black). Z/X octave, C/V velocity."
+                              AutomationProperties.Name="Computer keyboard">
+                  <PathIcon Classes="stroke" Data="{StaticResource Icon.Keyboard}" Width="16" Height="16" />
+                </ToggleButton>
+              </StackPanel>
+            </Border>
+            <Border Classes="keysReadout" Classes.on="{Binding IsEnabled}" AutomationProperties.Name="Computer keyboard octave and velocity">
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Ellipse Classes="keysActivity" Classes.on="{Binding IsSounding}" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center" ToolTip.Tip="MIDI channel of the armed or selected track">
+                  <TextBlock Text="{Binding ChannelText}" Classes="keysValue" MinWidth="14" />
+                  <TextBlock Text="CH" Classes="lcdLabel" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center" ToolTip.Tip="Octave of the A key (Z/X)">
+                  <TextBlock Text="{Binding OctaveText}" Classes="keysValue" MinWidth="26" />
+                  <TextBlock Text="OCT" Classes="lcdLabel" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center" Spacing="2" ToolTip.Tip="Velocity (C/V)">
+                  <TextBlock Text="{Binding VelocityText}" Classes="keysValue" />
+                  <ProgressBar Classes="keysMeter" Value="{Binding VelocityFraction}" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center" MinWidth="30">
+                  <TextBlock Text="{Binding LastNoteText}" Classes="keysValue" Foreground="{StaticResource Cadence.LcdText}" />
+                  <TextBlock Text="NOTE" Classes="lcdLabel" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2" VerticalAlignment="Center">

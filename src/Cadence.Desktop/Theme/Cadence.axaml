@@ -115,6 +115,7 @@
     <StreamGeometry x:Key="Icon.MidiPort">M8,2 A6,6 0 1 1 7.99,2 Z M4.8,8.3 H4.9 M5.8,5.6 H5.9 M8,4.6 H8.1 M10.2,5.6 H10.3 M11.2,8.3 H11.3 M7,12 H9</StreamGeometry>
     <StreamGeometry x:Key="Icon.Quantize">M2.5,2.5 V13.5 M6.5,2.5 V13.5 M10.5,2.5 V13.5 M3.5,7 H6 M7.5,10 H10</StreamGeometry>
     <StreamGeometry x:Key="Icon.Velocity">M3,13.5 V9 M6.5,13.5 V5 M10,13.5 V7 M13.5,13.5 V3 M2.2,9 H3.8 M5.7,5 H7.3 M9.2,7 H10.8 M12.7,3 H14.3</StreamGeometry>
+    <StreamGeometry x:Key="Icon.Keyboard">M1.5,4 H14.5 V12 H1.5 Z M3.8,6.3 H4 M6.2,6.3 H6.4 M8.6,6.3 H8.8 M11,6.3 H11.2 M5,8.3 H5.2 M7.4,8.3 H7.6 M9.8,8.3 H10 M12.2,8.3 H12.4 M5,10.2 H11</StreamGeometry>
     <StreamGeometry x:Key="Icon.ZoomIn">M7,2.5 A4.5,4.5 0 1 1 6.99,2.5 Z M10.3,10.3 L13.8,13.8 M4.8,7 H9.2 M7,4.8 V9.2</StreamGeometry>
     <StreamGeometry x:Key="Icon.ZoomOut">M7,2.5 A4.5,4.5 0 1 1 6.99,2.5 Z M10.3,10.3 L13.8,13.8 M4.8,7 H9.2</StreamGeometry>
     <StreamGeometry x:Key="Icon.Logo">M1,9 H4 V15 H1 Z M6,5 H9 V15 H6 Z M11,1 H14 V15 H11 Z</StreamGeometry>
@@ -380,6 +381,63 @@
   </Style>
   <Style Selector="Border.transport ToggleButton.mode:checked">
     <Setter Property="Foreground" Value="#8CBDF2" />
+  </Style>
+
+  <!-- Computer keyboard: an accent-lit toggle with a slide-out LCD readout of octave and velocity. -->
+  <Style Selector="Border.transport ToggleButton.keys:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1F4A5A" />
+    <Setter Property="BoxShadow" Value="0 0 8 0 #666FD8F2" />
+  </Style>
+  <Style Selector="Border.transport ToggleButton.keys:checked">
+    <Setter Property="Foreground" Value="#6FD8F2" />
+  </Style>
+  <Style Selector="Border.keysReadout">
+    <Setter Property="Background" Value="{StaticResource Cadence.Lcd}" />
+    <Setter Property="BorderBrush" Value="#2A5563" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="BoxShadow" Value="inset 0 1 3 0 #90000000" />
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="RenderTransform" Value="translateX(-6px)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="CubicEaseOut" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.16" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.keysReadout.on">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translateX(0px)" />
+  </Style>
+  <Style Selector="TextBlock.keysValue">
+    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Foreground" Value="#6FD8F2" />
+  </Style>
+  <Style Selector="ProgressBar.keysMeter">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="3" />
+    <Setter Property="CornerRadius" Value="1.5" />
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="1" />
+    <Setter Property="Background" Value="#22343A" />
+    <Setter Property="Foreground" Value="#6FD8F2" />
+  </Style>
+  <Style Selector="Ellipse.keysActivity">
+    <Setter Property="Width" Value="6" />
+    <Setter Property="Height" Value="6" />
+    <Setter Property="Fill" Value="#22343A" />
+  </Style>
+  <Style Selector="Ellipse.keysActivity.on">
+    <Setter Property="Fill" Value="#6FD8F2" />
   </Style>
 
   <!-- The LCD: a recessed display of position, time, tempo, and meter. -->
