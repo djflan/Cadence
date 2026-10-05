@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _frameTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromSeconds(60) };
     private MainViewModel? _viewModel;
+    private bool _keyboardToggleHeld;
     private bool _closeConfirmed;
     private bool _syncingScroll;
     private double _editorHeight = 330;
@@ -731,7 +732,7 @@ public partial class MainWindow : Window
             _keyboardToggleHeld = false;
         }
 
-        if (_viewModel?.Keyboard
+        if (_viewModel?.Keyboard is { IsEnabled: true } keyboard && KeyboardSemitone(e.PhysicalKey) is { } semitone)
         {
             keyboard.Release(semitone);
             e.Handled = true;
