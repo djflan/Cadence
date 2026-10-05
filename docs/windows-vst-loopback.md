@@ -17,6 +17,9 @@ that was verified and how.
 Result: the Ambient sample played through S-YXG50 correctly, including its XG SysEx setup, so short
 messages and SysEx both pass through the loopback to a 32-bit host under emulation.
 
+Cadence has since also been run natively on Windows 11 Pro x64 (build 26200): playback, imported
+files with program changes, and the computer keyboard input with MIDI thru.
+
 ## Why not loopMIDI
 
 loopMIDI (and rtpMIDI, LoopBe1 and similar) install a kernel driver. Their installer failed on ARM64

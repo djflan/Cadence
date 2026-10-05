@@ -20,7 +20,7 @@ Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on ma
 | Platform | App | MIDI output | MIDI input (recording, thru) | Notes |
 | -------- | --- | ----------- | ---------------------------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | CoreMIDI, with adapter timestamps | Development platform; native menu bar; real-time playback thread |
-| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Computer keyboard only; WinMM input not yet |
+| Windows (ARM64 and x64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Computer keyboard only; WinMM input not yet |
 untested on Linux | Computer keyboard only; ALSA input not yet |
 
 ## Goals
