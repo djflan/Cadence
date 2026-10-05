@@ -982,6 +982,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SyncOutputs();
         SyncInputs();
         SyncTracks();
+        Keyboard?.RefreshChannel();
     }
 
     private void SyncInputs()

@@ -29,6 +29,22 @@ public sealed class PlaybackEngineTests
     }
 
     [Fact]
+    public void Stopped_SendsStateAtThePlayhead_AndOnlyResendsChangedChannels()
+    {
+        using var f = new PlaybackFixture(null, Immediate);
+        f.Load(Program(0, 5), Cc(0, 7, 90), Cc(0, 64, 127), Cc(0, 7, 80, channel: 1));
+        f.PumpAt(0);
+
+        // Sustain is not sent while stopped.
+        Assert.Equal(["C005@0", "B0075A@0", "B10750@0"], f.Sent());
+
+        f.Load(Program(0, 5), Cc(0, 7, 90), Cc(0, 7, 70, channel: 1));
+        f.PumpAt(1);
+
+        Assert.Equal(["C005@0", "B0075A@0", "B10750@0", "B10746@1"], f.Sent());
+    }
+
+    [Fact]
     public void ImmediateOutput_SendsOnlyWhenDue()
     {
         using var f = new PlaybackFixture(null, Immediate);

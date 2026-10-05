@@ -363,7 +363,8 @@ public sealed class PlaybackEngine : IDisposable
 
     /// <summary>
     /// While stopped, sends the program and controller state at the playhead so live input (thru,
-    /// auditioning) hears each track's instrument without pressing play. Unchanged state is not resent.
+    /// auditioning) hears each track's instrument without pressing play. Only channels whose state
+    /// changed are resent; a changed channel's state is resent whole so bank select precedes its program.
     /// </summary>
     private void ChaseWhileStopped()
     {
@@ -372,21 +373,26 @@ public sealed class PlaybackEngine : IDisposable
         var chase = ChaseState.Compute(_plan, Volatile.Read(ref _positionTick) + 1)
             .Where(c => c.Message.Kind != ChannelMessageKind.ControlChange || c.Message.Data1 is < 64 or > 69)
             .ToArray();
-        if (chase.AsSpan().SequenceEqual(_stoppedChase))
-        {
-            return;
-        }
-
+        var previous = _stoppedChase.ToLookup(c => (c.Slot, c.Message.Channel.Index));
         _stoppedChase = chase;
-        foreach (var message in chase)
+        foreach (var channel in chase.GroupBy(c => (c.Slot, c.Message.Channel.Index)))
         {
-            SendChannel(message.Slot, message.Message, MidiTimestamp.Immediate);
+            if (channel.SequenceEqual(previous[channel.Key]))
+            {
+                continue;
+            }
+
+            foreach (var message in channel)
+            {
+                SendChannel(message.Slot, message.Message, MidiTimestamp.Immediate);
+            }
         }
     }
 
     /// <summary>Moves both cursors so <paramref name="tick"/> plays at <paramref name="startAt"/> (later than now during a count-in).</summary>
     private void Locate(long tick, ChaseMessage[] chase, TimeSpan now, TimeSpan startAt)
     {
+        _stoppedChase = [];
         ReleaseAll(now);
         ReleaseSustain();
         foreach (var message in chase)

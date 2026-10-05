@@ -51,7 +51,11 @@ public partial class MainWindow : Window
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         AddHandler(KeyDownEvent, OnShortcutKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, OnKeyboardKeyUp, RoutingStrategies.Tunnel);
-        Deactivated += (_, _) => viewModel.Keyboard?.ReleaseAll();
+        Deactivated += (_, _) =>
+        {
+            _keyboardToggleHeld = false;
+            viewModel.Keyboard?.ReleaseAll();
+        };
         viewModel.MonitorEntries.CollectionChanged += (_, _) =>
         {
             if (viewModel.MonitorEntries.Count > 0 && MonitorList.IsVisible)
@@ -671,7 +675,7 @@ public partial class MainWindow : Window
     /// ` toggles the computer keyboard. While it is on, note keys and Z/X (octave) and C/V (velocity)
     /// belong to it; everything else, including Space and command shortcuts, still works.
     /// </summary>
-    private static bool HandleKeyboardKeyDown(ComputerKeyboardViewModel keyboard, KeyEventArgs e)
+    private bool HandleKeyboardKeyDown(ComputerKeyboardViewModel keyboard, KeyEventArgs e)
     {
         if (e.KeyModifiers != KeyModifiers.None)
         {
@@ -680,7 +684,13 @@ public partial class MainWindow : Window
 
         if (e.PhysicalKey == PhysicalKey.Backquote)
         {
-            keyboard.IsEnabled = !keyboard.IsEnabled;
+            // Auto-repeat sends more key-downs while held; toggle once per press.
+            if (!_keyboardToggleHeld)
+            {
+                _keyboardToggleHeld = true;
+                keyboard.IsEnabled = !keyboard.IsEnabled;
+            }
+
             return true;
         }
 
@@ -716,7 +726,12 @@ public partial class MainWindow : Window
 
     private void OnKeyboardKeyUp(object? sender, KeyEventArgs e)
     {
-        if (_viewModel?.Keyboard is { IsEnabled: true } keyboard && KeyboardSemitone(e.PhysicalKey) is { } semitone)
+        if (e.PhysicalKey == PhysicalKey.Backquote)
+        {
+            _keyboardToggleHeld = false;
+        }
+
+        if (_viewModel?.Keyboard
         {
             keyboard.Release(semitone);
             e.Handled = true;
