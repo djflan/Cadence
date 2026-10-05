@@ -46,6 +46,8 @@ These need an instrument whose MIDI OUT is connected to the interface's MIDI IN.
 | 19 | While playing, press R, play, press R again | Recording punches in and out; playback continues |
 | 20 | Hold a key, change the selected track, release the key | The note releases on the instrument it started on; nothing hangs |
 | 21 | Move the sustain pedal and pitch wheel while recording | Sustain (CC 64) and pitch bend appear in the event list and the controller lanes |
+| 22 | Open a MIDI file with program changes, select a track, and with thru on play the computer keyboard (`) without pressing play | You hear the track's instrument on its channel; the readout's **CH** matches the track |
+| 23 | Hold a computer-keyboard key, select a track on another channel, release | The note releases; nothing hangs |
 
 ## Timing measurement (optional)
 

@@ -30,6 +30,10 @@ for future delivery, others (WinMM, many network transports) only send immediate
   span the playhead are not started, and tempo changes take effect from the playhead.
 - **Seek and play** release sounding notes, release a held sustain pedal, and chase bank, program,
   controllers, pitch bend, and channel pressure. SysEx, RPN/NRPN, and sounding notes are not chased.
+- **Chase while stopped.** When stopped, loading a plan, changing outputs, or seeking sends the state
+  in effect at the playhead, including events at the playhead itself (so a program change at tick 0
+  applies), so live input hears each track's instrument. Pedals (CC 64-69) are left out so a held
+  sustain cannot latch live notes, and an unchanged state is not resent.
 - **Loops** are half-open; notes crossing the loop end are released there. A loop engages only when
   the playhead is before its end. Controllers are not re-chased at the wrap.
 - **Lateness policy.** After a stall, note starts more than `MaxNoteLateness` (250 ms) late are

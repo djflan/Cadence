@@ -33,7 +33,13 @@ shape the design:
   thread. The recorder remembers where each echoed note went, so its release follows it even if the
   thru target changes. Input is never echoed to an output with the same provider and name (for
   example an IAC bus used both ways), which would loop forever.
-- **Recording captures raw messages and pairs them at the end.** `MidiRecorder` appends channel
+- **The computer keyboard is an input endpoint.** `ComputerKeyboardProvider` is a software
+  `IMidiEndpointProvider` with one input, so recording, thru, and the monitor need no special case.
+  `ComputerKeyboardViewModel` maps key presses to notes on the effective channel of the recording,
+  armed, or selected track (`PlaybackController.ChannelFor`), and remembers each held note's channel
+  so its release follows it. Auto-repeat is ignored and held notes release when the window loses
+  focus or the keyboard is turned off.
+- **Recording captures raw messages and pairs them at the end.**
   messages and their ticks under a short lock; pairing into notes happens when recording stops.
   Notes still held end at the stop position; a release that maps before its note (after a loop wrap)
   ends the note at the loop end. Notes are paired in the order they were played, not by position,
@@ -54,7 +60,7 @@ shape the design:
 ## Consequences
 - Recording works wherever an adapter implements `IMidiInput`: CoreMIDI today. WinMM and ALSA
   inputs still need implementing (and testing on their platforms) before recording works on
-  Windows and Linux.
+  Windows and Linux. The computer keyboard input works on every platform.
 - Record-path latency is not compensated. A measured offset per input can be added later as a
   constant applied before `TryGetTickAt`.
 - Arming is view state, not saved. Metronome, count-in, and take-mode settings are not saved either;
