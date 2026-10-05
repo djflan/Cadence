@@ -23,6 +23,8 @@ dotnet test src/Cadence.slnx
 dotnet format src/Cadence.slnx --verify-no-changes
 ```
 
+Packages are restored only from nuget.org: the repository's `nuget.config` clears inherited sources and maps every package to it, as central package management requires. Add a mapping there if a package ever needs another source.
+
 Warnings are treated as errors and code style is enforced during the build; `.editorconfig` defines the style. Build conventions are described in [ADR 0002](docs/adr/0002-build-and-test-conventions.md).
 
 ## Pull requests

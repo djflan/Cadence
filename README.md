@@ -20,8 +20,8 @@ Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on ma
 | Platform | App | MIDI output | MIDI input (recording, thru) | Notes |
 | -------- | --- | ----------- | ---------------------------- | ----- |
 | macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | CoreMIDI, with adapter timestamps | Development platform; native menu bar; real-time playback thread |
-| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Not yet | Verified with a VST synth through a Windows MIDI Services loopback; see [docs/windows-vst-loopback.md](docs/windows-vst-loopback.md) |
-| Linux | Builds; not yet verified | ALSA sequencer (direct sends, SysEx, *Cadence Out* virtual port); untested on Linux | Not yet | No hot-plug yet; screen-reader support unverified |
+| Windows (ARM64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Computer keyboard only; WinMM input not yet |
+untested on Linux | Computer keyboard only; ALSA input not yet |
 
 ## Goals
 
@@ -122,7 +122,7 @@ dotnet run --project src/Cadence.Desktop
 ```
 
 Without any hardware, route tracks to **Cadence Monitor** and watch the messages in the MIDI
-monitor panel, or route to **Cadence Out** and select it as the input of a software synth or DAW.
+monitor panel, or route to **Cadence Out** (macOS and Linux) and select it as the input of a software synth or DAW.
 A demo song is included in `samples/cadence-demo.mid`; drag it (or any `.mid` or `.cadence` file)
 onto the window to open it. Hardware checks are listed in
 [docs/hardware-test-plan.md](docs/hardware-test-plan.md).
