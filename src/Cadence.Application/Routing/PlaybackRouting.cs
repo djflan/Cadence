@@ -2,8 +2,8 @@ using System.Collections.Immutable;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Midi.Endpoints;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
-using Cadence.Profiles;
 
 namespace Cadence.Application.Routing;
 
@@ -111,7 +111,7 @@ public static class PlaybackRouting
         }
 
         var channel = resolved.Route.Channel ?? FirstChannel(track) ?? MidiChannel.FromIndex(0);
-        return DeviceProfile.SelectionMessages(bank, voice.Program, channel);
+        return Midi1Encoder.ProgramSelection(bank.Select(voice.Program), channel);
     }
 
     private static MidiChannel? FirstChannel(Track? track) =>

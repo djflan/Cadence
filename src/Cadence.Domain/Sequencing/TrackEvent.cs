@@ -73,10 +73,6 @@ public sealed record NoteEvent : TrackEvent
     public override Tick EndPosition => Position + Duration;
 
     public override EventPhase Phase => EventPhase.NoteOn;
-
-    public ChannelMessage OnMessage => ChannelMessage.NoteOn(Channel, Note, Velocity);
-
-    public ChannelMessage OffMessage => ChannelMessage.NoteOff(Channel, Note, ReleaseVelocity);
 }
 
 /// <summary>

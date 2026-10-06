@@ -57,7 +57,7 @@ public static class PlaybackPlanCompiler
                         transposedAway++;
                         break;
                     case NoteEvent note:
-                        var on = binding.Transpose == 0 ? note.OnMessage : (note with { Note = Transposed(note.Note) }).OnMessage;
+                        var on = Midi1Encoder.NoteOn(binding.Transpose == 0 ? note : note with { Note = Transposed(note.Note) });
                         Add(tick, EventPhase.NoteOn, i, new PlanEvent(tick, binding.OutputSlot, Rechannel(on), -1, note.Duration.Value, note.ReleaseVelocity));
                         break;
                     case ChannelEvent channel when !TryTransposeKeyed(channel.Message, out _):

@@ -117,8 +117,6 @@ public sealed class TrackTests
         Assert.Throws<ArgumentOutOfRangeException>(() => note with { Duration = TickSpan.Zero });
         Assert.Throws<ArgumentOutOfRangeException>(() => note with { Velocity = Velocity.Off });
         Assert.Equal(new Tick(10), note.EndPosition);
-        Assert.True(note.OnMessage.IsNoteOn);
-        Assert.True(note.OffMessage.IsNoteOff);
     }
 
     [Fact]

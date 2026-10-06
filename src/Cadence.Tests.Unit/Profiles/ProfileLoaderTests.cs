@@ -235,14 +235,12 @@ public sealed class ProfileLoaderTests
     }
 
     [Fact]
-    public void SelectionMessages_SendBankSelectBeforeProgram()
+    public void Bank_SelectsProgramWithItsBankNumbers()
     {
         var bank = new ProfileBank("b", "B", BankKind.Melodic, new SevenBitValue(127), new SevenBitValue(0), []);
 
-        var messages = DeviceProfile.SelectionMessages(bank, new ProgramNumber(25), MidiChannel.FromNumber(10));
-
-        Assert.Equal(["B9 0 127", "B9 32 0", "C9 25 0"], messages.Select(m => $"{m.Status:X2} {m.Data1} {m.Data2}"));
-        Assert.Single(DeviceProfile.SelectionMessages(bank with { Msb = null, Lsb = null }, new ProgramNumber(0), MidiChannel.FromNumber(1)));
+        Assert.Equal(new ProgramSelection(new ProgramNumber(25), new SevenBitValue(127), new SevenBitValue(0)), bank.Select(new ProgramNumber(25)));
+        Assert.Equal(new ProgramSelection(new ProgramNumber(0)), (bank with { Msb = null, Lsb = null }).Select(new ProgramNumber(0)));
     }
 
     [Fact]
