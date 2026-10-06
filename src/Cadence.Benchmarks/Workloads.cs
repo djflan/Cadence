@@ -26,7 +26,7 @@ internal static class Workloads
             {
                 var tick = new Tick((long)i * sixteenth);
                 events.Add(new NoteEvent(EventId.New(), tick, new TickSpan(sixteenth - 10), channel, new NoteNumber(36 + random.Next(48)), new Velocity(40 + random.Next(87)), Velocity.DefaultRelease));
-                events.Add(new ChannelEvent(tick, ChannelMessage.ControlChange(channel, ControllerNumber.ModulationWheel, new SevenBitValue(random.Next(128)))));
+                events.Add(new ControllerEvent(tick, channel, ControllerNumber.ModulationWheel, ControlValue.FromSevenBit(random.Next(128))));
             }
 
             sequence = sequence.WithTrack(new Track(TrackId.New(), $"Track {t + 1}", events));

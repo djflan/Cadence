@@ -33,7 +33,7 @@ public sealed class ProjectSerializerTests
         var text = Encoding.UTF8.GetString(first);
 
         Assert.Equal(first, Serializer.Serialize(document));
-        Assert.StartsWith("{\n  \"format\": \"cadence-project\",\n  \"formatVersion\": 1,", text, StringComparison.Ordinal);
+        Assert.StartsWith("{\n  \"format\": \"cadence-project\",\n  \"formatVersion\": 2,", text, StringComparison.Ordinal);
         Assert.Contains("\"bytes\": \"F0 43 10 4C 00 00 7E 00 F7\"", text, StringComparison.Ordinal);
         Assert.Contains("\"channel\": 2", text, StringComparison.Ordinal);
         Assert.EndsWith("}\n", text, StringComparison.Ordinal);
@@ -67,7 +67,7 @@ public sealed class ProjectSerializerTests
 
     private sealed class RenameTitleMigration : IProjectMigration
     {
-        public int FromVersion => 1;
+        public int FromVersion => ProjectSerializer.CurrentFormatVersion;
 
         public void Migrate(JsonObject root)
         {
@@ -83,13 +83,14 @@ public sealed class ProjectSerializerTests
         var json = ToJson(Project.CreateNew("ignored"));
         var project = json["project"]!.AsObject();
         project.Remove("name");
-        project["title"] = "From v1";
-        var serializerWithV2 = new ProjectSerializer(2, [new RenameTitleMigration()]);
+        project["title"] = "From the current format";
+        var next = ProjectSerializer.CurrentFormatVersion + 1;
+        var serializerWithNext = new ProjectSerializer(next, [new RenameTitleMigration()]);
 
-        var document = serializerWithV2.Deserialize(Encoding.UTF8.GetBytes(json.ToJsonString()));
+        var document = serializerWithNext.Deserialize(Encoding.UTF8.GetBytes(json.ToJsonString()));
 
-        Assert.Equal("From v1", document.Project.Name);
-        Assert.Contains("\"formatVersion\": 2", Encoding.UTF8.GetString(serializerWithV2.Serialize(document)), StringComparison.Ordinal);
+        Assert.Equal("From the current format", document.Project.Name);
+        Assert.Contains($"\"formatVersion\": {next}", Encoding.UTF8.GetString(serializerWithNext.Serialize(document)), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -106,7 +107,8 @@ public sealed class ProjectSerializerTests
     [InlineData("$.project.sequence.tracks[0].events[2].velocity", "0")]
     [InlineData("$.project.sequence.tracks[0].events[2].channel", "17")]
     [InlineData("$.project.sequence.tracks[0].events[0].type", "\"lyric\"")]
-    [InlineData("$.project.sequence.tracks[0].events[1].bytes", "\"90 3C\"")]
+    [InlineData("$.project.sequence.tracks[0].events[1].program", "0")]
+    [InlineData("$.project.sequence.tracks[0].events[3].value", "4294967296")]
     [InlineData("$.project.sequence.tracks[0].events[0].bytes", "\"F0 43 99 F7\"")]
     [InlineData("$.project.sequence.tracks[0].id", "\"not-a-guid\"")]
     [InlineData("$.project.sequence.meter[0].denominator", "3")]

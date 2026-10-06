@@ -64,8 +64,12 @@ public sealed record IdentityMatch(ImmutableArray<byte> ManufacturerId, Immutabl
 /// <summary>A program in a bank. <see cref="Program"/> holds the wire value; JSON uses one-based numbers.</summary>
 public sealed record ProfileProgram(ProgramNumber Program, string Name, string? Category);
 
-/// <summary>A bank addressed by optional bank select MSB/LSB values.</summary>
-public sealed record ProfileBank(string Id, string Name, BankKind Kind, SevenBitValue? Msb, SevenBitValue? Lsb, ImmutableArray<ProfileProgram> Programs);
+/// <summary>A bank addressed by optional bank MSB/LSB values.</summary>
+public sealed record ProfileBank(string Id, string Name, BankKind Kind, SevenBitValue? Msb, SevenBitValue? Lsb, ImmutableArray<ProfileProgram> Programs)
+{
+    /// <summary>Selects <paramref name="program"/> in this bank. Encoding it for a protocol is the MIDI layer's job.</summary>
+    public ProgramSelection Select(ProgramNumber program) => new(program, Msb, Lsb);
+}
 
 public sealed record DrumNote(NoteNumber Note, string Name);
 
@@ -131,26 +135,4 @@ public sealed record DeviceProfile
     public ProfileBank? FindBank(string id) => Banks.FirstOrDefault(b => b.Id == id);
 
     public SysExTemplate? FindTemplate(string id) => Templates.FirstOrDefault(t => t.Id == id);
-
-    /// <summary>
-    /// The messages that select <paramref name="program"/> in <paramref name="bank"/> on
-    /// <paramref name="channel"/>: bank select MSB and LSB (when the bank defines them), then the program change.
-    /// </summary>
-    public static ImmutableArray<ChannelMessage> SelectionMessages(ProfileBank bank, ProgramNumber program, MidiChannel channel)
-    {
-        ArgumentNullException.ThrowIfNull(bank);
-        var messages = ImmutableArray.CreateBuilder<ChannelMessage>(3);
-        if (bank.Msb is { } msb)
-        {
-            messages.Add(ChannelMessage.ControlChange(channel, ControllerNumber.BankSelectMsb, msb));
-        }
-
-        if (bank.Lsb is { } lsb)
-        {
-            messages.Add(ChannelMessage.ControlChange(channel, ControllerNumber.BankSelectLsb, lsb));
-        }
-
-        messages.Add(ChannelMessage.ProgramChange(channel, program));
-        return messages.ToImmutable();
-    }
 }

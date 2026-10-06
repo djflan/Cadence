@@ -22,6 +22,8 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0015](0015-winmm-system-exclusive.md) | System exclusive through WinMM without blocking playback | Accepted |
 | [0016](0016-alsa-adapter.md) | Linux ALSA sequencer output adapter in managed code | Accepted |
 | [0017](0017-recording-and-note-editing.md) | MIDI recording and note editing | Accepted |
+| [0018](0018-midi-protocol-layering.md) | MIDI protocol layering: a protocol-independent domain with MIDI 1.0 first | Accepted |
+| [0019](0019-sysex-preservation-and-interpretation.md) | SysEx: preserved losslessly, interpreted optionally by dialect | Accepted |
 
 ## Template
 

@@ -285,8 +285,9 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(600);
         _controller.Stop();
 
-        var events = Recorded(track).Events.Cast<ChannelEvent>().ToList();
-        Assert.Equal([ChannelMessageKind.ControlChange, ChannelMessageKind.PitchBend], events.Select(e => e.Message.Kind));
+        var events = Recorded(track).Events;
+        Assert.Equal([typeof(ControllerEvent), typeof(PitchBendEvent)], events.Select(e => e.GetType()));
+        Assert.Equal(0x50 << 7, Assert.IsType<PitchBendEvent>(events[1]).Value.ToFourteenBit());
         Assert.All(events, e => Assert.Equal(960, e.Position.Value));
     }
 

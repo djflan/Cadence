@@ -1,6 +1,7 @@
 using System.Globalization;
+using Cadence.Domain.Midi;
 
-namespace Cadence.Domain.Midi;
+namespace Cadence.Midi.Wire;
 
 /// <summary>MIDI 1.0 channel voice message types, valued as their status-byte high nibble.</summary>
 public enum ChannelMessageKind : byte

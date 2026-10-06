@@ -35,9 +35,12 @@ public sealed class FormattingTests
     [Fact]
     public void Message_NeverRevealsSysExPayload()
     {
-        var text = Formatting.Message([0xF0, 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00, 0xF7]);
+        var known = Formatting.Message([0xF0, 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00, 0xF7]);
+        var unknown = Formatting.Message([0xF0, 0x7D, 0x4C, 0x4D, 0xF7]);
 
-        Assert.Equal("SysEx · 9 bytes · manufacturer 43", text);
-        Assert.DoesNotContain("4C", text, StringComparison.Ordinal);
+        Assert.Equal("SysEx · XG System On · 9 bytes", known);
+        Assert.DoesNotContain("4C", known, StringComparison.Ordinal);
+        Assert.Equal("SysEx · 5 bytes · manufacturer 7D", unknown);
+        Assert.DoesNotContain("4C", unknown, StringComparison.Ordinal);
     }
 }

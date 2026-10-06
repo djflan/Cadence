@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Playback;
 
@@ -12,10 +13,10 @@ namespace Cadence.Playback;
 public sealed record PlanTrackBinding(int OutputSlot, MidiChannel? Channel = null, int Transpose = 0)
 {
     /// <summary>
-    /// Messages sent at tick 0 before the track's own events in the same phase, such as a voice
-    /// selection. They are subject to the channel override but not to transposition.
+    /// Events sent at tick 0 (whatever their own position) before the track's events in the same
+    /// phase, such as a voice selection. They are subject to the channel override but not to transposition.
     /// </summary>
-    public ImmutableArray<ChannelMessage> InitialMessages { get; init; } = [];
+    public ImmutableArray<ChannelEvent> InitialEvents { get; init; } = [];
 }
 
 /// <summary>Something the compiler left out of a plan, and why.</summary>

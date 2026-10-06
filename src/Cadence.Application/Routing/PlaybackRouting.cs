@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
 using Cadence.Playback;
-using Cadence.Profiles;
 
 namespace Cadence.Application.Routing;
 
@@ -62,7 +62,7 @@ public static class PlaybackRouting
             var route = resolved.Route!;
             bindings[resolved.Track] = new PlanTrackBinding(slot, route.Channel, route.Transpose)
             {
-                InitialMessages = VoiceMessages(sequence.FindTrack(resolved.Track), resolved),
+                InitialEvents = VoiceSelection(sequence.FindTrack(resolved.Track), resolved),
             };
         }
 
@@ -103,22 +103,14 @@ public static class PlaybackRouting
         return new OpenedOutputs(outputs, problems.ToImmutable());
     }
 
-    private static ImmutableArray<ChannelMessage> VoiceMessages(Track? track, ResolvedRoute resolved)
+    private static ImmutableArray<ChannelEvent> VoiceSelection(Track? track, ResolvedRoute resolved)
     {
         if (resolved.Route?.Voice is not { } voice || resolved.Profile.Profile?.FindBank(voice.BankId) is not { } bank)
         {
             return [];
         }
 
-        var channel = resolved.Route.Channel ?? FirstChannel(track) ?? MidiChannel.FromIndex(0);
-        return DeviceProfile.SelectionMessages(bank, voice.Program, channel);
+        var channel = resolved.Route.Channel ?? track?.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel ?? MidiChannel.FromIndex(0);
+        return [new ProgramEvent(Tick.Zero, channel, bank.Select(voice.Program))];
     }
-
-    private static MidiChannel? FirstChannel(Track? track) =>
-        track?.Events.Select(e => e switch
-        {
-            NoteEvent note => note.Channel,
-            ChannelEvent channel => channel.Message.Channel,
-            _ => (MidiChannel?)null,
-        }).FirstOrDefault(c => c is not null);
 }

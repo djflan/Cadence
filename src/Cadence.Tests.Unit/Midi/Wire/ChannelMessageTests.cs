@@ -1,7 +1,8 @@
 using Cadence.Domain.Midi;
+using Cadence.Midi.Wire;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Domain.Midi;
+namespace Cadence.Tests.Unit.Midi.Wire;
 
 public sealed class ChannelMessageTests
 {

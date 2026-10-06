@@ -2,6 +2,7 @@ using System.Globalization;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Midi.Files;
 
@@ -58,7 +59,7 @@ public static class SmfImporter
                         pairing.Off(tick, message, i);
                         break;
                     case SmfChannelEvent channel:
-                        draft.Add(new ChannelEvent(tick, channel.Message), i);
+                        draft.Add(Midi1Decoder.Decode(tick, channel.Message)!, i);
                         break;
                     case SmfSysExEvent sysEx:
                         draft.Add(ImportSysEx(tick, sysEx, diagnostics, trackIndex), i);
@@ -187,12 +188,7 @@ public static class SmfImporter
         var channels = new SortedDictionary<byte, List<TrackEvent>>();
         foreach (var e in draft.Build())
         {
-            MidiChannel? channel = e switch
-            {
-                NoteEvent note => note.Channel,
-                ChannelEvent message => message.Message.Channel,
-                _ => null,
-            };
+            MidiChannel? channel = e is ChannelEvent c ? c.Channel : null;
             if (channel is not { } midiChannel)
             {
                 global.Add(e);
@@ -313,9 +309,9 @@ public static class SmfImporter
         public void Fill(int slot, TrackEvent trackEvent) => _events[slot] = (_events[slot].Order, trackEvent);
 
         public IEnumerable<TrackEvent> Build() =>
-            _events.Select((e, position) => (e.Order, position, e.Event))
+            Midi1Decoder.CombineProgramSelections(_events.Select((e, position) => (e.Order, position, e.Event))
                 .OrderBy(e => e.Order).ThenBy(e => e.position)
-                .Select(e => e.Event!);
+                .Select(e => e.Event!));
     }
 
     /// <summary>Pairs note-ons with note-offs first-in, first-out per channel and note.</summary>
@@ -339,8 +335,8 @@ public static class SmfImporter
         {
             if (!_open.TryGetValue((message.Channel.Index, message.Data1), out var queue) || queue.Count == 0)
             {
-                diagnostics.Info(SmfDiagnosticCodes.UnpairedNoteOff, "A note-off with no matching note-on was kept as a raw channel message.", trackIndex);
-                draft.Add(new ChannelEvent(tick, message), fileIndex);
+                diagnostics.Info(SmfDiagnosticCodes.UnpairedNoteOff, "A note-off with no matching note-on was kept as a separate release.", trackIndex);
+                draft.Add(Midi1Decoder.Decode(tick, message)!, fileIndex);
                 return;
             }
 

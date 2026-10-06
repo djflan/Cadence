@@ -5,6 +5,7 @@ using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
 using Cadence.Midi.Timing;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
 using Cadence.Profiles;
 using static Cadence.Tests.Unit.Application.RouteResolverTests;
@@ -55,16 +56,17 @@ public sealed class PlaybackRoutingTests
 
         var prepared = PlaybackRouting.Prepare(sequence, RouteResolver.ResolveAll(sequence, RoutingTable.Empty.With(route), Catalog("p.one"), [synth]));
 
-        Assert.Equal(["B2 0 0", "B2 32 3", "C2 4 0"], prepared.Bindings[track.Id].InitialMessages.Select(m => $"{m.Status:X2} {m.Data1} {m.Data2}"));
+        var voice = Assert.IsType<ProgramEvent>(Assert.Single(prepared.Bindings[track.Id].InitialEvents));
+        Assert.Equal(["B2 0 0", "B2 32 3", "C2 4 0"], Midi1Encoder.Encode(voice).Select(m => $"{m.Status:X2} {m.Data1} {m.Data2}"));
     }
 
     [Fact]
     public void Compile_PlacesVoiceSelectionBeforeTheTracksOwnEvents()
     {
-        var program = new ChannelEvent(Tick.Zero, ChannelMessage.ProgramChange(One, new ProgramNumber(9)));
+        var program = new ProgramEvent(Tick.Zero, One, new ProgramSelection(new ProgramNumber(9)));
         var track = new Track(TrackId.New(), "t", [Note(0, 60), program]);
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(track);
-        var binding = new PlanTrackBinding(0) { InitialMessages = [ChannelMessage.ControlChange(One, ControllerNumber.BankSelectMsb, new SevenBitValue(1)), ChannelMessage.ProgramChange(One, new ProgramNumber(2))] };
+        var binding = new PlanTrackBinding(0) { InitialEvents = [new ProgramEvent(Tick.Zero, One, new ProgramSelection(new ProgramNumber(2), BankMsb: new SevenBitValue(1)))] };
 
         var plan = PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = binding });
 
@@ -74,7 +76,7 @@ public sealed class PlaybackRoutingTests
     [Fact]
     public void Compile_TransposesNotesAndDropsThoseOutOfRange()
     {
-        var rawOff = new ChannelEvent(new Tick(5), ChannelMessage.NoteOff(One, new NoteNumber(100), Velocity.DefaultRelease));
+        var rawOff = new NoteOffEvent(EventId.New(), new Tick(5), One, new NoteNumber(100), Velocity.DefaultRelease);
         var track = new Track(TrackId.New(), "t", [Note(0, 60), Note(1, 120), rawOff]);
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(track);
 

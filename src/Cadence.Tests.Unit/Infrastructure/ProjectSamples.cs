@@ -15,9 +15,12 @@ internal static class ProjectSamples
         var channel = MidiChannel.FromNumber(2);
         var bass = new Track(TrackId.New(), "Bass", [
             new NoteEvent(EventId.New(), new Tick(0), new TickSpan(240), channel, new NoteNumber(40), new Velocity(100), new Velocity(30)),
-            new ChannelEvent(new Tick(0), ChannelMessage.ProgramChange(channel, new ProgramNumber(33))),
-            new ChannelEvent(new Tick(10), ChannelMessage.PitchBend(channel, new FourteenBitValue(9000))),
-            new ChannelEvent(new Tick(12), ChannelMessage.ChannelPressure(channel, new SevenBitValue(5))),
+            new ProgramEvent(new Tick(0), channel, new ProgramSelection(new ProgramNumber(33), new SevenBitValue(0), new SevenBitValue(64))),
+            new PitchBendEvent(new Tick(10), channel, ControlValue.FromFourteenBit(9000)),
+            new ChannelPressureEvent(new Tick(12), channel, ControlValue.FromSevenBit(5)),
+            new ControllerEvent(new Tick(12), channel, ControllerNumber.ChannelVolume, new ControlValue(0x1234_5678)),
+            new PolyPressureEvent(EventId.New(), new Tick(14), channel, NoteNumber.MiddleC, ControlValue.Max),
+            new NoteOffEvent(EventId.New(), new Tick(16), channel, NoteNumber.MiddleC, new Velocity(3)),
             new SysExEvent(new Tick(0), SysExMessage.Create([0xF0, 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00, 0xF7])),
             new RawMidiEvent(EventId.New(), new Tick(20), ByteBlock.Copy([0xF0, 0x43])),
             new MetaEvent(EventId.New(), new Tick(30), 0x05, ByteBlock.Copy("la"u8)),

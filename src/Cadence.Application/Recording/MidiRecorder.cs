@@ -4,6 +4,7 @@ using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
 
 namespace Cadence.Application.Recording;
@@ -319,9 +320,9 @@ public sealed class MidiRecorder : IDisposable
                     AddNote(on, EndOf(on.Tick, c.Tick), release, isHeld: false);
                 }
             }
-            else if (!held)
+            else if (!held && Midi1Decoder.Decode(new Tick(c.Tick), message) is { } decoded)
             {
-                events.Add(new ChannelEvent(new Tick(c.Tick), message));
+                events.Add(decoded);
             }
         }
 
@@ -330,7 +331,7 @@ public sealed class MidiRecorder : IDisposable
             AddNote(on, EndOf(on.Tick, end), Velocity.DefaultRelease, isHeld: true);
         }
 
-        return (events.ToImmutable(), preview);
+        return ([.. Midi1Decoder.CombineProgramSelections(events)], preview);
 
         // A release that maps before its note's start was played after a loop wrap.
         long EndOf(long start, long release) =>

@@ -192,7 +192,7 @@ public static class EventEdits
         return result.ToImmutable();
     }
 
-    /// <summary>Re-addresses notes and channel messages to <paramref name="channel"/>.</summary>
+    /// <summary>Re-addresses notes and other channel events to <paramref name="channel"/>.</summary>
     public static ImmutableArray<TrackEvent> SetChannel(IEnumerable<TrackEvent> events, MidiChannel channel)
     {
         ArgumentNullException.ThrowIfNull(events);
@@ -201,11 +201,8 @@ public static class EventEdits
         {
             switch (e)
             {
-                case NoteEvent note when note.Channel != channel:
-                    result.Add(note with { Channel = channel });
-                    break;
-                case ChannelEvent message when message.Message.Channel != channel:
-                    result.Add(message with { Message = message.Message.WithChannel(channel) });
+                case ChannelEvent addressed when addressed.Channel != channel:
+                    result.Add(addressed with { Channel = channel });
                     break;
             }
         }

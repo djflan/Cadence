@@ -16,8 +16,8 @@ public sealed class EventEditsTests
     private static NoteEvent Note(long at, int pitch = 60, long length = 240, int velocity = 100) =>
         new(new Tick(at), new TickSpan(length), One, new NoteNumber(pitch), new Velocity(velocity));
 
-    private static ChannelEvent Cc(long at, int value = 10) =>
-        new(new Tick(at), ChannelMessage.ControlChange(One, ControllerNumber.ModulationWheel, new SevenBitValue(value)));
+    private static ControllerEvent Cc(long at, int value = 10) =>
+        new(new Tick(at), One, ControllerNumber.ModulationWheel, ControlValue.FromSevenBit(value));
 
     [Theory]
     [InlineData(GridDivision.Quarter, 230, 0)]
@@ -186,7 +186,7 @@ public sealed class EventEditsTests
         var result = EventEdits.SetChannel([Note(0), Cc(0)], two);
 
         Assert.Equal(two, Assert.IsType<NoteEvent>(result[0]).Channel);
-        Assert.Equal(two, Assert.IsType<ChannelEvent>(result[1]).Message.Channel);
+        Assert.Equal(two, Assert.IsType<ControllerEvent>(result[1]).Channel);
     }
 
     [Fact]

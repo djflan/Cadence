@@ -1,6 +1,7 @@
 using System.Buffers;
 using Cadence.Domain.Midi;
 using Cadence.Midi.Files;
+using Cadence.Midi.Wire;
 using CsCheck;
 using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
 

@@ -59,18 +59,19 @@ public sealed class SmfImportExportTests
         Assert.Equal((0L, 30L, (byte)64), (melodicNote.Position.Value, melodicNote.Duration.Value, melodicNote.ReleaseVelocity.Value));
         var drumNote = Assert.Single(drum.Events.OfType<NoteEvent>());
         Assert.Equal((0L, 20L, (byte)0), (drumNote.Position.Value, drumNote.Duration.Value, drumNote.ReleaseVelocity.Value));
-        Assert.Equal([101, 100, 6], part.Events.OfType<ChannelEvent>()
-            .Where(e => e.Message.Kind == ChannelMessageKind.ControlChange && e.Message.Data1 is not (0 or 32))
-            .Select(e => (int)e.Message.Data1));
-        Assert.All(part.Events.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Message.Channel));
-        Assert.All(drum.Events.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Message.Channel.Number));
+        Assert.Equal([101, 100, 6], part.Events.OfType<ControllerEvent>().Select(e => (int)e.Controller.Value));
+        Assert.Equal(new ProgramSelection(new ProgramNumber(0x28), new SevenBitValue(0), new SevenBitValue(1)), Assert.Single(part.Events.OfType<ProgramEvent>()).Selection);
+        Assert.Equal(new ProgramSelection(new ProgramNumber(0), new SevenBitValue(0x7F), new SevenBitValue(0)), Assert.Single(drum.Events.OfType<ProgramEvent>()).Selection);
+        Assert.All(part.Events.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Channel));
+        Assert.All(drum.Events.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Channel.Number));
 
         var bindings = result.Sequence.Tracks.ToDictionary(t => t.Id, _ => new PlanTrackBinding(0));
         var plan = PlaybackPlanCompiler.Compile(result.Sequence, bindings);
         Assert.Empty(plan.Diagnostics);
         Assert.Single(plan.Payloads);
         Assert.Equal(0, plan.Events[0].PayloadIndex);
-        Assert.Equal(ChannelMessageKind.ProgramChange, plan.Events[5].Message.Kind);
+        // Each bank select travels with its program change: SysEx, then channel 1's CC 0, CC 32, program.
+        Assert.Equal(["B000", "B020", "C028"], plan.Events[1..4].Select(e => $"{e.Message.Status:X2}{e.Message.Data1:X2}"));
 
         var roundTrip = SmfImporter.Import(SmfReader.Read(SmfWriter.Write(SmfExporter.Export(result.Sequence, result.Title).File)).File);
         Assert.Empty(roundTrip.Diagnostics);
@@ -95,7 +96,7 @@ public sealed class SmfImportExportTests
         Assert.Equal(SmfMetaType.TimeSignature, Assert.Single(setup.OfType<MetaEvent>()).Type);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTimeSignature);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.SysExKeptRaw, SmfDiagnosticSeverity.Info);
-        Assert.Equal(16, Assert.IsType<ChannelEvent>(Assert.Single(result.Sequence.Tracks[1].Events)).Message.Channel.Number);
+        Assert.Equal(16, Assert.IsType<ControllerEvent>(Assert.Single(result.Sequence.Tracks[1].Events)).Channel.Number);
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public sealed class SmfImportExportTests
         Assert.Equal(["Channel 1", "Channel 2"], result.Sequence.Tracks.Select(t => t.Name));
         Assert.Equal(10, Assert.Single(result.Sequence.Tracks[0].Events.OfType<NoteEvent>()).Duration.Value);
         Assert.Equal(15, Assert.Single(result.Sequence.Tracks[1].Events.OfType<NoteEvent>()).Duration.Value);
-        Assert.Single(result.Sequence.Tracks[0].Events.OfType<ChannelEvent>());
+        Assert.Single(result.Sequence.Tracks[0].Events.OfType<NoteOffEvent>());
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnpairedNoteOff, SmfDiagnosticSeverity.Info);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnterminatedNote);
         Assert.All(result.Diagnostics, d => Assert.Equal(0, d.TrackIndex));
@@ -143,12 +144,12 @@ public sealed class SmfImportExportTests
     }
 
     [Fact]
-    public void Import_KeepsUnpairedNoteOffsRaw()
+    public void Import_KeepsUnpairedNoteOffsAsReleases()
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0x80, 0x3C, 0x40)));
 
-        var raw = Assert.IsType<ChannelEvent>(result.Sequence.Tracks.Single().Events.Single());
-        Assert.True(raw.Message.IsNoteOff);
+        var release = Assert.IsType<NoteOffEvent>(result.Sequence.Tracks.Single().Events.Single());
+        Assert.Equal((NoteNumber.MiddleC, new Velocity(0x40)), (release.Note, release.ReleaseVelocity));
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnpairedNoteOff, SmfDiagnosticSeverity.Info);
     }
 
@@ -258,7 +259,7 @@ public sealed class SmfImportExportTests
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0xB0, 0x65, 0x00, 0x00, 0x64, 0x00, 0x00, 0x06, 0x0C)));
 
-        Assert.Equal([101, 100, 6], result.Sequence.Tracks.Single().Events.Cast<ChannelEvent>().Select(e => (int)e.Message.Data1));
+        Assert.Equal([101, 100, 6], result.Sequence.Tracks.Single().Events.Cast<ControllerEvent>().Select(e => (int)e.Controller.Value));
     }
 
     [Fact]
@@ -322,10 +323,20 @@ public sealed class SmfImportExportTests
         Gen.Frequency(
             (5, Gen.Select(Gen.Long[0, 4000], Gen.Long[1, 500], Gen.Int[0, 15], Gen.Int[0, 127], Gen.Int[1, 127], Gen.Int[0, 127])
                 .Select(x => (TrackEvent)new NoteEvent(EventId.New(), new Tick(x.Item1), new TickSpan(x.Item2), MidiChannel.FromIndex(x.Item3), new NoteNumber(x.Item4), new Velocity(x.Item5), new Velocity(x.Item6)))),
-            (3, Gen.Select(Gen.Long[0, 4000], Gen.Int[0, 15], Gen.Int[0, 127], Gen.Int[0, 127])
-                .Select(x => (TrackEvent)new ChannelEvent(new Tick(x.Item1), ChannelMessage.ControlChange(MidiChannel.FromIndex(x.Item2), new ControllerNumber(x.Item3), new SevenBitValue(x.Item4))))),
+            // Bank select controllers are left to dedicated tests: next to a program change they merge into it.
+            (3, Gen.Select(Gen.Long[0, 4000], Gen.Int[0, 15], Gen.Int[1, 127].Where(c => c != 32), Gen.Int[0, 127])
+                .Select(x => (TrackEvent)new ControllerEvent(new Tick(x.Item1), MidiChannel.FromIndex(x.Item2), new ControllerNumber(x.Item3), ControlValue.FromSevenBit(x.Item4)))),
             (1, Gen.Select(Gen.Long[0, 4000], Gen.Int[0, 15], Gen.Int[0, 16383])
-                .Select(x => (TrackEvent)new ChannelEvent(new Tick(x.Item1), ChannelMessage.PitchBend(MidiChannel.FromIndex(x.Item2), new FourteenBitValue(x.Item3))))),
+                .Select(x => (TrackEvent)new PitchBendEvent(new Tick(x.Item1), MidiChannel.FromIndex(x.Item2), ControlValue.FromFourteenBit(x.Item3)))),
+            (1, Gen.Select(Gen.Long[0, 4000], Gen.Int[0, 15], Gen.Int[0, 127], Gen.Int[-1, 127], Gen.Int[-1, 127])
+                .Select(x => (TrackEvent)new ProgramEvent(new Tick(x.Item1), MidiChannel.FromIndex(x.Item2), new ProgramSelection(
+                    new ProgramNumber(x.Item3),
+                    x.Item4 < 0 ? null : new SevenBitValue(x.Item4),
+                    x.Item5 < 0 ? null : new SevenBitValue(x.Item5))))),
+            (1, Gen.Select(Gen.Long[0, 4000], Gen.Int[0, 15], Gen.Int[0, 127], Gen.Int[0, 127], Gen.Bool)
+                .Select(x => x.Item5
+                    ? (TrackEvent)new PolyPressureEvent(EventId.New(), new Tick(x.Item1), MidiChannel.FromIndex(x.Item2), new NoteNumber(x.Item3), ControlValue.FromSevenBit(x.Item4))
+                    : new ChannelPressureEvent(new Tick(x.Item1), MidiChannel.FromIndex(x.Item2), ControlValue.FromSevenBit(x.Item4)))),
             (1, Gen.Select(Gen.Long[0, 4000], Gen.Byte[0, 127].Array[0, 16])
                 .Select(x => (TrackEvent)new SysExEvent(new Tick(x.Item1), SysExMessage.Create([0xF0, .. x.Item2, 0xF7])))),
             (1, Gen.Select(Gen.Long[0, 4000], Gen.Byte[0x01, 0x05], Gen.Byte[0x20, 0x7E].Array[0, 12])
@@ -343,7 +354,7 @@ public sealed class SmfImportExportTests
                 return new Sequence(
                     new TempoMap(ppqn, tempos.Select(t => new TempoChange(new Tick(t.Item1), new Tempo(t.Item2)))),
                     new MeterMap(ppqn, meters.Select(m => new MeterChange(new Tick(m.Item1), TimeSignature.FromExponent(m.Item2, m.Item3)))),
-                    tracks.Select(t => new Track(TrackId.New(), t.Item1, WithoutOverlappingNotes(t.Item2))),
+                    tracks.Select(t => new Track(TrackId.New(), t.Item1, WithoutAmbiguousEvents(t.Item2))),
                     []);
             });
 
@@ -360,12 +371,22 @@ public sealed class SmfImportExportTests
                 && imported.Sequence.Tracks.Select(Describe).SequenceEqual(original.Tracks.Select(Describe));
         });
 
-    /// <summary>Drops notes that overlap an earlier note of the same pitch and channel, which a MIDI file cannot represent unambiguously.</summary>
-    private static IEnumerable<TrackEvent> WithoutOverlappingNotes(TrackEvent[] events)
+    /// <summary>
+    /// Drops what a MIDI file cannot represent unambiguously: notes that overlap an earlier note of the
+    /// same pitch and channel, and a second program selection on the same channel and tick (whose bank
+    /// select messages would be read back as belonging to the first).
+    /// </summary>
+    private static IEnumerable<TrackEvent> WithoutAmbiguousEvents(TrackEvent[] events)
     {
         var busyUntil = new Dictionary<(MidiChannel, NoteNumber), long>();
+        var programs = new HashSet<(MidiChannel, Tick)>();
         foreach (var e in events.OrderBy(e => e.Position))
         {
+            if (e is ProgramEvent program && !programs.Add((program.Channel, program.Position)))
+            {
+                continue;
+            }
+
             if (e is NoteEvent note)
             {
                 var key = (note.Channel, note.Note);
@@ -397,7 +418,7 @@ public sealed class SmfImportExportTests
         track.Name + ":" + string.Join(";", track.Events.Select(e => e switch
         {
             NoteEvent n => $"N{n.Position}/{n.Duration}/{n.Channel}/{n.Note}/{n.Velocity}/{n.ReleaseVelocity}",
-            ChannelEvent c => $"C{c.Position}/{c.Message}",
+            ChannelEvent c => $"C{c with { Id = default }}",
             SysExEvent s => $"S{s.Position}/{Convert.ToHexString(s.Message.Bytes.Span)}",
             MetaEvent m => $"M{m.Position}/{m.Type}/{Convert.ToHexString(m.Data.Span)}",
             RawMidiEvent r => $"R{r.Position}/{Convert.ToHexString(r.Bytes.Span)}",

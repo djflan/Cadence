@@ -24,19 +24,31 @@ public abstract record TrackEvent
 }
 
 /// <summary>
+/// An event addressed to one channel: notes, controllers, program selections, pitch bend, and
+/// pressure. These model what is played, not how it is transmitted; values are kept at MIDI 2.0
+/// resolution where it differs, and the protocol encoders decide the wire form.
+/// </summary>
+public abstract record ChannelEvent : TrackEvent
+{
+    protected ChannelEvent(EventId id, Tick position, MidiChannel channel)
+        : base(id, position) => Channel = channel;
+
+    public MidiChannel Channel { get; init; }
+}
+
+/// <summary>
 /// A paired note with a duration. Duration is at least one tick so a note's release can never be
 /// ordered before its own start.
 /// </summary>
-public sealed record NoteEvent : TrackEvent
+public sealed record NoteEvent : ChannelEvent
 {
     private readonly TickSpan _duration;
     private readonly Velocity _velocity;
 
     public NoteEvent(EventId id, Tick position, TickSpan duration, MidiChannel channel, NoteNumber note, Velocity velocity, Velocity releaseVelocity)
-        : base(id, position)
+        : base(id, position, channel)
     {
         Duration = duration;
-        Channel = channel;
         Note = note;
         Velocity = velocity;
         ReleaseVelocity = releaseVelocity;
@@ -55,8 +67,6 @@ public sealed record NoteEvent : TrackEvent
             : throw new ArgumentOutOfRangeException(nameof(Duration), value, "A note must last at least one tick.");
     }
 
-    public MidiChannel Channel { get; init; }
-
     public NoteNumber Note { get; init; }
 
     /// <summary>Attack velocity, 1-127. Velocity 0 would be read as a release on the wire.</summary>
@@ -73,29 +83,113 @@ public sealed record NoteEvent : TrackEvent
     public override Tick EndPosition => Position + Duration;
 
     public override EventPhase Phase => EventPhase.NoteOn;
+}
 
-    public ChannelMessage OnMessage => ChannelMessage.NoteOn(Channel, Note, Velocity);
+/// <summary>A release with no matching start, such as an unpaired note-off in an imported file. Kept for fidelity.</summary>
+public sealed record NoteOffEvent : ChannelEvent
+{
+    public NoteOffEvent(EventId id, Tick position, MidiChannel channel, NoteNumber note, Velocity releaseVelocity)
+        : base(id, position, channel)
+    {
+        Note = note;
+        ReleaseVelocity = releaseVelocity;
+    }
 
-    public ChannelMessage OffMessage => ChannelMessage.NoteOff(Channel, Note, ReleaseVelocity);
+    public NoteNumber Note { get; init; }
+
+    public Velocity ReleaseVelocity { get; init; }
+
+    public override EventPhase Phase => EventPhase.NoteOff;
 }
 
 /// <summary>
-/// A channel voice message other than a paired note: controllers, program changes, pitch bend,
-/// pressure, and any note-on/off that could not be paired on import (kept for fidelity).
+/// A controller change. Bank select controllers appear here only when they are not part of a
+/// <see cref="ProgramEvent"/>, for example when a bank is selected without a program change.
 /// </summary>
-public sealed record ChannelEvent : TrackEvent
+public sealed record ControllerEvent : ChannelEvent
 {
-    public ChannelEvent(EventId id, Tick position, ChannelMessage message)
-        : base(id, position) => Message = message;
+    public ControllerEvent(EventId id, Tick position, MidiChannel channel, ControllerNumber controller, ControlValue value)
+        : base(id, position, channel)
+    {
+        Controller = controller;
+        Value = value;
+    }
 
-    public ChannelEvent(Tick position, ChannelMessage message)
-        : this(EventId.New(), position, message)
+    public ControllerEvent(Tick position, MidiChannel channel, ControllerNumber controller, ControlValue value)
+        : this(EventId.New(), position, channel, controller, value)
     {
     }
 
-    public ChannelMessage Message { get; init; }
+    public ControllerNumber Controller { get; init; }
 
-    public override EventPhase Phase => EventOrder.PhaseOf(Message);
+    public ControlValue Value { get; init; }
+
+    public override EventPhase Phase => Controller.IsBankSelect ? EventPhase.BankSelect : EventPhase.Control;
+}
+
+/// <summary>Selects a program, and optionally its bank, as one operation.</summary>
+public sealed record ProgramEvent : ChannelEvent
+{
+    public ProgramEvent(EventId id, Tick position, MidiChannel channel, ProgramSelection selection)
+        : base(id, position, channel) => Selection = selection;
+
+    public ProgramEvent(Tick position, MidiChannel channel, ProgramSelection selection)
+        : this(EventId.New(), position, channel, selection)
+    {
+    }
+
+    public ProgramSelection Selection { get; init; }
+
+    public override EventPhase Phase => EventPhase.ProgramChange;
+}
+
+/// <summary>A pitch bend position; <see cref="ControlValue.Center"/> is at rest.</summary>
+public sealed record PitchBendEvent : ChannelEvent
+{
+    public PitchBendEvent(EventId id, Tick position, MidiChannel channel, ControlValue value)
+        : base(id, position, channel) => Value = value;
+
+    public PitchBendEvent(Tick position, MidiChannel channel, ControlValue value)
+        : this(EventId.New(), position, channel, value)
+    {
+    }
+
+    public ControlValue Value { get; init; }
+
+    public override EventPhase Phase => EventPhase.Control;
+}
+
+/// <summary>Pressure (aftertouch) applied to the whole channel.</summary>
+public sealed record ChannelPressureEvent : ChannelEvent
+{
+    public ChannelPressureEvent(EventId id, Tick position, MidiChannel channel, ControlValue pressure)
+        : base(id, position, channel) => Pressure = pressure;
+
+    public ChannelPressureEvent(Tick position, MidiChannel channel, ControlValue pressure)
+        : this(EventId.New(), position, channel, pressure)
+    {
+    }
+
+    public ControlValue Pressure { get; init; }
+
+    public override EventPhase Phase => EventPhase.Control;
+}
+
+/// <summary>Pressure (aftertouch) applied to one note.</summary>
+public sealed record PolyPressureEvent : ChannelEvent
+{
+    public PolyPressureEvent(EventId id, Tick position, MidiChannel channel, NoteNumber note, ControlValue pressure)
+        : base(id, position, channel)
+    {
+        Note = note;
+        Pressure = pressure;
+    }
+
+    public NoteNumber Note { get; init; }
+
+    public ControlValue Pressure { get; init; }
+
+    public override EventPhase Phase => EventPhase.Control;
 }
 
 /// <summary>A complete System Exclusive message.</summary>

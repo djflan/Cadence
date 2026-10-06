@@ -1,6 +1,7 @@
 using System.Text;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Midi.Files;
 
@@ -77,11 +78,15 @@ public static class SmfExporter
             switch (e)
             {
                 case NoteEvent note:
-                    scheduled.Add((tick, EventPhase.NoteOn, i, new SmfChannelEvent(tick, note.OnMessage)));
-                    scheduled.Add((note.EndPosition.Value, EventPhase.NoteOff, i, new SmfChannelEvent(note.EndPosition.Value, note.OffMessage)));
+                    scheduled.Add((tick, EventPhase.NoteOn, i, new SmfChannelEvent(tick, Midi1Encoder.NoteOn(note))));
+                    scheduled.Add((note.EndPosition.Value, EventPhase.NoteOff, i, new SmfChannelEvent(note.EndPosition.Value, Midi1Encoder.NoteOff(note))));
                     break;
                 case ChannelEvent channel:
-                    scheduled.Add((tick, e.Phase, i, new SmfChannelEvent(tick, channel.Message)));
+                    foreach (var message in Midi1Encoder.Encode(channel))
+                    {
+                        scheduled.Add((tick, e.Phase, i, new SmfChannelEvent(tick, message)));
+                    }
+
                     break;
                 case SysExEvent sysEx:
                     scheduled.Add((tick, e.Phase, i, new SmfSysExEvent(tick, ByteBlock.Copy(sysEx.Message.Bytes.Span[1..]))));
