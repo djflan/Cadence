@@ -55,11 +55,11 @@ internal sealed class PlaybackFixture : IDisposable
     public static NoteEvent Note(long at, long length, int note = 60, int velocity = 100) =>
         new(EventId.New(), new Tick(at), new TickSpan(length), One, new NoteNumber(note), new Velocity(velocity), new Velocity(64));
 
-    public static ChannelEvent Cc(long at, int controller, int value, int channel = 0) =>
-        new(new Tick(at), ChannelMessage.ControlChange(MidiChannel.FromIndex(channel), new ControllerNumber(controller), new SevenBitValue(value)));
+    public static ControllerEvent Cc(long at, int controller, int value, int channel = 0) =>
+        new(new Tick(at), MidiChannel.FromIndex(channel), new ControllerNumber(controller), ControlValue.FromSevenBit(value));
 
-    public static ChannelEvent Program(long at, int program) =>
-        new(new Tick(at), ChannelMessage.ProgramChange(One, new ProgramNumber(program)));
+    public static ProgramEvent Program(long at, int program) =>
+        new(new Tick(at), One, new ProgramSelection(new ProgramNumber(program)));
 
     public static PlaybackPlan Plan(params TrackEvent[] events) => Plan(TempoMap.Constant(Resolution, Tempo.Default), events);
 

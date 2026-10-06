@@ -82,7 +82,11 @@ public static class SmfExporter
                     scheduled.Add((note.EndPosition.Value, EventPhase.NoteOff, i, new SmfChannelEvent(note.EndPosition.Value, Midi1Encoder.NoteOff(note))));
                     break;
                 case ChannelEvent channel:
-                    scheduled.Add((tick, e.Phase, i, new SmfChannelEvent(tick, channel.Message)));
+                    foreach (var message in Midi1Encoder.Encode(channel))
+                    {
+                        scheduled.Add((tick, e.Phase, i, new SmfChannelEvent(tick, message)));
+                    }
+
                     break;
                 case SysExEvent sysEx:
                     scheduled.Add((tick, e.Phase, i, new SmfSysExEvent(tick, ByteBlock.Copy(sysEx.Message.Bytes.Span[1..]))));

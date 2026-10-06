@@ -197,7 +197,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         Editor.DrawControllerLine(0, 0, 3840, 120);
         Editor.DrawControllerLine(1920, 10, 1920, 10);
 
-        var values = Editor.LaneEvents(Track).Select(e => (e.Position.Value, (int)e.Message.Data2)).ToList();
+        var values = Editor.LaneEvents(Track).Select(e => (e.Position.Value, ControllerLane.ValueOf(e))).ToList();
         Assert.Equal([(0L, 0), (960L, 30), (1920L, 10), (2880L, 90), (3840L, 120)], values);
 
         Editor.EraseControllers(0, 2000);
@@ -251,7 +251,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     [Fact]
     public void EventList_FiltersByKind()
     {
-        _session.Execute(ProjectCommands.AddEvents(Track.Id, "Add", [new ChannelEvent(Tick.Zero, ChannelMessage.ProgramChange(MidiChannel.FromIndex(0), new ProgramNumber(4)))]));
+        _session.Execute(ProjectCommands.AddEvents(Track.Id, "Add", [new ProgramEvent(Tick.Zero, MidiChannel.FromIndex(0), new ProgramSelection(new ProgramNumber(4)))]));
 
         _vm.EventList.Filter = EventFilter.All.Single(f => f.Name == "Program Changes");
 

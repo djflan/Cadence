@@ -1,4 +1,4 @@
-using Cadence.Domain.Midi;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Playback;
 

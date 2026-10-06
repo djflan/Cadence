@@ -18,7 +18,7 @@ namespace Cadence.Infrastructure.Projects;
 public sealed class ProjectSerializer
 {
     public const string FormatName = "cadence-project";
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
     public const int MaxBytes = 256 * 1024 * 1024;
 
     private const int MaxTracks = 4096;
@@ -228,11 +228,48 @@ public sealed class ProjectSerializer
                 writer.WriteNumber("velocity", note.Velocity.Value);
                 writer.WriteNumber("release", note.ReleaseVelocity.Value);
                 break;
-            case ChannelEvent channel:
-                Span<byte> bytes = stackalloc byte[3];
-                var length = channel.Message.CopyTo(bytes);
-                writer.WriteString("type", "channel");
-                writer.WriteString("bytes", ToHex(bytes[..length]));
+            case NoteOffEvent off:
+                writer.WriteString("type", "noteOff");
+                writer.WriteNumber("channel", off.Channel.Number);
+                writer.WriteNumber("note", off.Note.Value);
+                writer.WriteNumber("release", off.ReleaseVelocity.Value);
+                break;
+            case ControllerEvent controller:
+                writer.WriteString("type", "controller");
+                writer.WriteNumber("channel", controller.Channel.Number);
+                writer.WriteNumber("controller", controller.Controller.Value);
+                writer.WriteNumber("value", controller.Value.Value);
+                break;
+            case ProgramEvent program:
+                writer.WriteString("type", "program");
+                writer.WriteNumber("channel", program.Channel.Number);
+                writer.WriteNumber("program", program.Selection.Program.Number);
+                if (program.Selection.BankMsb is { } msb)
+                {
+                    writer.WriteNumber("bankMsb", msb.Value);
+                }
+
+                if (program.Selection.BankLsb is { } lsb)
+                {
+                    writer.WriteNumber("bankLsb", lsb.Value);
+                }
+
+                break;
+            case PitchBendEvent bend:
+                writer.WriteString("type", "pitchBend");
+                writer.WriteNumber("channel", bend.Channel.Number);
+                writer.WriteNumber("value", bend.Value.Value);
+                break;
+            case ChannelPressureEvent pressure:
+                writer.WriteString("type", "channelPressure");
+                writer.WriteNumber("channel", pressure.Channel.Number);
+                writer.WriteNumber("value", pressure.Pressure.Value);
+                break;
+            case PolyPressureEvent pressure:
+                writer.WriteString("type", "polyPressure");
+                writer.WriteNumber("channel", pressure.Channel.Number);
+                writer.WriteNumber("note", pressure.Note.Value);
+                writer.WriteNumber("value", pressure.Pressure.Value);
                 break;
             case SysExEvent sysEx:
                 writer.WriteString("type", "sysex");
@@ -402,7 +439,15 @@ public sealed class ProjectSerializer
                 new NoteNumber(Int(json, "note", path, 0, 127)),
                 new Velocity(Int(json, "velocity", path, 1, 127)),
                 new Velocity(Int(json, "release", path, 0, 127)))),
-            "channel" => new ChannelEvent(id, tick, ReadChannelMessage(Hex(json, "bytes", path, 3), $"{path}.bytes")),
+            "noteOff" => new NoteOffEvent(id, tick, Channel(json, path), Note(json, path), new Velocity(Int(json, "release", path, 0, 127))),
+            "controller" => new ControllerEvent(id, tick, Channel(json, path), new ControllerNumber(Int(json, "controller", path, 0, 127)), Value(json, path)),
+            "program" => new ProgramEvent(id, tick, Channel(json, path), new ProgramSelection(
+                ProgramNumber.FromNumber(Int(json, "program", path, 1, 128)),
+                OptionalInt(json, "bankMsb", path, 0, 127) is { } msb ? new SevenBitValue(msb) : null,
+                OptionalInt(json, "bankLsb", path, 0, 127) is { } lsb ? new SevenBitValue(lsb) : null)),
+            "pitchBend" => new PitchBendEvent(id, tick, Channel(json, path), Value(json, path)),
+            "channelPressure" => new ChannelPressureEvent(id, tick, Channel(json, path), Value(json, path)),
+            "polyPressure" => new PolyPressureEvent(id, tick, Channel(json, path), Note(json, path), Value(json, path)),
             "sysex" => new SysExEvent(id, tick, SysExMessage.TryCreate(Hex(json, "bytes", path, SysExMessage.MaxLength), out var message, out var error)
                 ? message
                 : throw new ProjectFormatException($"{path}.bytes", error)),
@@ -412,17 +457,11 @@ public sealed class ProjectSerializer
         };
     }
 
-    private static ChannelMessage ReadChannelMessage(byte[] bytes, string path)
-    {
-        if (bytes.Length >= 2
-            && bytes.Length == 1 + ChannelMessage.DataLength(bytes[0])
-            && ChannelMessage.TryCreate(bytes[0], bytes[1], bytes.Length == 3 ? bytes[2] : (byte)0, out var message))
-        {
-            return message;
-        }
+    private static MidiChannel Channel(JsonObject json, string path) => MidiChannel.FromNumber(Int(json, "channel", path, 1, 16));
 
-        throw new ProjectFormatException(path, "must be one complete MIDI channel message.");
-    }
+    private static NoteNumber Note(JsonObject json, string path) => new(Int(json, "note", path, 0, 127));
+
+    private static ControlValue Value(JsonObject json, string path) => new((uint)Long(json, "value", path, 0, uint.MaxValue));
 
     private static RoutingTable ReadRouting(JsonObject project, string path)
     {

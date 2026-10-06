@@ -2,6 +2,7 @@ using System.Globalization;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Time;
 using Cadence.Midi.SysEx;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Presentation;
 

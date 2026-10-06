@@ -1,6 +1,7 @@
 using Cadence.Domain.Midi;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
 using static Cadence.Tests.Unit.Playback.PlaybackFixture;
 

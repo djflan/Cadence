@@ -1,5 +1,4 @@
 using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 
@@ -36,12 +35,12 @@ public sealed class SampleFileTests
             var track = actual.Tracks[channel + 1];
             Assert.Equal($"Channel {channel + 1}", track.Name);
             Assert.Equal(
-                expected.Tracks[channel].Events.Where(e => e is NoteEvent or ChannelEvent).Select(e => e with { Id = default }),
+                expected.Tracks[channel].Events.Where(e => e is ChannelEvent).Select(e => e with { Id = default }),
                 track.Events.Select(e => e with { Id = default }));
         }
 
         var global = expected.Tracks.SelectMany(t => t.Events)
-            .Where(e => e is not (NoteEvent or ChannelEvent))
+            .Where(e => e is not ChannelEvent)
             .OrderBy(e => e.Position).ThenBy(e => e.Phase);
         Assert.Equal(global.Select(e => e with { Id = default }), actual.Tracks[0].Events.Select(e => e with { Id = default }));
         Assert.Single(actual.Tracks[0].Events.OfType<SysExEvent>());
@@ -84,11 +83,9 @@ public sealed class SampleFileTests
         for (var i = 0; i < 16; i++)
         {
             var events = sequence.Tracks[i].Events;
-            var channelMessages = events.OfType<ChannelEvent>().Select(e => e.Message).ToList();
             Assert.Equal(notes[i], events.OfType<NoteEvent>().Count());
-            Assert.All(events.OfType<NoteEvent>(), n => Assert.Equal(i, n.Channel.Index));
-            Assert.All(channelMessages, m => Assert.Equal(i, m.Channel.Index));
-            Assert.Equal(programs[i], Assert.Single(channelMessages, m => m.Kind == ChannelMessageKind.ProgramChange).Program.Value);
+            Assert.All(events.OfType<ChannelEvent>(), e => Assert.Equal(i, e.Channel.Index));
+            Assert.Equal(programs[i], Assert.Single(events.OfType<ProgramEvent>()).Selection.Program.Value);
         }
 
         Assert.Equal(1179, sequence.Tracks.Sum(t => t.Events.OfType<NoteEvent>().Count()));
@@ -100,8 +97,8 @@ public sealed class SampleFileTests
         var violin = sequence.Tracks[0].Events;
         Assert.Equal<byte>([0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7], Assert.Single(violin.OfType<SysExEvent>()).Message.Bytes.ToArray());
         Assert.Equal<byte>([2, 0], Assert.Single(violin.OfType<MetaEvent>(), m => m.Type == 0x59).Data.ToArray());
-        Assert.Equal(9, sequence.Tracks[8].Events.OfType<ChannelEvent>().Count(e => e.Message.Kind == ChannelMessageKind.PitchBend));
-        Assert.Equal(21, sequence.Tracks[10].Events.OfType<ChannelEvent>().Count(e => e.Message.Kind == ChannelMessageKind.ChannelPressure));
+        Assert.Equal(9, sequence.Tracks[8].Events.OfType<PitchBendEvent>().Count());
+        Assert.Equal(21, sequence.Tracks[10].Events.OfType<ChannelPressureEvent>().Count());
         Assert.Equal(11, sequence.Tracks[13].Events.OfType<MetaEvent>().Count(m => m.Type == 0x05));
     }
 }

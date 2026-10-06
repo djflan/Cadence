@@ -16,9 +16,9 @@ public sealed record EventFilter(string Name, Func<TrackEvent, bool> Includes)
     [
         new("All Events", _ => true),
         new("Notes", e => e is NoteEvent),
-        new("Controllers", e => e is ChannelEvent { Message.Kind: ChannelMessageKind.ControlChange }),
-        new("Program Changes", e => e is ChannelEvent { Message.Kind: ChannelMessageKind.ProgramChange }),
-        new("Pitch Bend & Pressure", e => e is ChannelEvent { Message.Kind: ChannelMessageKind.PitchBend or ChannelMessageKind.ChannelPressure or ChannelMessageKind.PolyPressure }),
+        new("Controllers", e => e is ControllerEvent),
+        new("Program Changes", e => e is ProgramEvent),
+        new("Pitch Bend & Pressure", e => e is PitchBendEvent or ChannelPressureEvent or PolyPressureEvent),
         new("SysEx & Meta", e => e is SysExEvent or RawMidiEvent or MetaEvent),
     ];
 
@@ -233,7 +233,7 @@ public sealed partial class EventRow : ObservableObject
         var meter = owner.Sequence.MeterMap;
         Position = Formatting.Position(meter.ToBarBeatTick(e.Position));
         (Kind, Channel, Data1, Data2, Length) = Describe(e, meter);
-        CanEditData = e is NoteEvent or ChannelEvent;
+        CanEditData = e is ChannelEvent;
         CanEditLength = e is NoteEvent;
     }
 
@@ -288,8 +288,20 @@ public sealed partial class EventRow : ObservableObject
             case NoteEvent note when Formatting.TryParseNote(value, out var pitch):
                 _owner.Commit(Event, note with { Note = pitch }, "Change Pitch");
                 break;
-            case ChannelEvent c when TryByte(value, out var data) && ChannelMessage.TryCreate(c.Message.Status, (byte)data, c.Message.Data2, out var message):
-                _owner.Commit(Event, c with { Message = message }, "Edit Event");
+            case NoteOffEvent off when Formatting.TryParseNote(value, out var pitch):
+                _owner.Commit(Event, off with { Note = pitch }, "Edit Event");
+                break;
+            case PolyPressureEvent pressure when Formatting.TryParseNote(value, out var pitch):
+                _owner.Commit(Event, pressure with { Note = pitch }, "Edit Event");
+                break;
+            case ControllerEvent controller when TryByte(value, out var number):
+                _owner.Commit(Event, controller with { Controller = new ControllerNumber(number) }, "Edit Event");
+                break;
+            case ProgramEvent program when TryByte(value, out var number):
+                _owner.Commit(Event, program with { Selection = program.Selection with { Program = new ProgramNumber(number) } }, "Edit Event");
+                break;
+            case ChannelPressureEvent pressure when TryByte(value, out var amount):
+                _owner.Commit(Event, pressure with { Pressure = ControlValue.FromSevenBit(amount) }, "Edit Event");
                 break;
         }
     }
@@ -306,12 +318,17 @@ public sealed partial class EventRow : ObservableObject
             case NoteEvent note when number is >= 1 and <= 127:
                 _owner.Commit(Event, note with { Velocity = new Velocity(number) }, "Change Velocity");
                 break;
-            case ChannelEvent { Message.Kind: ChannelMessageKind.PitchBend } c when number is >= -8192 and <= 8191:
-                _owner.Commit(Event, c with { Message = ChannelMessage.PitchBend(c.Message.Channel, FourteenBitValue.FromOffsetFromCenter(number)) }, "Edit Event");
+            case PitchBendEvent bend when number is >= -8192 and <= 8191:
+                _owner.Commit(Event, bend with { Value = ControlValue.FromFourteenBit(FourteenBitValue.FromOffsetFromCenter(number).Value) }, "Edit Event");
                 break;
-            case ChannelEvent c when number is >= 0 and <= 127 && ChannelMessage.DataLength(c.Message.Status) == 2
-                && ChannelMessage.TryCreate(c.Message.Status, c.Message.Data1, (byte)number, out var message):
-                _owner.Commit(Event, c with { Message = message }, "Edit Event");
+            case ControllerEvent controller when number is >= 0 and <= 127:
+                _owner.Commit(Event, controller with { Value = ControlValue.FromSevenBit(number) }, "Edit Event");
+                break;
+            case PolyPressureEvent pressure when number is >= 0 and <= 127:
+                _owner.Commit(Event, pressure with { Pressure = ControlValue.FromSevenBit(number) }, "Edit Event");
+                break;
+            case NoteOffEvent off when number is >= 0 and <= 127:
+                _owner.Commit(Event, off with { ReleaseVelocity = new Velocity(number) }, "Edit Event");
                 break;
         }
     }
@@ -339,19 +356,20 @@ public sealed partial class EventRow : ObservableObject
     private static (string Kind, string Channel, string Data1, string Data2, string Length) Describe(TrackEvent e, MeterMap meter)
     {
         static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+        // Bank MSB and LSB as "msb/lsb", with "–" for a part that is not selected.
+        static string Bank(ProgramSelection s) => s.BankMsb is null && s.BankLsb is null
+            ? string.Empty
+            : $"{s.BankMsb?.Value.ToString(CultureInfo.InvariantCulture) ?? "–"}/{s.BankLsb?.Value.ToString(CultureInfo.InvariantCulture) ?? "–"}";
         return e switch
         {
             NoteEvent n => ("Note", Number(n.Channel.Number), Formatting.NoteName(n.Note), Number(n.Velocity.Value), Formatting.Length(n.Duration, meter, n.Position)),
-            ChannelEvent c => c.Message.Kind switch
-            {
-                ChannelMessageKind.ControlChange => ("Control", Number(c.Message.Channel.Number), Number(c.Message.Data1), Number(c.Message.Data2), string.Empty),
-                ChannelMessageKind.ProgramChange => ("Program", Number(c.Message.Channel.Number), Number(c.Message.Data1), string.Empty, string.Empty),
-                ChannelMessageKind.PitchBend => ("Pitch Bend", Number(c.Message.Channel.Number), string.Empty, Number(c.Message.PitchBendValue.OffsetFromCenter), string.Empty),
-                ChannelMessageKind.ChannelPressure => ("Pressure", Number(c.Message.Channel.Number), Number(c.Message.Data1), string.Empty, string.Empty),
-                ChannelMessageKind.PolyPressure => ("Poly Pressure", Number(c.Message.Channel.Number), Formatting.NoteName(c.Message.Note), Number(c.Message.Data2), string.Empty),
-                _ when c.Message.IsNoteOn => ("Note On", Number(c.Message.Channel.Number), Formatting.NoteName(c.Message.Note), Number(c.Message.Data2), string.Empty),
-                _ => ("Note Off", Number(c.Message.Channel.Number), Formatting.NoteName(c.Message.Note), Number(c.Message.Data2), string.Empty),
-            },
+            ControllerEvent c => ("Control", Number(c.Channel.Number), Number(c.Controller.Value), Number(c.Value.ToSevenBit()), string.Empty),
+            ProgramEvent p => ("Program", Number(p.Channel.Number), Number(p.Selection.Program.Value), Bank(p.Selection), string.Empty),
+            PitchBendEvent b => ("Pitch Bend", Number(b.Channel.Number), string.Empty, Number(b.Value.ToFourteenBit() - FourteenBitValue.Center.Value), string.Empty),
+            ChannelPressureEvent p => ("Pressure", Number(p.Channel.Number), Number(p.Pressure.ToSevenBit()), string.Empty, string.Empty),
+            PolyPressureEvent p => ("Poly Pressure", Number(p.Channel.Number), Formatting.NoteName(p.Note), Number(p.Pressure.ToSevenBit()), string.Empty),
+            NoteOffEvent n => ("Note Off", Number(n.Channel.Number), Formatting.NoteName(n.Note), Number(n.ReleaseVelocity.Value), string.Empty),
             SysExEvent s => DescribeSysEx(s.Message),
             RawMidiEvent r => ("Raw MIDI", string.Empty, string.Create(CultureInfo.InvariantCulture, $"{r.Bytes.Length} bytes"), string.Empty, string.Empty),
             MetaEvent m => ("Meta", string.Empty, string.Create(CultureInfo.InvariantCulture, $"type {m.Type:X2}"), string.Empty, string.Empty),

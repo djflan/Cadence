@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Globalization;
 using Cadence.Domain.Midi;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Midi.Files;
 

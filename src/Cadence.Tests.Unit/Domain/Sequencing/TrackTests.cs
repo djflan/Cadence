@@ -12,11 +12,11 @@ public sealed class TrackTests
     private static NoteEvent Note(long at, int note = 60, long length = 10) =>
         new(new Tick(at), new TickSpan(length), One, new NoteNumber(note), new Velocity(100));
 
-    private static ChannelEvent Cc(long at, ControllerNumber controller, int value = 0) =>
-        new(new Tick(at), ChannelMessage.ControlChange(One, controller, new SevenBitValue(value)));
+    private static ControllerEvent Cc(long at, ControllerNumber controller, int value = 0) =>
+        new(new Tick(at), One, controller, ControlValue.FromSevenBit(value));
 
-    private static ChannelEvent Program(long at, int program) =>
-        new(new Tick(at), ChannelMessage.ProgramChange(One, new ProgramNumber(program)));
+    private static ProgramEvent Program(long at, int program) =>
+        new(new Tick(at), One, new ProgramSelection(new ProgramNumber(program)));
 
     [Fact]
     public void SimultaneousEvents_FollowCanonicalPhases()
@@ -120,13 +120,13 @@ public sealed class TrackTests
     }
 
     [Fact]
-    public void UnpairedNoteMessages_KeepNotePhases()
+    public void ChannelEvents_FallInTheirDocumentedPhases()
     {
-        var off = new ChannelEvent(Tick.Zero, ChannelMessage.NoteOff(One, NoteNumber.MiddleC, Velocity.DefaultRelease));
-        var on = new ChannelEvent(Tick.Zero, ChannelMessage.NoteOn(One, NoteNumber.MiddleC, Velocity.Max));
-
-        Assert.Equal(EventPhase.NoteOff, off.Phase);
-        Assert.Equal(EventPhase.NoteOn, on.Phase);
+        Assert.Equal(EventPhase.NoteOff, new NoteOffEvent(EventId.New(), Tick.Zero, One, NoteNumber.MiddleC, Velocity.DefaultRelease).Phase);
+        Assert.Equal(EventPhase.BankSelect, Cc(0, ControllerNumber.BankSelectLsb).Phase);
+        Assert.Equal(EventPhase.Control, Cc(0, ControllerNumber.ChannelVolume).Phase);
+        Assert.Equal(EventPhase.ProgramChange, Program(0, 1).Phase);
+        Assert.Equal(EventPhase.Control, new PitchBendEvent(Tick.Zero, One, ControlValue.Center).Phase);
     }
 
     [Fact]

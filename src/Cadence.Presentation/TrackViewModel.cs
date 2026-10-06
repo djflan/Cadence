@@ -184,8 +184,7 @@ public sealed partial class TrackViewModel : ObservableObject
     private static string Summarize(Track track)
     {
         var notes = track.Events.OfType<NoteEvent>().ToList();
-        var channels = notes.Select(n => n.Channel.Number)
-            .Concat(track.Events.OfType<ChannelEvent>().Select(c => c.Message.Channel.Number))
+        var channels = track.Events.OfType<ChannelEvent>().Select(c => c.Channel.Number)
             .Distinct()
             .Order()
             .ToList();

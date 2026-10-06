@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Cadence.Domain.Midi;
+using Cadence.Midi.Wire;
 
 namespace Cadence.Midi.Files;
 

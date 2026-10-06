@@ -38,4 +38,19 @@ public sealed class Midi1EncoderTests
         Assert.Equal(["C900"], Midi1Encoder.ProgramSelection(new ProgramSelection(new ProgramNumber(0)), Ten).Select(Bytes));
         Assert.Equal(["B9007F", "C900"], Midi1Encoder.ProgramSelection(new ProgramSelection(new ProgramNumber(0), BankMsb: SevenBitValue.Max), Ten).Select(Bytes));
     }
+
+    [Fact]
+    public void Encode_ReducesValuesToMidiOneResolution()
+    {
+        var fine = new ControlValue(0x8123_4567);
+
+        Assert.Equal(["B90740"], Midi1Encoder.Encode(new ControllerEvent(Tick.Zero, Ten, ControllerNumber.ChannelVolume, fine)).Select(Bytes));
+        Assert.Equal(["E94840"], Midi1Encoder.Encode(new PitchBendEvent(Tick.Zero, Ten, fine)).Select(Bytes));
+        Assert.Equal(["D940"], Midi1Encoder.Encode(new ChannelPressureEvent(Tick.Zero, Ten, fine)).Select(Bytes));
+        Assert.Equal(["A93C40"], Midi1Encoder.Encode(new PolyPressureEvent(EventId.New(), Tick.Zero, Ten, NoteNumber.MiddleC, fine)).Select(Bytes));
+    }
+
+    [Fact]
+    public void Encode_RefusesPairedNotes() =>
+        Assert.Throws<ArgumentException>(() => Midi1Encoder.Encode(new NoteEvent(Tick.Zero, new TickSpan(1), Ten, NoteNumber.MiddleC, Velocity.Max)));
 }

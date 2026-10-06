@@ -887,7 +887,7 @@ public sealed class PianoRollView : Control
         var line = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.2)), 1.25);
         var dot = new SolidColorBrush(Palette.Lighten(color, 0.5));
         var fill = new SolidColorBrush(color, 0.22);
-        var points = editor.LaneEvents(track).Select(e => (Tick: e.Position.Value, Value: lane.ValueOf(e.Message))).ToList();
+        var points = editor.LaneEvents(track).Select(e => (Tick: e.Position.Value, Value: ControllerLane.ValueOf(e))).ToList();
         if (_gesture is Gesture.ControllerLine or Gesture.ControllerErase)
         {
             var (t0, t1) = (Math.Min(_lineStart.Tick, _lineEnd.Tick), Math.Max(_lineStart.Tick, _lineEnd.Tick));

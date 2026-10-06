@@ -38,7 +38,7 @@ public enum ControllerLaneKind
     ChannelPressure,
 }
 
-/// <summary>A lane under the piano roll: note velocities, or one kind of channel message.</summary>
+/// <summary>A lane under the piano roll: note velocities, or one kind of channel event.</summary>
 public sealed record ControllerLane(ControllerLaneKind Kind, string Name, int Controller = 0)
 {
     public static readonly ControllerLane Velocity = new(ControllerLaneKind.Velocity, "Velocity");
@@ -60,31 +60,32 @@ public sealed record ControllerLane(ControllerLaneKind Kind, string Name, int Co
     public int MaxValue => Kind == ControllerLaneKind.PitchBend ? FourteenBitValue.MaxValue : 127;
 
     /// <summary>True for channel events this lane shows.</summary>
-    public bool Matches(ChannelMessage message) => Kind switch
+    public bool Matches(ChannelEvent e) => (Kind, e) switch
     {
-        ControllerLaneKind.Controller => message.Kind == ChannelMessageKind.ControlChange && message.Data1 == Controller,
-        ControllerLaneKind.PitchBend => message.Kind == ChannelMessageKind.PitchBend,
-        ControllerLaneKind.ChannelPressure => message.Kind == ChannelMessageKind.ChannelPressure,
+        (ControllerLaneKind.Controller, ControllerEvent c) => c.Controller.Value == Controller,
+        (ControllerLaneKind.PitchBend, PitchBendEvent) => true,
+        (ControllerLaneKind.ChannelPressure, ChannelPressureEvent) => true,
         _ => false,
     };
 
-    /// <summary>The lane value carried by <paramref name="message"/>.</summary>
-    public int ValueOf(ChannelMessage message) => Kind switch
+    /// <summary>The lane value of <paramref name="e"/>, at the lane's resolution (0-127, or 0-16383 for pitch bend).</summary>
+    public static int ValueOf(ChannelEvent e) => e switch
     {
-        ControllerLaneKind.PitchBend => message.PitchBendValue.Value,
-        ControllerLaneKind.ChannelPressure => message.Data1,
-        _ => message.Data2,
+        PitchBendEvent bend => bend.Value.ToFourteenBit(),
+        ChannelPressureEvent pressure => pressure.Pressure.ToSevenBit(),
+        ControllerEvent controller => controller.Value.ToSevenBit(),
+        _ => 0,
     };
 
-    /// <summary>A message for this lane with <paramref name="value"/> (clamped to the lane's range).</summary>
-    public ChannelMessage Create(MidiChannel channel, int value)
+    /// <summary>An event for this lane with <paramref name="value"/> (clamped to the lane's range).</summary>
+    public ChannelEvent Create(Tick position, MidiChannel channel, int value)
     {
         value = Math.Clamp(value, 0, MaxValue);
         return Kind switch
         {
-            ControllerLaneKind.PitchBend => ChannelMessage.PitchBend(channel, new FourteenBitValue(value)),
-            ControllerLaneKind.ChannelPressure => ChannelMessage.ChannelPressure(channel, new SevenBitValue(value)),
-            _ => ChannelMessage.ControlChange(channel, new ControllerNumber(Controller), new SevenBitValue(value)),
+            ControllerLaneKind.PitchBend => new PitchBendEvent(position, channel, ControlValue.FromFourteenBit(value)),
+            ControllerLaneKind.ChannelPressure => new ChannelPressureEvent(position, channel, ControlValue.FromSevenBit(value)),
+            _ => new ControllerEvent(position, channel, new ControllerNumber(Controller), ControlValue.FromSevenBit(value)),
         };
     }
 
@@ -358,7 +359,7 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         if (Track is { } track)
         {
-            Select(track.Events.Where(e => e is NoteEvent or ChannelEvent).Select(e => e.Id));
+            Select(track.Events.OfType<ChannelEvent>().Select(e => e.Id));
         }
     }
 
@@ -531,7 +532,7 @@ public sealed partial class EditorViewModel : ObservableObject
             var value = toTick == fromTick ? toValue : (int)Math.Round(fromValue + ((toValue - fromValue) * (tick - fromTick) / (double)(toTick - fromTick)));
             if (value != last)
             {
-                points.Add(new ChannelEvent(new Tick(tick), Lane.Create(channel, value)));
+                points.Add(Lane.Create(new Tick(tick), channel, value));
                 last = value;
             }
         }
@@ -556,7 +557,7 @@ public sealed partial class EditorViewModel : ObservableObject
     public IEnumerable<ChannelEvent> LaneEvents(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
-        return track.Events.OfType<ChannelEvent>().Where(e => Lane.Matches(e.Message));
+        return track.Events.OfType<ChannelEvent>().Where(Lane.Matches);
     }
 
     [RelayCommand]
@@ -682,12 +683,7 @@ public sealed partial class EditorViewModel : ObservableObject
     }
 
     private static MidiChannel DefaultChannel(Track track) =>
-        track.Events.Select(e => e switch
-        {
-            NoteEvent note => note.Channel,
-            ChannelEvent channel => channel.Message.Channel,
-            _ => (MidiChannel?)null,
-        }).FirstOrDefault(c => c is not null) ?? MidiChannel.FromIndex(0);
+        track.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel ?? MidiChannel.FromIndex(0);
 
     private void SyncInfo()
     {
@@ -700,12 +696,7 @@ public sealed partial class EditorViewModel : ObservableObject
             InfoLength = Shared(notes, n => Formatting.Length(n.Duration, Meter, n.Position));
             InfoPitch = Shared(notes, n => Formatting.NoteName(n.Note));
             InfoVelocity = Shared(notes, n => n.Velocity.Value.ToString(CultureInfo.InvariantCulture));
-            InfoChannel = Shared(selection, e => e switch
-            {
-                NoteEvent n => n.Channel.Number.ToString(CultureInfo.InvariantCulture),
-                ChannelEvent c => c.Message.Channel.Number.ToString(CultureInfo.InvariantCulture),
-                _ => string.Empty,
-            });
+            InfoChannel = Shared(selection, e => e is ChannelEvent c ? c.Channel.Number.ToString(CultureInfo.InvariantCulture) : string.Empty);
             SelectionSummary = selection.Count switch
             {
                 0 => "No selection",

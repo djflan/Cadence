@@ -138,7 +138,7 @@ public sealed class PlaybackEngineTests
             Cc(10, 0, 1),
             Program(20, 9),
             Cc(30, 101, 0),
-            new ChannelEvent(new Tick(40), ChannelMessage.PitchBend(One, new FourteenBitValue(9000))),
+            new PitchBendEvent(new Tick(40), One, ControlValue.FromFourteenBit(9000)),
             Note(50, 2000),
             Note(1100, 10));
 

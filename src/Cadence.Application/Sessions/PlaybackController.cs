@@ -7,6 +7,7 @@ using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
 using Cadence.Midi.Timing;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
 using Cadence.Profiles;
 
@@ -425,13 +426,7 @@ public sealed class PlaybackController : IAsyncDisposable
         Recorder.SetThru(target);
     }
 
-    private static MidiChannel? FirstChannel(Track? track) =>
-        track?.Events.Select(e => e switch
-        {
-            NoteEvent note => note.Channel,
-            ChannelEvent channel => channel.Message.Channel,
-            _ => (MidiChannel?)null,
-        }).FirstOrDefault(c => c is not null);
+    private static MidiChannel? FirstChannel(Track? track) => track?.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel;
 
     private async Task<IMidiOutput?> GetOrOpenAsync(EndpointId id, ImmutableArray<string>.Builder problems, CancellationToken cancellationToken)
     {
