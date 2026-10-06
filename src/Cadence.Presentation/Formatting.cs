@@ -1,6 +1,7 @@
 using System.Globalization;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Time;
+using Cadence.Midi.SysEx;
 
 namespace Cadence.Presentation;
 
@@ -181,7 +182,10 @@ public static class Formatting
     public static string Milliseconds(TimeSpan time) =>
         string.Create(CultureInfo.InvariantCulture, $"{time.TotalMilliseconds:0.0} ms");
 
-    /// <summary>Describes a MIDI message for the monitor. SysEx payloads are never shown, only their size and manufacturer.</summary>
+    /// <summary>
+    /// Describes a MIDI message for the monitor. SysEx payloads are never shown: only what Cadence
+    /// recognized it as, or else its manufacturer, and its size.
+    /// </summary>
     public static string Message(ReadOnlySpan<byte> bytes)
     {
         if (bytes.IsEmpty)
@@ -191,6 +195,11 @@ public static class Formatting
 
         if (bytes[0] == SysExMessage.Start)
         {
+            if (SysExInterpreter.Interpret(bytes) is { } meaning)
+            {
+                return string.Create(CultureInfo.InvariantCulture, $"SysEx · {meaning.Summary} · {bytes.Length} bytes");
+            }
+
             var manufacturer = bytes.Length > 1 ? bytes[1].ToString("X2", CultureInfo.InvariantCulture) : "?";
             return string.Create(CultureInfo.InvariantCulture, $"SysEx · {bytes.Length} bytes · manufacturer {manufacturer}");
         }

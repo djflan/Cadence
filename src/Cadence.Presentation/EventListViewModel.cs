@@ -4,6 +4,7 @@ using Cadence.Application.Editing;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
+using Cadence.Midi.SysEx;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Cadence.Presentation;
@@ -326,6 +327,15 @@ public sealed partial class EventRow : ObservableObject
     private static bool TryByte(string text, out int value) =>
         int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value is >= 0 and <= 127;
 
+    // Recognized SysEx shows what it is, then its size; unrecognized SysEx shows only its size.
+    private static (string Kind, string Channel, string Data1, string Data2, string Length) DescribeSysEx(SysExMessage message)
+    {
+        var size = string.Create(CultureInfo.InvariantCulture, $"{message.Length} bytes");
+        return SysExInterpreter.Interpret(message) is { } meaning
+            ? ("SysEx", string.Empty, meaning.Summary, size, string.Empty)
+            : ("SysEx", string.Empty, size, string.Empty, string.Empty);
+    }
+
     private static (string Kind, string Channel, string Data1, string Data2, string Length) Describe(TrackEvent e, MeterMap meter)
     {
         static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
@@ -342,7 +352,7 @@ public sealed partial class EventRow : ObservableObject
                 _ when c.Message.IsNoteOn => ("Note On", Number(c.Message.Channel.Number), Formatting.NoteName(c.Message.Note), Number(c.Message.Data2), string.Empty),
                 _ => ("Note Off", Number(c.Message.Channel.Number), Formatting.NoteName(c.Message.Note), Number(c.Message.Data2), string.Empty),
             },
-            SysExEvent s => ("SysEx", string.Empty, string.Create(CultureInfo.InvariantCulture, $"{s.Message.Bytes.Length} bytes"), string.Empty, string.Empty),
+            SysExEvent s => DescribeSysEx(s.Message),
             RawMidiEvent r => ("Raw MIDI", string.Empty, string.Create(CultureInfo.InvariantCulture, $"{r.Bytes.Length} bytes"), string.Empty, string.Empty),
             MetaEvent m => ("Meta", string.Empty, string.Create(CultureInfo.InvariantCulture, $"type {m.Type:X2}"), string.Empty, string.Empty),
             _ => ("Event", string.Empty, string.Empty, string.Empty, string.Empty),
