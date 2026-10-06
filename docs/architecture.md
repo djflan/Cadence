@@ -203,7 +203,7 @@ from (ADR 0005, 0007, 0008).
 These are deliberate for now and are where MIDI 2.0 work will start:
 
 - **Notes are MIDI 1.0-shaped.** Note velocity is 7-bit (MIDI 2.0 has 16 bits), and notes have no
-  per-note attributes, controllers, or pitch bend.
+  per-note attributes, controllers, or pitch bend. See [Planned work](#planned-work).
 - **RPN and NRPN stay controller sequences** (CC 101/100 or 99/98, then 6 and 38). Folding them into
   single parameter events cannot always reproduce the original bytes. For example, a message that
   sends only CC 6 leaves the device's previous LSB in place. A MIDI 2.0 encoder can translate the
@@ -216,6 +216,49 @@ These are deliberate for now and are where MIDI 2.0 work will start:
 - **`EventPhase.BankSelect`** (ADR 0003) now applies only to bank selects that are not part of a
   `ProgramEvent`. A `ProgramEvent` sends its bank select messages in the program change phase,
   directly before its program change.
+
+## Planned work
+
+### 16-bit velocity
+
+Note and release velocity move to MIDI 2.0's 16 bits, the same way controller values did:
+
+- `Velocity` holds 16 bits, scaled from MIDI 1.0 with the min-center-max rule, so every 7-bit
+  velocity converts up and back down exactly. Imported songs keep playing byte for byte, and
+  `MidiOneOutputGoldenTests` checks it.
+- `Velocity.Value` is removed rather than given a new meaning. In its place come `ToSevenBit()`
+  and a 16-bit accessor, so every use has to be revisited. The MIDI 1.0 side (`ChannelMessage`,
+  the playback plan, the metronome) takes a plain 7-bit value, and `Midi1Encoder` converts.
+- A note-on is always sent to MIDI 1.0 with velocity 1 or more, because 0 there means note-off. A
+  small 16-bit velocity that scales down to 0 is sent as 1.
+- Cadence notes keep requiring a velocity above zero. MIDI 2.0 allows a silent note-on at
+  velocity 0, but nothing can create one yet.
+- Editing shows and steps velocity in familiar 1–127 units (velocity lane, Alt + ↑ / ↓, event
+  list, inspector, computer keyboard) and stores the exact scaled value. Nudging a
+  higher-resolution velocity snaps it to the 7-bit grid.
+- Velocity edits (scale, compress, humanize, ramps) keep calculating in 7 bits at first, so
+  results match today exactly. Calculating in 16 bits is a separate, deliberate change, because
+  results would then round differently.
+- Release velocity gets the same treatment, for `NoteEvent` and `NoteOffEvent`.
+- The project file stores 16-bit velocities. No migration is needed while there are no saved
+  projects to preserve.
+
+Not included: MIDI 2.0 note attributes (articulation, per-note pitch) and per-note controllers.
+They follow once a MIDI 2.0 endpoint can play them.
+
+### Controller ranges and steps
+
+MIDI 2.0 messages always carry a controller's full range. Which part is meaningful is device
+knowledge. MIDI-CI Property Exchange describes it per controller (the Controller Resources
+specification) in one of two ways. `stepCount` quantizes the full range into N steps, and is the
+preferred method. `minMax` marks a sub-range, and is intended for legacy products. An entry uses
+only one of them.
+
+Cadence keeps events at full resolution and treats ranges and steps as profile data.
+`ProfileController` (number, name, default) can gain optional `steps` or `min`/`max`. These would
+be written by hand for legacy instruments or filled in from MIDI-CI later. Controller lanes would
+then snap drawing to the steps and show values in the device's own units. Nothing supplies this
+data yet, so it waits.
 
 ## Decisions at a glance
 
