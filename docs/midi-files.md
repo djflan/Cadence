@@ -31,6 +31,11 @@ that track only; the events read before the damage are kept, and a diagnostic sa
   Formats 1 and 2 retain their authored track structure.
 - **Notes** are paired first-in, first-out per channel and note number. Note-on with velocity 0
   counts as a release with release velocity 0.
+- **Bank and program**: bank select MSB (CC 0) and LSB (CC 32) on the same channel and tick as a
+  program change become part of that program selection. Bank selects anywhere else stay controller
+  events. Either way the messages sent and exported are the same.
+- **Controllers, pitch bend, and pressure** are stored at MIDI 2.0 resolution and written back at
+  their original MIDI 1.0 values.
 - **Tempo, time signature, and markers** from any track become the sequence's tempo map, meter map,
   and markers. Track names at tick 0 become track names. In a format 1 file, a first track that
   holds only conductor data is absorbed and its name becomes the title.
@@ -67,7 +72,7 @@ with a count.
 | SMF009 | Info | Running status continued across a meta or SysEx event |
 | SMF010 | Warning | A format 0 file contains more than one track |
 | SMF100 | Info | SMPTE timing was converted to PPQN and a constant tempo |
-| SMF101 | Info | A note-off with no matching note-on was kept as a raw message |
+| SMF101 | Info | A note-off with no matching note-on was kept as a separate release |
 | SMF102 | Warning | A note with no release was ended at the end of its track |
 | SMF103 | Warning | A zero-length note was lengthened to one tick |
 | SMF104 | Warning | A malformed tempo event was kept raw and not applied |

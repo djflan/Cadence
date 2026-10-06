@@ -25,23 +25,30 @@ messages. Neither profiles nor domain notes should know how they travel.
   bytes. Standard MIDI File support lives in `Cadence.Midi/Files`.
 - MIDI 2.0 is a planned protocol target. Its encoder will sit beside `Midi1Encoder` and produce UMP
   from the same semantic operations. Transport gets a separate UMP path with its own capability
-  (ADR 0005). UMP is a wire representation and never becomes the domain model. Neither do MIDI 1.0
-  byte messages beyond the compromise below.
+  (ADR 0005). UMP is a wire representation and never becomes the domain model, and neither do
+  MIDI 1.0 byte messages.
 - Conceptual layers (UI, domain, MIDI semantics, protocol encoding, transport) do not each get a
   project. A project boundary must buy something concrete: an enforced dependency rule, an
   operating-system-specific build, or keeping a framework out of testable code. Interfaces exist only
   where something is actually substituted. The current map is in
   [docs/architecture.md](../architecture.md).
-- Accepted compromise: `ChannelEvent` keeps wrapping a MIDI 1.0 `ChannelMessage`, and project files
-  keep storing it as bytes. That is lossless for every source Cadence reads today. Replacing it with
-  protocol-neutral controller, pitch bend, and pressure events needs project format version 2, so it
-  is deferred until MIDI 2.0 output gives those events a second consumer.
+- Channel events are semantic records (`ControllerEvent`, `ProgramEvent`, `PitchBendEvent`,
+  `ChannelPressureEvent`, `PolyPressureEvent`, `NoteOffEvent`, and `NoteEvent`), not MIDI 1.0
+  messages. Their values are `ControlValue`s at MIDI 2.0 resolution (32 bits), scaled from MIDI 1.0
+  with the MIDI 2.0 min-center-max rule so they scale back down exactly. `ChannelMessage` moves to
+  `Cadence.Midi/Wire`. `Midi1Decoder` turns messages into events. It folds bank selects into a
+  program change only on the same channel and tick, so MIDI 1.0 output does not change. Project
+  files store the events (format version 2). Format 1 files are not migrated, because Cadence has
+  no users with saved projects yet.
+- RPN and NRPN stay controller sequences, because folding them cannot always reproduce the
+  original messages.
 
 ## Consequences
 
 - Adding MIDI 2.0 means adding an encoder and a send path. Profiles and the domain do not change.
 - Code that needs the MIDI 1.0 form of a semantic value asks `Midi1Encoder`, so MIDI 1.0
   conventions such as bank select ordering have one home.
-- Until channel events become semantic, controller data in the domain stays at 7-bit (14-bit for
-  pitch bend) resolution. The MIDI 2.0 work must start with that migration, and with
-  `EventPhase.BankSelect` and chase state, which work on MIDI 1.0 messages.
+- MIDI 1.0 playback and export must stay byte-identical for the same input.
+  `MidiOneOutputGoldenTests` checks this for the shipped samples, per output and channel.
+- Note velocity is still 7-bit, and the playback plan and chase state are still MIDI 1.0. Those are
+  where MIDI 2.0 output work starts.

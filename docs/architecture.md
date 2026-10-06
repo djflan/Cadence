@@ -12,7 +12,7 @@ UI / Application         Cadence.Desktop, Cadence.Presentation, Cadence.Applicat
        ↓
 Sequencer / Domain       Cadence.Domain, Cadence.Profiles, Cadence.Playback
        ↓
-MIDI semantics           Cadence.Domain.Midi values (ProgramSelection, NoteEvent, …)
+MIDI semantics           channel events (NoteEvent, ControllerEvent, ProgramEvent, …) and ControlValue
        ↓
 Protocol encoding        Cadence.Midi: Wire (MIDI 1.0 bytes), Files (SMF), SysEx (dialects)
        ↓
@@ -46,7 +46,8 @@ each other, and the domain references only the base class library.
 | You are adding… | Put it in |
 | --------------- | --------- |
 | A musical concept or edit (a new event kind, a quantize rule) | `Cadence.Domain`, with commands in `Cadence.Application/Editing` |
-| How a semantic operation becomes MIDI 1.0 messages (bank and program, RPN) | `Cadence.Midi/Wire/Midi1Encoder.cs` |
+| How a channel event becomes MIDI 1.0 messages (bank and program, value resolution) | `Cadence.Midi/Wire/Midi1Encoder.cs` |
+| How MIDI 1.0 messages from files or input become channel events | `Cadence.Midi/Wire/Midi1Decoder.cs` |
 | Reading or writing `.mid` files | `Cadence.Midi/Files` |
 | Recognizing a SysEx family (Universal, XG, GS, another manufacturer) | `Cadence.Midi/SysEx` |
 | Facts about one instrument (banks, voices, drum names, setup SysEx) | a JSON profile in `/profiles`; the loader is `Cadence.Profiles` |
@@ -107,9 +108,19 @@ on the manufacturer ID, because nothing needs to swap them at run time.
 MIDI 1.0 is fully supported and is not a compatibility layer. Hardware, Standard MIDI Files, and
 XG-era instruments all depend on it. Its specific concerns stay in `Cadence.Midi`:
 
-- `Wire/Midi1Encoder` turns semantic operations into messages. For example, a `ProgramSelection`
-  (bank MSB, bank LSB, program) becomes CC 0, CC 32, then a program change, and a `NoteEvent` (a note
-  with a duration) becomes a note-on and a note-off.
+- The domain stores channel events, not messages: `NoteEvent`, `NoteOffEvent`, `ControllerEvent`,
+  `ProgramEvent`, `PitchBendEvent`, `ChannelPressureEvent`, and `PolyPressureEvent`. Controller,
+  pitch bend, and pressure values are `ControlValue`s at MIDI 2.0 resolution (32 bits). MIDI 1.0
+  values are scaled up with the MIDI 2.0 min-center-max rule, so they scale back down exactly.
+- `Wire/Midi1Encoder` turns events into messages. For example, a `ProgramEvent` (bank MSB, bank
+  LSB, program) becomes CC 0, CC 32, then a program change, a `NoteEvent` (a note with a duration)
+  becomes a note-on and a note-off, and values are reduced to 7 bits, or 14 for pitch bend.
+- `Wire/Midi1Decoder` is the inverse, used by SMF import and recording. Bank selects on the same
+  channel and tick as a program change are folded into it. Anywhere else they stay controller
+  events, so what is sent is unchanged. `MidiOneOutputGoldenTests` checks that the shipped samples
+  play and export exactly the same MIDI 1.0 bytes.
+- `Wire/ChannelMessage` is the compact MIDI 1.0 message (status byte plus data bytes). It is used
+  in the playback plan and the real-time engine, which only send MIDI 1.0 today.
 - `Wire/MidiWire` validates complete messages, and `Wire/MidiStreamParser` handles running status,
   realtime bytes inside other messages, and SysEx split across driver packets.
 - `Files/` reads and writes SMF with running status, and pairs notes, including a note-on with
@@ -126,11 +137,13 @@ Cadence does not send MIDI 2.0 yet. The design leaves room for it:
   program change with a bank, not three messages.
 - Transport gets a separate UMP send path with its own capability flag (ADR 0005). Platform
   adapters for Windows MIDI Services and CoreMIDI's event lists are natural UMP endpoints.
-- The playback plan compiler picks the encoder for each output from its capabilities.
-- MIDI 2.0 offers higher resolution, per-note controllers, and per-note pitch bend. Some of this has
-  no lossless MIDI 1.0 form. When such data is sent to a MIDI 1.0 endpoint or written to an SMF, the
-  MIDI 1.0 encoder will downscale it and report what was lost, in the same way SMF export reports
-  today.
+- The playback plan compiler encodes every event today with `Midi1Encoder`. It will pick the
+  encoder for each output from its capabilities.
+- The domain already holds controller, pitch bend, and pressure values at MIDI 2.0 resolution, and
+  a program selection as one event. MIDI 2.0 also offers 16-bit velocity, per-note controllers, and
+  per-note pitch bend, which Cadence does not model yet. Some of this has no lossless MIDI 1.0 form.
+  The MIDI 1.0 encoder already reduces values to 7 or 14 bits, and should report what was lost, in
+  the same way SMF export reports today, once such data can be created.
 
 ### MIDI-CI: future
 
@@ -189,18 +202,20 @@ from (ADR 0005, 0007, 0008).
 
 These are deliberate for now and are where MIDI 2.0 work will start:
 
-- **Channel events are MIDI 1.0 messages.** `ChannelEvent` wraps `ChannelMessage` (a status byte
-  and 7-bit data), and project files store it as those bytes. Controllers, pitch bend, and pressure
-  are therefore held at MIDI 1.0 resolution. That is lossless for every source Cadence reads today
-  (SMF, MIDI 1.0 ports). Moving to protocol-neutral controller events needs project format version 2
-  and a migration, and is planned together with MIDI 2.0 output.
+- **Notes are MIDI 1.0-shaped.** Note velocity is 7-bit (MIDI 2.0 has 16 bits), and notes have no
+  per-note attributes, controllers, or pitch bend.
+- **RPN and NRPN stay controller sequences** (CC 101/100 or 99/98, then 6 and 38). Folding them into
+  single parameter events cannot always reproduce the original bytes. For example, a message that
+  sends only CC 6 leaves the device's previous LSB in place. A MIDI 2.0 encoder can translate the
+  sequences as it sends them, as the MIDI 2.0 translation rules describe.
 - **Sixteen channels.** `MidiChannel` is 1 to 16. UMP adds 16 groups. The group belongs to routing
   (`TrackRoute`) and the endpoint, not to the music.
-- **Ordering and chase are MIDI 1.0-shaped.** `EventPhase.BankSelect` (ADR 0003) and `ChaseState`
-  work on CC 0 and CC 32 and program change messages. Both will follow the move to semantic
-  controller events.
-- **`ChannelMessage.CopyTo` is in the domain,** because project persistence uses it and
-  `Cadence.Infrastructure` may not depend on `Cadence.Midi`.
+- **The playback plan is MIDI 1.0.** `PlaybackPlan` and `ChaseState` hold encoded `ChannelMessage`s,
+  so chasing controller state on seek is worked out in MIDI 1.0 terms. A MIDI 2.0 output will need
+  its plan entries in UMP form.
+- **`EventPhase.BankSelect`** (ADR 0003) now applies only to bank selects that are not part of a
+  `ProgramEvent`. A `ProgramEvent` sends its bank select messages in the program change phase,
+  directly before its program change.
 
 ## Decisions at a glance
 
