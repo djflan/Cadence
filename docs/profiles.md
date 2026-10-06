@@ -53,7 +53,7 @@ Warnings (unknown properties, unused template parameters) do not block loading.
 
 `msb` and `lsb` are the bank select values (0–127); omit them for instruments without banks.
 Program `number` is **one-based (1–128)**, as printed in most voice lists; Cadence sends
-`number − 1` on the wire. Selecting a program sends bank select MSB, then LSB, then the program change.
+`number − 1` on the wire. Selecting a program over MIDI 1.0 sends bank select MSB, then LSB, then the program change.
 
 ## SysEx templates
 

@@ -10,7 +10,7 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 - **New features or architectural changes:** open an issue to discuss the approach before writing much code. Consequential decisions are recorded as architecture decision records in [docs/adr/](docs/adr/).
 - **Security problems:** do not open a public issue; see [SECURITY.md](SECURITY.md).
 
-Read the [architectural principle](README.md#architectural-principle) and the decision records first. In particular, device profiles (what an instrument understands) must stay independent of MIDI endpoints (where messages are sent).
+Read the [architectural principle](README.md#architectural-principle), the [architecture overview](docs/architecture.md), and the decision records first. In particular, device profiles (what an instrument understands) must stay independent of MIDI endpoints (where messages are sent).
 
 ## Development setup
 

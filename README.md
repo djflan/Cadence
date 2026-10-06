@@ -60,6 +60,8 @@ Custom profile      -> virtual MIDI port
 
 Profiles are not ports, and ports are not instruments. Projects retain their musical intent even when a previously selected endpoint is unavailable.
 
+In the same way, Cadence models music, not a MIDI wire format. MIDI 1.0 is fully supported, MIDI 2.0/UMP is a planned protocol beside it, and SysEx is always preserved byte for byte whether or not Cadence understands it. Universal SysEx, Yamaha XG, and Roland GS are recognized by separate dialect interpreters. [docs/architecture.md](docs/architecture.md) shows the layers, which project each concern belongs in, and the MIDI strategy.
+
 ## Technology direction
 
 Cadence uses .NET and C# for its domain, application, persistence, profile, and cross-platform UI code. Platform adapters isolate operating-system MIDI services.
@@ -76,6 +78,7 @@ Cadence/
 ├── global.json
 ├── docs/
 │   ├── adr/            Architecture decision records
+│   ├── architecture.md Layers, project map, and MIDI/SysEx strategy
 │   ├── midi-files.md   Standard MIDI File behavior and diagnostics
 │   ├── profiles.md     Device profile format
 │   └── project-format.md  Cadence project files, saving, and recovery
