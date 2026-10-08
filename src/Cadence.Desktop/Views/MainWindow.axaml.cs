@@ -328,6 +328,7 @@ public partial class MainWindow : Window
         Playhead.X = Timeline.TickToX(tick);
         Ruler.PlayheadTick = tick;
         PianoRoll.PlayheadTick = tick;
+        PianoRoll.SoundingNotes = vm.SoundingNotes;
         var recordingHere = vm.RecordingLane >= 0 && vm.RecordingLane < vm.Tracks.Count && vm.Tracks[vm.RecordingLane].Id == vm.Editor.Track?.Id;
         PianoRoll.RecordingPreview = recordingHere ? vm.RecordingPreview : [];
 

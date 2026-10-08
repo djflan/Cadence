@@ -142,6 +142,27 @@ public sealed class RecordingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task HeldNotes_FollowsKeysDownOnInputs()
+    {
+        AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+
+        Play(60);
+        Play(64);
+        Play(67);
+        Release(60);
+        _keys.Inject([0x90, 64, 0]);
+
+        Assert.Equal(UInt128.One << 67, _controller.Recorder.HeldNotes);
+
+        // All Notes Off clears what is held on its channel.
+        Play(72);
+        _keys.Inject([0xB0, 123, 0]);
+
+        Assert.Equal(UInt128.Zero, _controller.Recorder.HeldNotes);
+    }
+
+    [Fact]
     public async Task PunchIn_ReplaceRemovesOnlyWhatWasRecordedOver()
     {
         var before = new NoteEvent(new Tick(100), new TickSpan(10), MidiChannel.FromIndex(0), new NoteNumber(40), Velocity.Max);

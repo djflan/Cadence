@@ -245,6 +245,23 @@ public sealed class MainViewModelTests : IAsyncLifetime
         Assert.Equal("4/4", _vm.MeterText);
     }
 
+    [Fact]
+    public void NotesAt_LightsTheNotesSoundingAtTheTick()
+    {
+        static NoteEvent Note(long start, long length, int pitch) =>
+            new(new Tick(start), new TickSpan(length), MidiChannel.FromIndex(0), new NoteNumber(pitch), Velocity.Max);
+        var track = Track.Create("Piano")
+            .Add(Note(0, 960, 36))
+            .Add(Note(0, 480, 60))
+            .Add(Note(480, 480, 64))
+            .Add(Note(960, 480, 127));
+
+        Assert.Equal((UInt128.One << 36) | (UInt128.One << 60), MainViewModel.NotesAt(track, 0));
+        Assert.Equal((UInt128.One << 36) | (UInt128.One << 64), MainViewModel.NotesAt(track, 480));
+        Assert.Equal(UInt128.One << 127, MainViewModel.NotesAt(track, 960));
+        Assert.Equal(UInt128.Zero, MainViewModel.NotesAt(track, 1440));
+    }
+
     private async Task<List<TrackViewModel>> ThreeTracksAsync()
     {
         await ImportAsync();

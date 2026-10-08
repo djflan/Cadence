@@ -193,6 +193,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial bool HasInputActivity { get; private set; }
 
+    /// <summary>
+    /// Keys to show pressed on the piano roll, one bit per note number: the edited track's notes
+    /// sounding at the playhead, and notes held down on MIDI inputs.
+    /// </summary>
+    [ObservableProperty]
+    public partial UInt128 SoundingNotes { get; private set; }
+
     /// <summary>Notes of the take being recorded, for drawing live.</summary>
     [ObservableProperty]
     public partial IReadOnlyList<Application.Recording.RecordingNote> RecordingPreview { get; private set; } = [];
@@ -414,6 +421,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         HasInputActivity = _inputActivityFrames-- > 0;
         PlayheadTick = tick.Value;
+        SoundingNotes = _playback.Recorder.HeldNotes
+            | (IsPlaying && !IsCountingIn && Editor.Track is { } edited && IsAudible(sequence, edited) ? NotesAt(edited, tick.Value) : 0);
         PositionText = Formatting.Position(sequence.MeterMap.ToBarBeatTick(tick));
         TimeText = Formatting.Time(sequence.TempoMap.TimeAt(tick));
         TempoText = Formatting.Tempo(sequence.TempoMap.TempoAt(tick));
@@ -437,6 +446,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
         }
     }
+
+    /// <summary>The pitches of <paramref name="track"/>'s notes that sound at <paramref name="tick"/>, one bit per note number.</summary>
+    internal static UInt128 NotesAt(Track track, long tick)
+    {
+        UInt128 notes = 0;
+        foreach (var e in track.Events)
+        {
+            if (e.Position.Value > tick)
+            {
+                break;
+            }
+
+            if (e is NoteEvent note && note.EndPosition.Value > tick && note.Velocity.IsAudible)
+            {
+                notes |= UInt128.One << note.Note.Value;
+            }
+        }
+
+        return notes;
+    }
+
+    private static bool IsAudible(Sequence sequence, Track track) =>
+        sequence.Tracks.Any(t => t.IsSoloed) ? track.IsSoloed : !track.IsMuted;
 
     public Task AutosaveAsync() => _session.AutosaveAsync();
 

@@ -35,6 +35,7 @@ public sealed class PianoRollView : Control
     public static readonly StyledProperty<Project?> ProjectProperty = AvaloniaProperty.Register<PianoRollView, Project?>(nameof(Project));
     public static readonly StyledProperty<long> PlayheadTickProperty = AvaloniaProperty.Register<PianoRollView, long>(nameof(PlayheadTick));
     public static readonly StyledProperty<bool> IsRecordingProperty = AvaloniaProperty.Register<PianoRollView, bool>(nameof(IsRecording));
+    public static readonly StyledProperty<UInt128> SoundingNotesProperty = AvaloniaProperty.Register<PianoRollView, UInt128>(nameof(SoundingNotes));
     public static readonly StyledProperty<IReadOnlyList<RecordingNote>> RecordingPreviewProperty = AvaloniaProperty.Register<PianoRollView, IReadOnlyList<RecordingNote>>(nameof(RecordingPreview), []);
 
     private static readonly IBrush WhiteRow = new SolidColorBrush(Palette.WhiteKeyRow);
@@ -88,7 +89,7 @@ public sealed class PianoRollView : Control
 
     static PianoRollView()
     {
-        AffectsRender<PianoRollView>(ProjectProperty, PlayheadTickProperty, IsRecordingProperty, RecordingPreviewProperty);
+        AffectsRender<PianoRollView>(ProjectProperty, PlayheadTickProperty, IsRecordingProperty, SoundingNotesProperty, RecordingPreviewProperty);
         FocusableProperty.OverrideDefaultValue<PianoRollView>(true);
         ClipToBoundsProperty.OverrideDefaultValue<PianoRollView>(true);
     }
@@ -126,6 +127,13 @@ public sealed class PianoRollView : Control
     {
         get => GetValue(IsRecordingProperty);
         set => SetValue(IsRecordingProperty, value);
+    }
+
+    /// <summary>Keys drawn pressed because they are playing or held on an input, one bit per note number.</summary>
+    public UInt128 SoundingNotes
+    {
+        get => GetValue(SoundingNotesProperty);
+        set => SetValue(SoundingNotesProperty, value);
     }
 
     /// <summary>Notes of a take being recorded into this track, drawn live.</summary>
@@ -721,10 +729,11 @@ public sealed class PianoRollView : Control
         var (top, bottom) = VisiblePitches(grid);
         context.FillRectangle(WhiteKey, new Rect(0, grid.Top, KeyboardWidth, grid.Height));
         var blackWidth = KeyboardWidth * 0.6;
+        var sounding = SoundingNotes;
         for (var pitch = top; pitch >= bottom; pitch--)
         {
             var y = RowTop(pitch);
-            var pressed = pitch == _auditionPitch;
+            var pressed = pitch == _auditionPitch || ((sounding >> pitch) & 1) != 0;
             if (IsBlack(pitch))
             {
                 context.FillRectangle(pressed ? PressedKey : BlackKey, new Rect(0, y, blackWidth, KeyHeight), 1);

@@ -37,6 +37,7 @@ public sealed class MidiRecorder : IDisposable
     private readonly Lock _gate = new();
     private readonly List<Captured> _captured = [];
     private readonly Dictionary<(int Input, byte Channel, byte Note), (IMidiOutput Output, ChannelMessage Off)> _thruHeld = [];
+    private readonly HashSet<(int Input, byte Channel, byte Note)> _held = [];
     private readonly List<OpenInput> _inputs = [];
     private ThruTarget? _thru;
     private TrackId _track;
@@ -54,6 +55,24 @@ public sealed class MidiRecorder : IDisposable
 
     /// <summary>Channel messages received from any input since the recorder was created.</summary>
     public long MessagesReceived => Interlocked.Read(ref _received);
+
+    /// <summary>Notes held down on any input right now, one bit per note number, for lighting the keyboard.</summary>
+    public UInt128 HeldNotes
+    {
+        get
+        {
+            UInt128 notes = 0;
+            lock (_gate)
+            {
+                foreach (var (_, _, note) in _held)
+                {
+                    notes |= UInt128.One << note;
+                }
+            }
+
+            return notes;
+        }
+    }
 
     /// <summary>The inputs currently open.</summary>
     public IReadOnlyList<EndpointDescriptor> Inputs
@@ -90,7 +109,7 @@ public sealed class MidiRecorder : IDisposable
         {
             input.Input.SetReceiver(null);
             input.Input.Dispose();
-            ReleaseThru(input.Key);
+            ReleaseInput(input.Key);
         }
 
         foreach (var id in wanted.Where(id => !open.Contains(id)))
@@ -187,7 +206,7 @@ public sealed class MidiRecorder : IDisposable
         {
             input.Input.SetReceiver(null);
             input.Input.Dispose();
-            ReleaseThru(input.Key);
+            ReleaseInput(input.Key);
         }
     }
 
@@ -200,6 +219,7 @@ public sealed class MidiRecorder : IDisposable
         }
 
         Interlocked.Increment(ref _received);
+        TrackHeld(input, message);
         Echo(input, message);
         if (_recording && _engine.TryGetTickAt(timestamp, out var tick))
         {
@@ -209,6 +229,27 @@ public sealed class MidiRecorder : IDisposable
                 {
                     _captured.Add(new Captured(tick.Value, _captured.Count, message));
                 }
+            }
+        }
+    }
+
+    private void TrackHeld(OpenInput input, ChannelMessage message)
+    {
+        var key = (input.Key, message.Channel.Index, message.Data1);
+        lock (_gate)
+        {
+            if (message.IsNoteOn)
+            {
+                _held.Add(key);
+            }
+            else if (message.IsNoteOff)
+            {
+                _held.Remove(key);
+            }
+            else if (message.Kind == ChannelMessageKind.ControlChange && message.Data1 is 120 or 123)
+            {
+                // All Sound Off and All Notes Off release everything held on the channel.
+                _held.RemoveWhere(k => k.Input == input.Key && k.Channel == message.Channel.Index);
             }
         }
     }
@@ -269,7 +310,8 @@ public sealed class MidiRecorder : IDisposable
     private static bool IsFeedback(EndpointDescriptor input, EndpointDescriptor output) =>
         input.Id.Provider == output.Id.Provider && string.Equals(input.DisplayName, output.DisplayName, StringComparison.Ordinal);
 
-    private void ReleaseThru(int inputKey)
+    /// <summary>Forgets what a closed input was holding, releasing its notes where they were echoed.</summary>
+    private void ReleaseInput(int inputKey)
     {
         List<(IMidiOutput Output, ChannelMessage Off)> released;
         lock (_gate)
@@ -280,6 +322,8 @@ public sealed class MidiRecorder : IDisposable
             {
                 _thruHeld.Remove(k);
             }
+
+            _held.RemoveWhere(k => k.Input == inputKey);
         }
 
         foreach (var (output, off) in released)
