@@ -16,6 +16,7 @@ public sealed class DependencyDirectionTests
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
         { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
         { "Cadence.Plugins.Protocol", [] },
+        { "Cadence.Plugins", ["Cadence.Plugins.Protocol"] },
         { "Cadence.PluginWorker", ["Cadence.Plugins.Protocol"] },
     };
 
@@ -54,4 +55,10 @@ public sealed class DependencyDirectionTests
             name is "System" or "mscorlib" or "netstandard" || name.StartsWith("System.", StringComparison.Ordinal),
             $"Cadence.Plugins.Protocol must not reference {name}."));
     }
+
+    [Fact]
+    public void Plugins_DoesNotReferenceTheWorker_SoNoPluginCanRunInTheHostProcess() =>
+        Assert.DoesNotContain(
+            Assembly.Load("Cadence.Plugins").GetReferencedAssemblies(),
+            r => r.Name == "Cadence.PluginWorker");
 }

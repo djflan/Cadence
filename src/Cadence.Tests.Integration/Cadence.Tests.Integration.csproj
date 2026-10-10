@@ -17,6 +17,10 @@
     <ProjectReference Include="../Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
     <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
+    <ProjectReference Include="../Cadence.Plugins/Cadence.Plugins.csproj" />
+    <ProjectReference Include="../Cadence.Plugins.Protocol/Cadence.Plugins.Protocol.csproj" />
+    <!-- Built and copied beside the tests so they can launch real worker processes; never loaded in the test process. -->
+    <ProjectReference Include="../Cadence.PluginWorker/Cadence.PluginWorker.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
   </ItemGroup>
   <ItemGroup>
