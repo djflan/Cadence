@@ -24,6 +24,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0017](0017-recording-and-note-editing.md) | MIDI recording and note editing | Accepted |
 | [0018](0018-midi-protocol-layering.md) | MIDI protocol layering: a protocol-independent domain with MIDI 1.0 first | Accepted |
 | [0019](0019-sysex-preservation-and-interpretation.md) | SysEx: preserved losslessly, interpreted optionally by dialect | Accepted |
+| [0020](0020-hybrid-tracks-clips-and-automation.md) | Hybrid tracks: typed clips and track automation lanes | Proposed |
 
 ## Template
 

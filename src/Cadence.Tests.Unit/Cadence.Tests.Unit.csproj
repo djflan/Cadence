@@ -21,4 +21,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Infrastructure/Fixtures/**" CopyToOutputDirectory="PreserveNewest" LinkBase="Infrastructure/Fixtures" />
+  </ItemGroup>
 </Project>
