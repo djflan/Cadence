@@ -38,7 +38,42 @@ public sealed class FrameCodecTests
         new ScanResult("/plugins/a.cadence-reference-plugin", [Gain], null, null),
         new ScanResult("/plugins/b.txt", [], ScanFailureKind.Malformed, "not a module"),
         new InduceTestFault(TestFault.GarbageFrames),
+        new RenderEvents(Gain, State, [new ParameterValue(0, 0.75)], 48_000, 512, 96_000, [new TimelineTempo(0, 120), new TimelineTempo(48_000, 90.5)], [new TimelineEvent(0, PluginEvent.NoteOn(0, 2, 60, 100)), new TimelineEvent(24_000, SysEx())], [new TimelineParameterChange(12_000, 0, 0.25)]),
+        new RenderEvents(Gain, null, [], 44_100, 1, 0, [], [], []),
+        new RenderedEvents([new TimelineEvent(5, PluginEvent.NoteOff(0, 15, 127, 64)), new TimelineEvent(ProtocolLimits.MaxRenderFrames, PluginEvent.PitchBend(0, 0, 16383))], 3, "bad state"),
+        new RenderedEvents([], 0, null),
     ];
+
+    [Fact]
+    public void Decode_RenderEvents_KeepsEveryField()
+    {
+        var message = new RenderEvents(Gain, State, [new ParameterValue(1, 0.5)], 48_000, 256, 10_000, [new TimelineTempo(0, 133.25)], [new TimelineEvent(9_999, SysEx()), new TimelineEvent(3, PluginEvent.ControlChange(0, 4, 7, 99))], [new TimelineParameterChange(77, 1, 1)]);
+
+        var decoded = Assert.IsType<RenderEvents>(FrameCodec.Decode(FrameCodec.Encode(1, message)).Message);
+
+        Assert.Equal(Gain, decoded.Plugin);
+        Assert.Equal(State, decoded.State);
+        Assert.Equal(message.Parameters, decoded.Parameters);
+        Assert.Equal((48_000.0, 256, 10_000L), (decoded.SampleRate, decoded.BlockFrames, decoded.EndFrame));
+        Assert.Equal(message.Tempo, decoded.Tempo);
+        Assert.Equal(message.Events, decoded.Events);
+        Assert.Equal(message.Changes, decoded.Changes);
+    }
+
+    [Fact]
+    public void Decode_RejectsARenderRequestWithANegativeFrame()
+    {
+        var encoded = FrameCodec.Encode(1, new RenderedEvents([new TimelineEvent(7, PluginEvent.NoteOn(0, 0, 60, 1))], 0, null));
+        BinaryPrimitives.WriteInt64LittleEndian(encoded.AsSpan(ProtocolLimits.LengthPrefixBytes + ProtocolLimits.FrameHeaderBytes + 4), -7);
+
+        Assert.Throws<ProtocolException>(() => FrameCodec.Decode(encoded));
+    }
+
+    private static PluginEvent SysEx()
+    {
+        Assert.True(PluginEvent.TryCreateSystemExclusive(0, [0xF0, 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00, 0xF7], out var sysEx));
+        return sysEx;
+    }
 
     [Theory]
     [MemberData(nameof(EveryMessage))]

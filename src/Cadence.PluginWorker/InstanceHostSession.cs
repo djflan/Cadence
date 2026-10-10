@@ -60,6 +60,7 @@ internal sealed class InstanceHostSession(Stream pipe)
             ? new Ack()
             : new ErrorReply(ErrorCode.InvalidRequest, $"Unknown parameter {set.ParameterId}.")),
         GetParameters get => WithInstance(get.InstanceId, i => new ParameterValues(i.Id, [.. i.GetParameters()])),
+        RenderEvents render => OfflineRender.Run(render),
         _ => new ErrorReply(ErrorCode.InvalidRequest, $"{message.Type} is not a request this worker serves."),
     };
 

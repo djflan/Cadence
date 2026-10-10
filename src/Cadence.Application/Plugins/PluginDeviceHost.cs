@@ -90,16 +90,29 @@ public sealed class PluginDeviceHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// <paramref name="catalog"/> with every available plugin added as a definition (data only). A plugin's
-    /// parameters are listed once a worker has reported them, so automation of them can be checked.
+    /// <paramref name="catalog"/> with every available plugin added as a definition (data only), and a renderer that
+    /// runs plugin MIDI effects in their workers when the plan is compiled, so their output is routed downstream. A
+    /// plugin's parameters are listed once a worker has reported them, so automation of them can be checked.
     /// </summary>
     public DeviceCatalog Extend(DeviceCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        return _plugins.Aggregate(catalog, (c, p) => c.With(DefinitionOf(p.Value, _parameters.GetValueOrDefault(p.Key, []))));
+        return _plugins
+            .Aggregate(catalog, (c, p) => c.With(DefinitionOf(p.Value, _parameters.GetValueOrDefault(p.Key, []))))
+            .WithRenderer(new PluginEventRenderer(this));
     }
 
     public PluginInstance? InstanceOf(DeviceId device) => _instances.GetValueOrDefault(device);
+
+    /// <summary>
+    /// Whether <paramref name="device"/> is a plugin MIDI effect, whose output is worked out in its worker when the plan
+    /// is compiled: when its status changes, the plan should be compiled again.
+    /// </summary>
+    public bool ShapesThePlan(DeviceId device) =>
+        _session.Project.FindDevice(device) is { } found && PluginOf(found.Device.Definition.Id) is { Kind: PluginKind.MidiEffect };
+
+    /// <summary>The available plugin a definition stands for, or null.</summary>
+    internal PluginIdentity? PluginOf(DeviceDefinitionId definition) => _plugins.GetValueOrDefault(definition);
 
     /// <summary>The status of a plugin device, or null for a device that is not a plugin.</summary>
     public DeviceRuntimeStatus? StatusOf(DeviceInstance device)

@@ -27,8 +27,14 @@ public enum StageKind
     /// </summary>
     Instrument,
 
-    /// <summary>Changes no events here: bypassed, audio only, not installed, or an event plugin that runs only in a worker.</summary>
+    /// <summary>Changes no events here: bypassed, audio only, not installed, or an event plugin nothing can run.</summary>
     Transparent,
+
+    /// <summary>
+    /// Run out of Cadence's process by the catalog's <see cref="IOutOfProcessRenderer"/> (a plugin MIDI effect in its
+    /// worker). If that fails, its events pass through unchanged and the failure is reported.
+    /// </summary>
+    OutOfProcess,
 }
 
 /// <summary>
@@ -49,12 +55,21 @@ public sealed class ChainRunner
     private readonly SignalBuffer _handled = new();
     private readonly SignalBuffer _produced = new();
     private readonly SignalBuffer _around = new();
+    private readonly List<SignalDiagnostic> _outOfProcessReports = [];
+    private readonly TempoMap _tempo;
+    private readonly Ppqn _ppqn;
 
-    public ChainRunner(DeviceChain chain, DeviceCatalog catalog, Ppqn ppqn)
+    /// <param name="chain">The chain to run.</param>
+    /// <param name="catalog">The definitions and processors; its renderer, if any, runs out-of-process devices.</param>
+    /// <param name="ppqn">The sequence's resolution.</param>
+    /// <param name="tempo">The sequence's tempo map, which out-of-process devices need to place events in time.</param>
+    public ChainRunner(DeviceChain chain, DeviceCatalog catalog, Ppqn ppqn, TempoMap? tempo = null)
     {
         ArgumentNullException.ThrowIfNull(chain);
         ArgumentNullException.ThrowIfNull(catalog);
         Chain = chain;
+        _ppqn = ppqn;
+        _tempo = tempo ?? TempoMap.Constant(ppqn, Tempo.Default);
         var stages = new Stage[chain.Devices.Length];
         var diagnostics = ImmutableArray.CreateBuilder<SignalDiagnostic>();
         for (var i = 0; i < stages.Length; i++)
@@ -144,7 +159,15 @@ public sealed class ChainRunner
             else
             {
                 _produced.Clear();
-                RunProcessor(stage, block, changes);
+                if (stage.Kind == StageKind.OutOfProcess)
+                {
+                    RunOutOfProcess(stage, block, changes);
+                }
+                else
+                {
+                    RunProcessor(stage, block, changes);
+                }
+
                 if (!SignalOrder.IsOrdered(_produced.Events))
                 {
                     SignalOrder.StableSort(_produced.Writable);
@@ -174,6 +197,8 @@ public sealed class ChainRunner
     public ImmutableArray<SignalDiagnostic> TakeReports()
     {
         var reports = ImmutableArray.CreateBuilder<SignalDiagnostic>();
+        reports.AddRange(_outOfProcessReports);
+        _outOfProcessReports.Clear();
         foreach (var stage in _stages)
         {
             if (stage.Processor is IReportingProcessor reporting)
@@ -186,6 +211,47 @@ public sealed class ChainRunner
         }
 
         return reports.ToImmutable();
+    }
+
+    // The renderer gets this device's changes and its handled events; on failure they pass through unchanged.
+    private void RunOutOfProcess(Stage stage, in SignalBlock block, ReadOnlySpan<ParameterChange> changes)
+    {
+        var own = new List<ParameterChange>();
+        foreach (var change in changes)
+        {
+            if (change.Device == stage.Device.Id && change.Position < block.End)
+            {
+                own.Add(change);
+            }
+        }
+
+        var request = new OutOfProcessBlock(stage.Device, stage.Definition!, block, _tempo, _ppqn);
+        OutOfProcessResult result;
+        try
+        {
+            result = stage.Renderer!.Render(request, _handled.Events, own.ToArray());
+        }
+#pragma warning disable CA1031 // The renderer's contract is not to throw; if it does, the chain still must not fail.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            result = OutOfProcessResult.Failed($"could not run ({ex.Message}).");
+        }
+
+        if (result.Events is { } events)
+        {
+            _produced.AddRange(events.AsSpan());
+        }
+        else
+        {
+            _produced.AddRange(_handled.Events);
+        }
+
+        foreach (var message in result.Messages)
+        {
+            var text = result.Events is null ? $"{stage.Device.DisplayName}: {message} Events pass through it unchanged." : $"{stage.Device.DisplayName}: {message}";
+            _outOfProcessReports.Add(new SignalDiagnostic(result.Events is null ? SignalDiagnosticCode.NotProcessedHere : SignalDiagnosticCode.DeviceReport, text) { Device = stage.Device.Id });
+        }
     }
 
     // Splits the block at each change for this device, so a change applies from its own tick onwards.
@@ -237,7 +303,7 @@ public sealed class ChainRunner
         if (catalog.Find(device.Definition.Id) is not { } definition)
         {
             diagnostics.Add(new SignalDiagnostic(SignalDiagnosticCode.DeviceUnavailable, $"{device.DisplayName} is not installed; events pass through it unchanged.") { Device = device.Id });
-            return new Stage(device, StageKind.Transparent, EventClass.None, null);
+            return new Stage(device, StageKind.Transparent, EventClass.None, null, null, null);
         }
 
         var consumesEvents = definition.Consumes.HasFlag(SignalKinds.Events) && definition.Handles != EventClass.None;
@@ -248,24 +314,29 @@ public sealed class ChainRunner
                 processor.SetParameter(parameter.Id, device.ValueOf(parameter.Id) ?? parameter.DefaultValue);
             }
 
-            return new Stage(device, consumesEvents ? StageKind.Processor : StageKind.Transparent, definition.Handles, processor);
+            return new Stage(device, consumesEvents ? StageKind.Processor : StageKind.Transparent, definition.Handles, processor, null, null);
         }
 
         if (consumesEvents && !definition.Produces.HasFlag(SignalKinds.Events))
         {
-            return new Stage(device, StageKind.Instrument, definition.Handles, null);
+            return new Stage(device, StageKind.Instrument, definition.Handles, null, null, null);
+        }
+
+        if (consumesEvents && catalog.Renderer is { } renderer && renderer.CanRender(device, definition))
+        {
+            return new Stage(device, StageKind.OutOfProcess, definition.Handles, null, renderer, definition);
         }
 
         if (consumesEvents && !device.IsBypassed)
         {
             var message = definition.Origin == DeviceOrigin.Plugin
-                ? $"{device.DisplayName} runs only in a plugin worker, which plan compilation cannot use yet; events pass through it unchanged."
+                ? $"{device.DisplayName} is not running in a plugin worker, so plan compilation cannot use it; events pass through it unchanged."
                 : $"{device.DisplayName} has no processor in this version of Cadence; events pass through it unchanged.";
             diagnostics.Add(new SignalDiagnostic(SignalDiagnosticCode.NotProcessedHere, message) { Device = device.Id });
         }
 
-        return new Stage(device, StageKind.Transparent, EventClass.None, null);
+        return new Stage(device, StageKind.Transparent, EventClass.None, null, null, null);
     }
 
-    private sealed record Stage(DeviceInstance Device, StageKind Kind, EventClass Handles, ISignalProcessor? Processor);
+    private sealed record Stage(DeviceInstance Device, StageKind Kind, EventClass Handles, ISignalProcessor? Processor, IOutOfProcessRenderer? Renderer, DeviceDefinition? Definition);
 }

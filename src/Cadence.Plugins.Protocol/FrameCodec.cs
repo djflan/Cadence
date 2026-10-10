@@ -230,6 +230,41 @@ public static class FrameCodec
             case InduceTestFault m:
                 w.WriteByte((byte)m.Fault);
                 break;
+            case RenderEvents m:
+                WriteIdentity(w, m.Plugin);
+                WriteOptionalState(w, m.State);
+                w.WriteUInt32((uint)m.Parameters.Length);
+                foreach (var v in m.Parameters)
+                {
+                    w.WriteUInt32(v.Id);
+                    w.WriteDouble(v.Value);
+                }
+
+                w.WriteDouble(m.SampleRate);
+                w.WriteInt32(m.BlockFrames);
+                w.WriteInt64(m.EndFrame);
+                w.WriteUInt32((uint)m.Tempo.Length);
+                foreach (var t in m.Tempo)
+                {
+                    w.WriteInt64(t.Frame);
+                    w.WriteDouble(t.BeatsPerMinute);
+                }
+
+                WriteTimelineEvents(w, m.Events);
+                w.WriteUInt32((uint)m.Changes.Length);
+                foreach (var c in m.Changes)
+                {
+                    w.WriteInt64(c.Frame);
+                    w.WriteUInt32(c.ParameterId);
+                    w.WriteDouble(c.Value);
+                }
+
+                break;
+            case RenderedEvents m:
+                WriteTimelineEvents(w, m.Events);
+                w.WriteInt32(m.Dropped);
+                w.WriteOptionalString(m.StateRestoreError);
+                break;
             default:
                 throw new ProtocolException($"Cannot encode message {message.GetType().Name}.");
         }
@@ -378,9 +413,126 @@ public static class FrameCodec
                     return new InduceTestFault(fault);
                 }
 
+            case MessageType.RenderEvents:
+                return ReadRenderEvents(ref r);
+            case MessageType.RenderedEvents:
+                return new RenderedEvents(ReadTimelineEvents(ref r), r.ReadInt32InRange(0, int.MaxValue, "Dropped count"), r.ReadOptionalString());
             default:
                 throw new ProtocolException($"Unknown message type {(ushort)type}.");
         }
+    }
+
+    private static RenderEvents ReadRenderEvents(ref WireReader r)
+    {
+        var plugin = ReadIdentity(ref r);
+        var state = ReadOptionalState(ref r);
+        var parameterCount = r.ReadCount(ProtocolLimits.MaxParameters, minElementBytes: 12);
+        var parameters = ImmutableArray.CreateBuilder<ParameterValue>(parameterCount);
+        for (var i = 0; i < parameterCount; i++)
+        {
+            parameters.Add(new ParameterValue(r.ReadUInt32(), r.ReadNormalized("Parameter value")));
+        }
+
+        var sampleRate = r.ReadDouble();
+        if (!(sampleRate is >= ProtocolLimits.MinSampleRate and <= ProtocolLimits.MaxSampleRate))
+        {
+            throw new ProtocolException($"Sample rate {sampleRate} is out of range.");
+        }
+
+        var blockFrames = r.ReadInt32InRange(1, ProtocolLimits.MaxBlockFrames, "Block size");
+        var endFrame = ReadFrame(ref r, "End frame");
+        var tempoCount = r.ReadCount(ProtocolLimits.MaxRenderTempoChanges, minElementBytes: 16);
+        var tempo = ImmutableArray.CreateBuilder<TimelineTempo>(tempoCount);
+        for (var i = 0; i < tempoCount; i++)
+        {
+            var frame = ReadFrame(ref r, "Tempo frame");
+            var bpm = r.ReadDouble();
+            if (!(bpm is > 0 and <= 10_000))
+            {
+                throw new ProtocolException($"Tempo {bpm} is out of range.");
+            }
+
+            tempo.Add(new TimelineTempo(frame, bpm));
+        }
+
+        var events = ReadTimelineEvents(ref r);
+        var changeCount = r.ReadCount(ProtocolLimits.MaxRenderParameterChanges, minElementBytes: 20);
+        var changes = ImmutableArray.CreateBuilder<TimelineParameterChange>(changeCount);
+        for (var i = 0; i < changeCount; i++)
+        {
+            changes.Add(new TimelineParameterChange(ReadFrame(ref r, "Change frame"), r.ReadUInt32(), r.ReadNormalized("Parameter value")));
+        }
+
+        return new RenderEvents(plugin, state, parameters.MoveToImmutable(), sampleRate, blockFrames, endFrame, tempo.MoveToImmutable(), events, changes.MoveToImmutable());
+    }
+
+    private static long ReadFrame(ref WireReader r, string what)
+    {
+        var frame = r.ReadInt64();
+        return frame is >= 0 and <= ProtocolLimits.MaxRenderFrames ? frame : throw new ProtocolException($"{what} {frame} is out of range.");
+    }
+
+    // Compact form: frame (int64), kind, channel, data 1, data 2; system exclusive adds a uint16 length and the bytes.
+    private static void WriteTimelineEvents(WireWriter w, ImmutableArray<TimelineEvent> events)
+    {
+        w.WriteUInt32((uint)events.Length);
+        foreach (var e in events)
+        {
+            w.WriteInt64(e.Frame);
+            w.WriteByte((byte)e.Event.Kind);
+            w.WriteByte(e.Event.Channel);
+            w.WriteByte(e.Event.Data1);
+            w.WriteByte(e.Event.Data2);
+            if (e.Event.Kind == PluginEventKind.SystemExclusive)
+            {
+                var data = e.Event.SystemExclusiveData;
+                w.WriteUInt16((ushort)data.Length);
+                foreach (var b in data)
+                {
+                    w.WriteByte(b);
+                }
+            }
+        }
+    }
+
+    private static ImmutableArray<TimelineEvent> ReadTimelineEvents(ref WireReader r)
+    {
+        var count = r.ReadCount(ProtocolLimits.MaxRenderEvents, minElementBytes: 12);
+        var events = ImmutableArray.CreateBuilder<TimelineEvent>(count);
+        Span<byte> record = stackalloc byte[PluginEvent.RecordBytes];
+        for (var i = 0; i < count; i++)
+        {
+            var frame = ReadFrame(ref r, "Event frame");
+            record.Clear();
+            record[4] = r.ReadByte();
+            record[5] = r.ReadByte();
+            record[6] = r.ReadByte();
+            record[7] = r.ReadByte();
+            if ((PluginEventKind)record[4] == PluginEventKind.SystemExclusive)
+            {
+                var length = r.ReadUInt16();
+                if (length > PluginEvent.MaxSystemExclusiveBytes || length > r.Remaining)
+                {
+                    throw new ProtocolException($"System exclusive length {length} is out of range.");
+                }
+
+                BinaryPrimitives.WriteUInt16LittleEndian(record[8..], length);
+                for (var b = 0; b < length; b++)
+                {
+                    record[16 + b] = r.ReadByte();
+                }
+            }
+
+            var e = default(PluginEvent);
+            if (!PluginEvent.TryReadFrom(record, 1, ref e))
+            {
+                throw new ProtocolException("A timeline event is out of contract.");
+            }
+
+            events.Add(new TimelineEvent(frame, e));
+        }
+
+        return events.MoveToImmutable();
     }
 
     private static PluginInstanceId ReadInstanceId(ref WireReader r)

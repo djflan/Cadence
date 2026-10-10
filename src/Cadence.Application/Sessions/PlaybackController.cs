@@ -3,6 +3,7 @@ using Cadence.Application.Editing;
 using Cadence.Application.Recording;
 using Cadence.Application.Routing;
 using Cadence.Domain.Midi;
+using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
@@ -128,7 +129,14 @@ public sealed class PlaybackController : IAsyncDisposable
         try
         {
             var project = _session.Project;
-            var prepared = PlaybackRouting.Prepare(project, Devices, Profiles, _endpoints.GetEndpoints());
+            var devices = Devices;
+            var profiles = Profiles;
+            var endpoints = _endpoints.GetEndpoints();
+
+            // Out-of-process devices are asked over IPC while the graph is evaluated; keep that off the caller's thread.
+            var prepared = !NeedsRendering(project, devices)
+                ? PlaybackRouting.Prepare(project, devices, profiles, endpoints)
+                : await Task.Run(() => PlaybackRouting.Prepare(project, devices, profiles, endpoints), cancellationToken).ConfigureAwait(false);
             Routing = prepared;
             var problems = ImmutableArray.CreateBuilder<string>();
 
@@ -182,6 +190,12 @@ public sealed class PlaybackController : IAsyncDisposable
         await RefreshAsync(cancellationToken).ConfigureAwait(false);
         Engine.Play(from);
     }
+
+    // Whether compiling the plan will ask a device outside Cadence's process (a plugin MIDI effect in its worker).
+    private static bool NeedsRendering(Project project, DeviceCatalog devices) =>
+        devices.Renderer is { } renderer
+        && project.Chains.Any(chain => chain.Devices.Any(device =>
+            !device.IsBypassed && devices.Find(device.Definition.Id) is { } definition && renderer.CanRender(device, definition)));
 
     /// <summary>Stops playback. A take being recorded is finished and added to its track first.</summary>
     public RecordedTake? Stop()

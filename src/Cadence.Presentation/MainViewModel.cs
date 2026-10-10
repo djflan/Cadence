@@ -68,6 +68,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly MidiMonitor? _monitor;
     private IReadOnlyList<EndpointDescriptor> _outputDescriptors = [];
     private int _refreshing;
+    private int _refreshAgain;
     private long _lastInputCount;
     private int _inputActivityFrames;
 
@@ -116,7 +117,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (_plugins is not null)
         {
             _playback.UseDevices(_plugins.Extend(DeviceCatalog.BuiltIn));
-            _plugins.StatusChanged += (_, _) => _dispatcher.Post(SyncSelection);
+            // A plugin MIDI effect that stops or comes back changes what goes into the plan, so recompile it too.
+            _plugins.StatusChanged += (_, device) => _dispatcher.Post(() =>
+            {
+                SyncSelection();
+                if (_plugins.ShapesThePlan(device))
+                {
+                    _ = RefreshAsync();
+                }
+            });
         }
 
         foreach (var failure in _playback.Profiles.Failures)
@@ -1162,22 +1171,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _refreshing, 1) != 0)
         {
-            // A refresh is running; it will pick up the latest state when the next change arrives.
-            _dispatcher.Post(() => _ = RefreshAsync());
+            // A refresh is running; it goes round once more when it finishes, so it picks up the latest state.
+            Volatile.Write(ref _refreshAgain, 1);
             return;
         }
 
         try
         {
-            await _playback.RefreshAsync();
-            foreach (var problem in _playback.OutputProblems)
+            do
             {
-                AddMessage(MessageSeverity.Warning, "Outputs", problem);
+                try
+                {
+                    await _playback.RefreshAsync();
+                    foreach (var problem in _playback.OutputProblems)
+                    {
+                        AddMessage(MessageSeverity.Warning, "Outputs", problem);
+                    }
+                }
+                catch (EndpointUnavailableException ex)
+                {
+                    AddMessage(MessageSeverity.Warning, "Outputs", ex.Message);
+                }
             }
-        }
-        catch (EndpointUnavailableException ex)
-        {
-            AddMessage(MessageSeverity.Warning, "Outputs", ex.Message);
+            while (Interlocked.Exchange(ref _refreshAgain, 0) != 0);
         }
         finally
         {

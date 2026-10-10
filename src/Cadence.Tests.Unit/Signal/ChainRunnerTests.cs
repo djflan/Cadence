@@ -90,6 +90,65 @@ public sealed class ChainRunnerTests
     }
 
     [Fact]
+    public void AnOutOfProcessDevice_IsGivenItsClassesAndItsOwnChanges_AndItsOutputIsMergedBack()
+    {
+        var plugin = Instance(PluginArp);
+        var other = Instance(Recorder);
+        var renderer = new ShiftingRenderer(semitones: 5);
+        var events = Keyed(0, XgOn(), Volume(0, 90), Note(0, 60), Note(240, 64));
+        ParameterChange[] changes =
+        [
+            new(new Tick(120), plugin.Id, new ParameterId(0), ControlValue.Max),
+            new(new Tick(120), other.Id, new ParameterId(0), ControlValue.Max),
+        ];
+
+        var runner = new ChainRunner(Chain(plugin), Catalog.WithRenderer(renderer), Resolution);
+        var output = new SignalBuffer();
+        runner.Run(SignalBlock.Everything, events, output, changes);
+
+        Assert.Equal(StageKind.OutOfProcess, runner.KindOf(plugin.Id));
+        Assert.Empty(runner.Diagnostics);
+        Assert.All(renderer.Received, e => Assert.IsType<NoteEvent>(e.Event));
+        Assert.Equal(2, renderer.Received.Count);
+        Assert.Equal(plugin.Id, Assert.Single(renderer.Changes).Device);
+        Assert.Equal(Resolution, renderer.LastBlock!.Value.Ppqn);
+        Assert.Equal([events[0], events[1]], output.Events[..2].ToArray());
+        Assert.Equal([65, 69], output.Events.ToArray().Notes().Select(n => (int)n.Note.Value));
+    }
+
+    [Fact]
+    public void AnOutOfProcessDevice_ThatFails_PassesItsEventsThroughUnchanged_AndTheFailureIsReported()
+    {
+        var plugin = Instance(PluginArp);
+        var events = Keyed(0, XgOn(), Note(0, 60), Note(240, 64));
+
+        var failing = new ChainRunner(Chain(plugin), Catalog.WithRenderer(new ShiftingRenderer(0) { Fail = "is not running." }), Resolution);
+        var throwing = new ChainRunner(Chain(plugin), Catalog.WithRenderer(new ShiftingRenderer(0) { Throw = true }), Resolution);
+        var failed = new SignalBuffer();
+        var thrown = new SignalBuffer();
+        failing.Run(SignalBlock.Everything, events, failed);
+        throwing.Run(SignalBlock.Everything, events, thrown);
+
+        Assert.Equal(events, failed.Events.ToArray());
+        Assert.Equal(events, thrown.Events.ToArray());
+        var report = Assert.Single(failing.TakeReports());
+        Assert.Equal(SignalDiagnosticCode.NotProcessedHere, report.Code);
+        Assert.Equal("Plugin Arp: is not running. Events pass through it unchanged.", report.Message);
+        Assert.Contains("could not run", Assert.Single(throwing.TakeReports()).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ABypassedOutOfProcessDevice_IsNotRendered()
+    {
+        var plugin = Instance(PluginArp) with { IsBypassed = true };
+        var renderer = new ShiftingRenderer(12);
+        var events = Keyed(0, Note(0, 60));
+
+        Assert.Equal(events, Run(Chain(plugin), events, Catalog.WithRenderer(renderer)));
+        Assert.Empty(renderer.Received);
+    }
+
+    [Fact]
     public void AnInstrument_TakesTheClassesItHandles_AndSysExGoesOnPastIt()
     {
         var synth = Instance(TestDevices.Synth);
@@ -197,6 +256,42 @@ public sealed class ChainRunnerTests
 
         public void InstrumentInput(DeviceId device, ReadOnlySpan<SignalEvent> events)
         {
+        }
+    }
+
+    // Moves notes like a MIDI effect in a worker would, recording what it was given.
+    private sealed class ShiftingRenderer(int semitones) : IOutOfProcessRenderer
+    {
+        public List<SignalEvent> Received { get; } = [];
+
+        public List<ParameterChange> Changes { get; } = [];
+
+        public OutOfProcessBlock? LastBlock { get; private set; }
+
+        public string? Fail { get; init; }
+
+        public bool Throw { get; init; }
+
+        public bool CanRender(DeviceInstance device, DeviceDefinition definition) => definition.Origin == DeviceOrigin.Plugin;
+
+        public OutOfProcessResult Render(in OutOfProcessBlock block, ReadOnlySpan<SignalEvent> input, ReadOnlySpan<ParameterChange> changes)
+        {
+            LastBlock = block;
+            Received.AddRange(input);
+            Changes.AddRange(changes);
+            if (Throw)
+            {
+                throw new InvalidOperationException("boom");
+            }
+
+            if (Fail is { } message)
+            {
+                return OutOfProcessResult.Failed(message);
+            }
+
+            return new OutOfProcessResult(
+                [.. input.ToArray().Select(e => e.Event is NoteEvent n && n.Note.TryTranspose(semitones, out var note) ? e.With(n with { Note = note }) : e)],
+                []);
         }
     }
 }

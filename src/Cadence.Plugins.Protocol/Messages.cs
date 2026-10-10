@@ -25,6 +25,8 @@ public enum MessageType : ushort
     ScanModule = 18,
     ScanResult = 19,
     InduceTestFault = 20,
+    RenderEvents = 21,
+    RenderedEvents = 22,
 }
 
 /// <summary>What a worker process was launched to do.</summary>
@@ -44,6 +46,7 @@ public enum ErrorCode : ushort
     ExchangeFailed = 6,
     StateRejected = 7,
     NotSupported = 8,
+    PluginError = 9,
 }
 
 /// <summary>Why a module could not be scanned. A scanner process only ever reports <see cref="Malformed"/>; the host decides the others.</summary>
@@ -194,6 +197,46 @@ public sealed record ScanResult(string ModulePath, ImmutableArray<PluginIdentity
 {
     public override MessageType Type => MessageType.ScanResult;
 }
+
+/// <summary>
+/// Runs a MIDI effect offline over a stretch of timeline: a fresh copy of <paramref name="Plugin"/>, given
+/// <paramref name="State"/> then <paramref name="Parameters"/>, processes the timeline in blocks of
+/// <paramref name="BlockFrames"/> from frame 0 to <paramref name="EndFrame"/>, with <paramref name="Events"/> and
+/// <paramref name="Changes"/> at their frames and the transport following <paramref name="Tempo"/>. The worker's live
+/// instances are not touched. Frames are absolute positions on the timeline.
+/// </summary>
+public sealed record RenderEvents(
+    PluginIdentity Plugin,
+    PluginStateData? State,
+    ImmutableArray<ParameterValue> Parameters,
+    double SampleRate,
+    int BlockFrames,
+    long EndFrame,
+    ImmutableArray<TimelineTempo> Tempo,
+    ImmutableArray<TimelineEvent> Events,
+    ImmutableArray<TimelineParameterChange> Changes) : ProtocolMessage
+{
+    public override MessageType Type => MessageType.RenderEvents;
+}
+
+/// <summary>
+/// Reply to <see cref="RenderEvents"/>: what the plugin put out, in order. <paramref name="Dropped"/> counts events
+/// beyond a block's output capacity; <paramref name="StateRestoreError"/> is set when the state was rejected and the
+/// plugin ran with its defaults.
+/// </summary>
+public sealed record RenderedEvents(ImmutableArray<TimelineEvent> Events, int Dropped, string? StateRestoreError) : ProtocolMessage
+{
+    public override MessageType Type => MessageType.RenderedEvents;
+}
+
+/// <summary>An event at an absolute frame of a rendered timeline. The event's own sample offset is not used.</summary>
+public readonly record struct TimelineEvent(long Frame, PluginEvent Event);
+
+/// <summary>A parameter change (normalized value) at an absolute frame of a rendered timeline.</summary>
+public readonly record struct TimelineParameterChange(long Frame, uint ParameterId, double Value);
+
+/// <summary>The tempo, in beats per minute, from <paramref name="Frame"/> on.</summary>
+public readonly record struct TimelineTempo(long Frame, double BeatsPerMinute);
 
 /// <summary>Test-only: tells the worker to misbehave. Never sent by production code paths.</summary>
 public sealed record InduceTestFault(TestFault Fault) : ProtocolMessage

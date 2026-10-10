@@ -11,20 +11,22 @@ public delegate ISignalProcessor SignalProcessorFactory(Ppqn ppqn);
 /// <summary>
 /// The device definitions Cadence knows about, and, for built-in devices, how to run them. Plugin
 /// definitions (from a scan) are data only: a plugin never gets an in-process factory, because plugins
-/// run in worker processes (ADR 0025). Immutable; <see cref="With"/> returns a new catalog.
+/// run in worker processes (ADR 0025). An <see cref="IOutOfProcessRenderer"/> can be attached to run them there
+/// at plan-compile time. Immutable; <see cref="With"/> and <see cref="WithRenderer"/> return a new catalog.
 /// </summary>
 public sealed class DeviceCatalog
 {
     private readonly ImmutableDictionary<DeviceDefinitionId, DeviceDefinition> _definitions;
     private readonly ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory> _factories;
 
-    private DeviceCatalog(ImmutableDictionary<DeviceDefinitionId, DeviceDefinition> definitions, ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory> factories)
+    private DeviceCatalog(ImmutableDictionary<DeviceDefinitionId, DeviceDefinition> definitions, ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory> factories, IOutOfProcessRenderer? renderer)
     {
         _definitions = definitions;
         _factories = factories;
+        Renderer = renderer;
     }
 
-    public static DeviceCatalog Empty { get; } = new(ImmutableDictionary<DeviceDefinitionId, DeviceDefinition>.Empty, ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory>.Empty);
+    public static DeviceCatalog Empty { get; } = new(ImmutableDictionary<DeviceDefinitionId, DeviceDefinition>.Empty, ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory>.Empty, null);
 
     /// <summary>The devices that ship with Cadence: Transpose, Event Filter, and Arpeggiator.</summary>
     public static DeviceCatalog BuiltIn { get; } = Empty
@@ -34,6 +36,9 @@ public sealed class DeviceCatalog
 
     /// <summary>Every definition, in ID order.</summary>
     public ImmutableArray<DeviceDefinition> Definitions => [.. _definitions.Values.OrderBy(d => d.Id.Value, StringComparer.Ordinal)];
+
+    /// <summary>What runs devices that have no in-process processor at plan-compile time, if anything.</summary>
+    public IOutOfProcessRenderer? Renderer { get; }
 
     /// <summary>Adds or replaces a definition and, for a built-in device, the factory that runs it.</summary>
     /// <exception cref="ArgumentException">A factory was given for a plugin definition.</exception>
@@ -46,8 +51,11 @@ public sealed class DeviceCatalog
         }
 
         var factories = factory is null ? _factories.Remove(definition.Id) : _factories.SetItem(definition.Id, factory);
-        return new DeviceCatalog(_definitions.SetItem(definition.Id, definition), factories);
+        return new DeviceCatalog(_definitions.SetItem(definition.Id, definition), factories, Renderer);
     }
+
+    /// <summary>This catalog with <paramref name="renderer"/> running out-of-process devices at plan-compile time (null for none).</summary>
+    public DeviceCatalog WithRenderer(IOutOfProcessRenderer? renderer) => new(_definitions, _factories, renderer);
 
     public DeviceDefinition? Find(DeviceDefinitionId id) => _definitions.GetValueOrDefault(id);
 

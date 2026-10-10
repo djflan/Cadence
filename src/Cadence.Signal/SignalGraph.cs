@@ -333,7 +333,7 @@ public static class SignalGraph
             ReadOnlySpan<SignalEvent> output = ordered;
             if (chain is not null)
             {
-                var runner = new ChainRunner(chain, catalog, project.Sequence.Ppqn);
+                var runner = new ChainRunner(chain, catalog, project.Sequence.Ppqn, project.Sequence.TempoMap);
                 runners[chain.Id] = runner;
                 _diagnostics.AddRange(runner.Diagnostics);
                 var chainChanges = changes.Where(c => chain.Find(c.Device) is not null).ToArray();

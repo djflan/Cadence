@@ -272,6 +272,32 @@ public sealed class PluginInstance
     }
 
     /// <summary>
+    /// Runs this instance's plugin, a MIDI effect, offline over a timeline in its worker: a fresh copy given
+    /// <paramref name="state"/> and <paramref name="parameters"/>, not the live instance, which is left as it is. The
+    /// request must fit the protocol's limits (<see cref="ProtocolLimits.MaxRenderEvents"/> and the others). A worker
+    /// that dies or does not answer in time throws <see cref="PluginUnavailableException"/> (and is recovered like any
+    /// crash); a plugin that fails throws <see cref="PluginHostException"/>.
+    /// </summary>
+    public async Task<RenderedEvents> RenderEventsAsync(
+        PluginStateData? state,
+        ImmutableArray<ParameterValue> parameters,
+        long endFrame,
+        ImmutableArray<TimelineTempo> tempo,
+        ImmutableArray<TimelineEvent> events,
+        ImmutableArray<TimelineParameterChange> changes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(endFrame);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(endFrame, ProtocolLimits.MaxRenderFrames);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(events.Length, ProtocolLimits.MaxRenderEvents, nameof(events));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(changes.Length, ProtocolLimits.MaxRenderParameterChanges, nameof(changes));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(tempo.Length, ProtocolLimits.MaxRenderTempoChanges, nameof(tempo));
+        var link = RequireLink();
+        var request = new RenderEvents(Plugin, state, parameters, Request.SampleRate, Request.MaxBlockFrames, endFrame, tempo, events, changes);
+        return Expect<RenderedEvents>(await _manager.RequestAsync(link.Worker, request, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
     /// Restarts an instance that is Unavailable or Quarantined: a new worker (as the isolation policy says), the
     /// instance recreated, the last snapshot restored, then the remembered parameter values applied. Resets the
     /// restart counters. Returns the resulting status; failure leaves the instance Unavailable with the reason.
