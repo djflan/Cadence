@@ -451,7 +451,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal static UInt128 NotesAt(Track track, long tick)
     {
         UInt128 notes = 0;
-        foreach (var e in track.Events)
+        foreach (var e in track.ArrangedEvents)
         {
             if (e.Position.Value > tick)
             {
@@ -790,25 +790,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>
-    /// Moves everything on a track in time (dragging its region in the arrangement), or with
-    /// <paramref name="copy"/> repeats it shifted, as one undo step.
+    /// Moves every clip on a track in time (dragging its region in the arrangement), or with
+    /// <paramref name="copy"/> repeats them shifted, as one undo step.
     /// </summary>
     public void MoveTrackContent(TrackViewModel track, long deltaTicks, bool copy)
     {
         ArgumentNullException.ThrowIfNull(track);
-        if (Project.Sequence.FindTrack(track.Id) is not { Events.IsEmpty: false } content || deltaTicks == 0)
+        if (Project.Sequence.FindTrack(track.Id) is not { Clips.IsEmpty: false } content || deltaTicks == 0)
         {
             return;
         }
 
-        if (copy)
-        {
-            Execute(ProjectCommands.AddEvents(track.Id, "Copy Region", EventEdits.Copy(content.Events, deltaTicks)));
-        }
-        else
-        {
-            Execute(ProjectCommands.ReplaceEvents(track.Id, "Move Region", EventEdits.Move(content.Events, deltaTicks, 0)));
-        }
+        var clips = content.Clips.Select(c => c.Id).ToList();
+        Execute(copy ? ClipCommands.CopyClips(track.Id, clips, deltaTicks) : ClipCommands.MoveClips(track.Id, clips, deltaTicks));
     }
 
     /// <summary>Sets the loop (cycle) range, or turns it off with null, e.g. from the ruler.</summary>
@@ -912,7 +906,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var events = tracks.Sum(t => t.Events.Length);
+        var events = tracks.Sum(t => t.Clips.OfType<NoteClip>().Sum(c => c.Content.Items.Length));
         var subject = tracks.Count == 1 ? $"\"{tracks[0].Name}\"" : $"{tracks.Count} tracks";
         if (events > 0 && !await _ui.ConfirmAsync(
                 tracks.Count == 1 ? "Delete track?" : "Delete tracks?",

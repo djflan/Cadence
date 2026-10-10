@@ -114,16 +114,24 @@ public sealed record GridOption(GridDivision Division, string Name)
 }
 
 /// <summary>
-/// The MIDI editors (piano roll and event list) for one track: the first selected track. Holds the
-/// event selection, tool, grid, and clipboard; every change to the music is an undoable command.
-/// Pointer gestures are previewed by the view and committed here once, when the gesture ends.
+/// The MIDI editors (piano roll and event list) for one note clip of one track: the first selected
+/// track. Holds the event selection, tool, grid, and clipboard; every change to the music is an
+/// undoable command. Pointer gestures are previewed by the view and committed here once, when the
+/// gesture ends.
 /// </summary>
+/// <remarks>
+/// The edited clip stays the same across edits while it exists. Otherwise it is the clip under the
+/// playhead, or the track's first note clip. Events are shown at timeline positions, hidden content
+/// included, so views need not know about clips. Added events go to the clip where they start, or to
+/// the edited clip (which grows) when they start between clips; a track with no clips gets a new one.
+/// </remarks>
 public sealed partial class EditorViewModel : ObservableObject
 {
     private static ImmutableArray<TrackEvent> _clipboard = [];
 
     private readonly MainViewModel _owner;
     private HashSet<EventId> _selected = [];
+    private ClipId? _clipId;
     private bool _syncingInfo;
 
     internal EditorViewModel(MainViewModel owner) => _owner = owner;
@@ -137,6 +145,12 @@ public sealed partial class EditorViewModel : ObservableObject
     public partial Track? Track { get; private set; }
 
     public bool HasTrack => Track is not null;
+
+    /// <summary>The edited clip, or null when the track has no note clips.</summary>
+    public NoteClip? Clip { get; private set; }
+
+    /// <summary>The edited clip's content at timeline positions, in canonical order, hidden content included.</summary>
+    public ImmutableArray<TrackEvent> Events { get; private set; } = [];
 
     /// <summary>Lane index of the edited track, for its colour.</summary>
     [ObservableProperty]
@@ -254,7 +268,7 @@ public sealed partial class EditorViewModel : ObservableObject
     public bool HasSelection => _selected.Count > 0;
 
     /// <summary>The selected events in track order.</summary>
-    public IReadOnlyList<TrackEvent> Selection => Track is { } track ? [.. track.Events.Where(e => _selected.Contains(e.Id))] : [];
+    public IReadOnlyList<TrackEvent> Selection => [.. Events.Where(e => _selected.Contains(e.Id))];
 
     public IReadOnlyList<NoteEvent> SelectedNotes => [.. Selection.OfType<NoteEvent>()];
 
@@ -300,13 +314,18 @@ public sealed partial class EditorViewModel : ObservableObject
         ColorIndex = colorIndex;
         if (changedTrack)
         {
+            _clipId = null;
+        }
+
+        var changedClip = SyncClip();
+        if (changedTrack || changedClip)
+        {
             _selected = [];
         }
-        else if (track is not null)
+        else
         {
             // Keep the selection across edits and undo, dropping events that no longer exist.
-            var ids = track.Events.Select(e => e.Id).ToHashSet();
-            _selected.IntersectWith(ids);
+            _selected.IntersectWith(Events.Select(e => e.Id));
         }
 
         if (NewNoteLength <= 0)
@@ -316,6 +335,16 @@ public sealed partial class EditorViewModel : ObservableObject
 
         SyncInfo();
         RaiseChanged();
+    }
+
+    /// <summary>Edits <paramref name="clip"/> of the current track, e.g. when it is opened from the arrangement.</summary>
+    public void EditClip(ClipId clip)
+    {
+        if (Track?.FindClip(clip) is NoteClip && clip != Clip?.Id)
+        {
+            _clipId = clip;
+            Sync(Track, ColorIndex);
+        }
     }
 
     public void Select(IEnumerable<EventId> events, SelectionMode mode = SelectionMode.Replace)
@@ -349,7 +378,7 @@ public sealed partial class EditorViewModel : ObservableObject
 
         var (t0, t1) = (Math.Min(fromTick, toTick), Math.Max(fromTick, toTick));
         var (p0, p1) = (Math.Min(lowPitch, highPitch), Math.Max(lowPitch, highPitch));
-        Select(track.Events.OfType<NoteEvent>()
+        Select(Events.OfType<NoteEvent>()
             .Where(n => n.EndPosition.Value > t0 && n.Position.Value <= t1 && n.Note.Value >= p0 && n.Note.Value <= p1)
             .Select(n => n.Id), mode);
     }
@@ -357,10 +386,7 @@ public sealed partial class EditorViewModel : ObservableObject
     [RelayCommand]
     public void SelectAll()
     {
-        if (Track is { } track)
-        {
-            Select(track.Events.OfType<ChannelEvent>().Select(e => e.Id));
-        }
+        Select(Events.OfType<ChannelEvent>().Select(e => e.Id));
     }
 
     [RelayCommand]
@@ -381,7 +407,7 @@ public sealed partial class EditorViewModel : ObservableObject
             new NoteNumber(pitch),
             new Velocity(Math.Clamp(velocity ?? NewNoteVelocity, 1, 127)));
         NewNoteLength = note.Duration.Value;
-        _owner.Execute(ProjectCommands.AddEvents(track.Id, "Add Note", [note]));
+        Add(track, "Add Note", [note]);
         Select([note.Id]);
         return note.Id;
     }
@@ -403,7 +429,7 @@ public sealed partial class EditorViewModel : ObservableObject
                 return;
             }
 
-            _owner.Execute(ProjectCommands.AddEvents(track.Id, copies.Length == 1 ? "Copy Note" : "Copy Notes", copies));
+            Add(track, copies.Length == 1 ? "Copy Note" : "Copy Notes", copies);
             Select(copies.Select(e => e.Id));
             return;
         }
@@ -458,7 +484,7 @@ public sealed partial class EditorViewModel : ObservableObject
             return;
         }
 
-        var targets = _selected.Count > 0 ? Selection : [.. track.Events.Where(e => e is NoteEvent)];
+        var targets = _selected.Count > 0 ? Selection : [.. Events.Where(e => e is NoteEvent)];
         var options = new QuantizeOptions((int)QuantizeStrength, (int)Swing);
         Replace(track, EventEdits.Quantize(targets, Meter, QuantizeGrid.Division, options), "Quantize");
     }
@@ -499,7 +525,7 @@ public sealed partial class EditorViewModel : ObservableObject
             return;
         }
 
-        var edited = track.Events.OfType<NoteEvent>()
+        var edited = Events.OfType<NoteEvent>()
             .Where(n => velocities.ContainsKey(n.Id))
             .SelectMany(n => EventEdits.SetVelocity([n], velocities[n.Id]))
             .ToList();
@@ -537,28 +563,25 @@ public sealed partial class EditorViewModel : ObservableObject
             }
         }
 
-        var replaced = LaneEvents(track).Where(e => e.Position.Value >= fromTick && e.Position.Value <= toTick).Select(e => e.Id);
-        _owner.Execute(ProjectCommands.EditEvents(track.Id, $"Draw {Lane.Name}", replaced, points));
+        var replaced = LaneEvents().Where(e => e.Position.Value >= fromTick && e.Position.Value <= toTick).Select(e => e.Id).ToList();
+        _owner.Execute(ProjectCommands.EditEvents(track.Id, TargetFor(track, points), $"Draw {Lane.Name}", replaced, points));
+        FollowClipOf(points);
     }
 
     /// <summary>Removes this lane's events between two ticks (the eraser in a controller lane).</summary>
     public void EraseControllers(long fromTick, long toTick)
     {
-        if (Track is not { } track || Lane.Kind == ControllerLaneKind.Velocity)
+        if (Lane.Kind == ControllerLaneKind.Velocity)
         {
             return;
         }
 
         var (t0, t1) = (Math.Min(fromTick, toTick), Math.Max(fromTick, toTick));
-        Delete([.. LaneEvents(track).Where(e => e.Position.Value >= t0 && e.Position.Value <= t1).Select(e => e.Id)]);
+        Delete([.. LaneEvents().Where(e => e.Position.Value >= t0 && e.Position.Value <= t1).Select(e => e.Id)]);
     }
 
     /// <summary>The channel events shown in the current controller lane.</summary>
-    public IEnumerable<ChannelEvent> LaneEvents(Track track)
-    {
-        ArgumentNullException.ThrowIfNull(track);
-        return track.Events.OfType<ChannelEvent>().Where(Lane.Matches);
-    }
+    public IEnumerable<ChannelEvent> LaneEvents() => Events.OfType<ChannelEvent>().Where(Lane.Matches);
 
     [RelayCommand]
     public void Copy()
@@ -577,7 +600,7 @@ public sealed partial class EditorViewModel : ObservableObject
         Copy();
         if (Track is { } track && _selected.Count > 0)
         {
-            _owner.Execute(ProjectCommands.EditEvents(track.Id, "Cut", [.. _selected], []));
+            _owner.Execute(ProjectCommands.Batch("Cut", [ProjectCommands.RemoveEvents(track.Id, [.. _selected])]));
         }
     }
 
@@ -593,7 +616,7 @@ public sealed partial class EditorViewModel : ObservableObject
         }
 
         var pasted = EventEdits.Copy(_clipboard, SnapTickDown(_owner.PlayheadTick));
-        _owner.Execute(ProjectCommands.AddEvents(track.Id, "Paste", pasted));
+        Add(track, "Paste", pasted);
         Select(pasted.Select(e => e.Id));
     }
 
@@ -611,7 +634,7 @@ public sealed partial class EditorViewModel : ObservableObject
         var end = selection.Max(e => e.EndPosition.Value);
         var target = IsSnapEnabled ? MusicalGrid.SnapDown(end + GridStep - 1, Snap.Division, Meter) : end;
         var copies = EventEdits.Copy(selection, Math.Max(1, target - start));
-        _owner.Execute(ProjectCommands.AddEvents(track.Id, "Duplicate", copies));
+        Add(track, "Duplicate", copies);
         Select(copies.Select(e => e.Id));
     }
 
@@ -674,12 +697,61 @@ public sealed partial class EditorViewModel : ObservableObject
         }
     }
 
-    private void Replace(Track track, IReadOnlyCollection<TrackEvent> edited, string label)
+    /// <summary>Replaces events of the edited clip (matched by ID) with edited versions.</summary>
+    internal void Replace(Track track, IReadOnlyCollection<TrackEvent> edited, string label)
     {
-        if (edited.Count > 0)
+        if (edited.Count > 0 && Clip is { } clip)
         {
-            _owner.Execute(ProjectCommands.ReplaceEvents(track.Id, label, edited));
+            _owner.Execute(ProjectCommands.ReplaceEvents(track.Id, clip.Id, label, edited));
         }
+    }
+
+    private void Add(Track track, string label, IReadOnlyCollection<TrackEvent> added)
+    {
+        if (added.Count > 0)
+        {
+            _owner.Execute(ProjectCommands.AddEvents(track.Id, TargetFor(track, added), label, added));
+            FollowClipOf(added);
+        }
+    }
+
+    /// <summary>The clip new events go to: the one where they start, else the edited clip, else a new one.</summary>
+    private ClipId TargetFor(Track track, IReadOnlyCollection<TrackEvent> added)
+    {
+        if (added.Count > 0 && track.ClipAt(added.Min(e => e.Position)) is NoteClip at)
+        {
+            return at.Id;
+        }
+
+        return _clipId ??= ClipId.New();
+    }
+
+    /// <summary>Switches to the clip that received <paramref name="added"/>, if it is not the edited one.</summary>
+    private void FollowClipOf(IReadOnlyCollection<TrackEvent> added)
+    {
+        if (added.Count > 0 && Track is { } track && track.ClipOf(added.First().Id) is { } clip && clip.Id != Clip?.Id)
+        {
+            _clipId = clip.Id;
+            Sync(track, ColorIndex);
+        }
+    }
+
+    /// <summary>Picks the edited clip for the current track and refreshes <see cref="Events"/>. Returns whether the clip changed.</summary>
+    private bool SyncClip()
+    {
+        var previous = Clip?.Id;
+        Clip = Track is not { } track
+            ? null
+            : (_clipId is { } id ? track.FindClip(id) as NoteClip : null)
+                ?? track.ClipAt(new Tick(Math.Max(0, _owner.PlayheadTick))) as NoteClip
+                ?? track.Clips.OfType<NoteClip>().FirstOrDefault();
+        if (Clip is not null)
+        {
+            _clipId = Clip.Id;
+        }
+
+        Events = Clip is null ? [] : [.. Clip.TimelineContent()];
+        return Clip?.Id != previous && previous is not null;
     }
 
     private static MidiChannel DefaultChannel(Track track) => track.FirstChannel ?? MidiChannel.FromIndex(0);

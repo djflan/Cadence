@@ -99,11 +99,11 @@ public static class SmfImporter
 
             if (file.Format == SmfFormat.SingleTrack)
             {
-                tracks.AddRange(SplitChannels(draft));
+                tracks.AddRange(SplitChannels(draft, meterMap));
             }
             else
             {
-                tracks.Add(new Track(TrackId.New(), draft.Name ?? string.Empty, draft.Build()));
+                tracks.Add(ImportedTrack(draft.Name ?? string.Empty, [.. draft.Build()], meterMap));
             }
         }
 
@@ -182,7 +182,11 @@ public static class SmfImporter
         }
     }
 
-    private static IEnumerable<Track> SplitChannels(TrackDraft draft)
+    // Each file track becomes one clip from the bar of its first event to the bar line after its last.
+    private static Track ImportedTrack(string name, IReadOnlyCollection<TrackEvent> events, MeterMap meter) =>
+        new(TrackId.New(), name, NoteClip.Enclosing(events, meter) is { } clip ? [clip] : []);
+
+    private static IEnumerable<Track> SplitChannels(TrackDraft draft, MeterMap meter)
     {
         var global = new List<TrackEvent>();
         var channels = new SortedDictionary<byte, List<TrackEvent>>();
@@ -206,19 +210,19 @@ public static class SmfImporter
 
         if (channels.Count == 0)
         {
-            yield return new Track(TrackId.New(), draft.Name ?? string.Empty, global);
+            yield return ImportedTrack(draft.Name ?? string.Empty, global, meter);
             yield break;
         }
 
         if (global.Count > 0)
         {
-            yield return new Track(TrackId.New(), "MIDI Setup", global);
+            yield return ImportedTrack("MIDI Setup", global, meter);
         }
 
         foreach (var (index, events) in channels)
         {
             var name = string.Create(CultureInfo.InvariantCulture, $"Channel {index + 1}");
-            yield return new Track(TrackId.New(), name, events);
+            yield return ImportedTrack(name, events, meter);
         }
     }
 

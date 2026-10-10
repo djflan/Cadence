@@ -50,7 +50,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
     private async Task<string> WriteDemoMidiAsync()
     {
-        var track = Track.Create("Piano").Add(new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max));
+        var track = Track.FromEvents(TrackId.New(), "Piano", [new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max)]);
         var path = Path.Combine(_directory, "demo.mid");
         await File.WriteAllBytesAsync(path, SmfWriter.Write(SmfExporter.Export(Sequence.CreateEmpty(new Ppqn(480)).WithTrack(track)).File), TestContext.Current.CancellationToken);
         return path;
@@ -250,11 +250,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         static NoteEvent Note(long start, long length, int pitch) =>
             new(new Tick(start), new TickSpan(length), MidiChannel.FromIndex(0), new NoteNumber(pitch), Velocity.Max);
-        var track = Track.Create("Piano")
-            .Add(Note(0, 960, 36))
-            .Add(Note(0, 480, 60))
-            .Add(Note(480, 480, 64))
-            .Add(Note(960, 480, 127));
+        var track = Track.FromEvents(TrackId.New(), "Piano", [Note(0, 960, 36), Note(0, 480, 60), Note(480, 480, 64), Note(960, 480, 127)]);
 
         Assert.Equal((UInt128.One << 36) | (UInt128.One << 60), MainViewModel.NotesAt(track, 0));
         Assert.Equal((UInt128.One << 36) | (UInt128.One << 64), MainViewModel.NotesAt(track, 480));
@@ -378,8 +374,9 @@ public sealed class MainViewModelTests : IAsyncLifetime
         _vm.NextBarCommand.Execute(null);
         _vm.NextBarCommand.Execute(null);
         Assert.Equal(3840, _vm.PlayheadTick);
+        // The end of the song is the end of its last clip, on the bar line after the last note.
         _vm.GoToEndCommand.Execute(null);
-        Assert.Equal(480, _vm.PlayheadTick);
+        Assert.Equal(1920, _vm.PlayheadTick);
     }
 
     [Theory]

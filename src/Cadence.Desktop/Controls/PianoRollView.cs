@@ -701,7 +701,7 @@ public sealed class PianoRollView : Control
             (t0, v0, t1, v1) = (t1, v1, t0, v0);
         }
 
-        foreach (var note in track.Events.OfType<NoteEvent>())
+        foreach (var note in _editor!.Events.OfType<NoteEvent>())
         {
             var start = note.Position.Value;
             if (start >= t0 - 2 && start <= t1 + 2)
@@ -776,7 +776,7 @@ public sealed class PianoRollView : Control
         var border = new Pen(new SolidColorBrush(Palette.Darken(color, 0.5)), 1);
         var selectedBorder = new Pen(Brushes.White, 1);
 
-        foreach (var e in track.Events)
+        foreach (var e in _editor!.Events)
         {
             if (e is not NoteEvent original || original.EndPosition.Value < firstTick || original.Position.Value > lastTick)
             {
@@ -874,7 +874,7 @@ public sealed class PianoRollView : Control
         {
             var stem = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.1)), 1.5);
             var selectedStem = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.7)), 1.5);
-            foreach (var note in track.Events.OfType<NoteEvent>())
+            foreach (var note in _editor!.Events.OfType<NoteEvent>())
             {
                 if (note.Position.Value < firstTick || note.Position.Value > lastTick)
                 {
@@ -896,7 +896,7 @@ public sealed class PianoRollView : Control
         var line = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.2)), 1.25);
         var dot = new SolidColorBrush(Palette.Lighten(color, 0.5));
         var fill = new SolidColorBrush(color, 0.22);
-        var points = editor.LaneEvents(track).Select(e => (Tick: e.Position.Value, Value: ControllerLane.ValueOf(e))).ToList();
+        var points = editor.LaneEvents().Select(e => (Tick: e.Position.Value, Value: ControllerLane.ValueOf(e))).ToList();
         if (_gesture is Gesture.ControllerLine or Gesture.ControllerErase)
         {
             var (t0, t1) = (Math.Min(_lineStart.Tick, _lineEnd.Tick), Math.Max(_lineStart.Tick, _lineEnd.Tick));
@@ -969,7 +969,7 @@ public sealed class PianoRollView : Control
         var tick = TickAt(x);
         var sequence = project.Sequence;
         NoteEvent? best = null;
-        foreach (var e in track.Events)
+        foreach (var e in _editor!.Events)
         {
             if (e is NoteEvent note && note.Note.Value == pitch)
             {
@@ -1001,7 +1001,7 @@ public sealed class PianoRollView : Control
         }
 
         var sequence = project.Sequence;
-        var notes = track.Events.OfType<NoteEvent>()
+        var notes = _editor!.Events.OfType<NoteEvent>()
             .Select(n => (Note: n, Distance: Math.Abs(KeyboardWidth + TimeGrid.TickToX(n.Position.Value, sequence, Zoom) - _scrollX - x)))
             .Where(p => p.Distance <= 5)
             .OrderBy(p => _editor!.SelectedEvents.Contains(p.Note.Id) ? 0 : 1)
@@ -1065,7 +1065,7 @@ public sealed class PianoRollView : Control
         }
 
         _centeredFor = track.Id;
-        var notes = track.Events.OfType<NoteEvent>().ToList();
+        var notes = _editor!.Events.OfType<NoteEvent>().ToList();
         var center = notes.Count > 0 ? (notes.Min(n => n.Note.Value) + notes.Max(n => n.Note.Value)) / 2.0 : 60;
 
         // Called while rendering, so the scroll is set without invalidating; scroll bars catch up after the frame.

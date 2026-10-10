@@ -86,7 +86,7 @@ public sealed partial class EventListViewModel : ObservableObject
     {
         if (_editor.Track is { } track && edited != original)
         {
-            _owner.Execute(ProjectCommands.ReplaceEvents(track.Id, label, [edited]));
+            _editor.Replace(track, [edited], label);
         }
     }
 
@@ -191,7 +191,7 @@ public sealed partial class EventListViewModel : ObservableObject
 
     private void RebuildRows()
     {
-        var events = _editor.Track?.Events.Where(Filter.Includes).ToList() ?? [];
+        var events = _editor.Events.Where(Filter.Includes).ToList();
         var existing = Rows.ToDictionary(r => r.Id);
 
         // Reuse rows whose event is unchanged so the list keeps its scroll position and focus.

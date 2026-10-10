@@ -43,7 +43,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await _vm.InitializeAsync();
-        var track = new Track(TrackId.New(), "Piano", [Note(0), Note(960, 64), Note(1920, 67)]);
+        var track = Track.FromEvents(TrackId.New(), "Piano", [Note(0), Note(960, 64), Note(1920, 67)]);
         _session.Execute(ProjectCommands.AddTrack(track));
         _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, _synth.OutputId.Value, "Synth") }));
         _vm.LowerPane = LowerPane.EventList;
@@ -63,7 +63,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     public void Editor_FollowsTheSelectedTrack()
     {
         Assert.Equal(Track.Id, Editor.Track?.Id);
-        Assert.Equal(3, Editor.Track!.Events.Length);
+        Assert.Equal(3, Editor.Track!.ArrangedEvents.Length);
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public sealed class EditorViewModelTests : IAsyncLifetime
 
         var id = Editor.AddNote(1920, 72);
 
-        var note = Assert.IsType<NoteEvent>(Track.Find(id!.Value));
+        var note = Assert.IsType<NoteEvent>(Track.ArrangedEvents.Single(e => e.Id == id));
         Assert.Equal((1920L, 120L, 72), (note.Position.Value, note.Duration.Value, (int)note.Note.Value));
-        Assert.Equal([id.Value], Editor.SelectedEvents);
+        Assert.Equal([id!.Value], Editor.SelectedEvents);
         Assert.Equal("Add Note", _session.History.UndoLabel);
     }
 
@@ -97,23 +97,23 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         Editor.SelectAll();
 
         Editor.MoveSelection(240, 2);
-        Assert.Equal([240L, 1200L, 2160L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal([240L, 1200L, 2160L], Track.ArrangedEvents.Select(e => e.Position.Value));
         Assert.Equal("Move Notes", _session.History.UndoLabel);
 
         Editor.MoveSelection(1920, 0, copy: true);
-        Assert.Equal(6, Track.Events.Length);
+        Assert.Equal(6, Track.ArrangedEvents.Length);
         Assert.Equal(3, Editor.SelectionCount);
         Assert.All(Editor.SelectedNotes, n => Assert.True(n.Position.Value >= 1920));
 
         _vm.UndoCommand.Execute(null);
         _vm.UndoCommand.Execute(null);
-        Assert.Equal([0L, 960L, 1920L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal([0L, 960L, 1920L], Track.ArrangedEvents.Select(e => e.Position.Value));
     }
 
     [Fact]
     public void Selection_SurvivesEditsAndUndo()
     {
-        var first = Track.Events[0].Id;
+        var first = Track.ArrangedEvents[0].Id;
         Editor.Select([first]);
 
         Editor.TransposeSelection(12);
@@ -126,7 +126,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     [Fact]
     public void InfoFields_EditTheSelection()
     {
-        Editor.Select([Track.Events[1].Id]);
+        Editor.Select([Track.ArrangedEvents[1].Id]);
         Assert.Equal("1.2.000", Editor.InfoPosition);
         Assert.Equal("0.0.240", Editor.InfoLength);
 
@@ -135,40 +135,40 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         Editor.InfoLength = "0.1.000";
         Editor.InfoPosition = "2.1.0";
 
-        var note = Assert.IsType<NoteEvent>(Track.Find(Editor.SelectedEvents.Single()));
+        var note = Assert.IsType<NoteEvent>(Track.ArrangedEvents.Single(e => e.Id == Editor.SelectedEvents.Single()));
         Assert.Equal((64, 67, 960L, 3840L), ((int)note.Velocity.Value, (int)note.Note.Value, note.Duration.Value, note.Position.Value));
     }
 
     [Fact]
     public void Quantize_WithoutSelection_QuantizesTheWholeTrack()
     {
-        _session.Execute(ProjectCommands.ReplaceEvents(Track.Id, "Humanize", [.. Track.Events.Select(e => e with { Position = new Tick(e.Position.Value + 37) })]));
+        _session.Execute(ProjectCommands.ReplaceEvents(Track.Id, Track.Clips[0].Id, "Humanize", [.. Track.ArrangedEvents.Select(e => e with { Position = new Tick(e.Position.Value + 37) })]));
         Editor.SelectNone();
         Editor.QuantizeGrid = GridOption.For(GridDivision.Eighth);
 
         Editor.QuantizeCommand.Execute(null);
 
-        Assert.Equal([0L, 960L, 1920L], Track.Events.Select(e => e.Position.Value));
+        Assert.Equal([0L, 960L, 1920L], Track.ArrangedEvents.Select(e => e.Position.Value));
         Assert.Equal("Quantize", _session.History.UndoLabel);
     }
 
     [Fact]
     public void CopyAndPaste_PastesAtTheSnappedPlayhead()
     {
-        Editor.Select([Track.Events[1].Id, Track.Events[2].Id]);
+        Editor.Select([Track.ArrangedEvents[1].Id, Track.ArrangedEvents[2].Id]);
         Editor.CopyCommand.Execute(null);
         _vm.SeekTo(3850);
 
         Editor.PasteCommand.Execute(null);
 
         Assert.Equal([3840L, 4800L], Editor.SelectedNotes.Select(n => n.Position.Value));
-        Assert.Equal(5, Track.Events.Length);
+        Assert.Equal(5, Track.ArrangedEvents.Length);
     }
 
     [Fact]
     public void Duplicate_PlacesTheCopyAfterTheSelection()
     {
-        Editor.Select([Track.Events[0].Id]);
+        Editor.Select([Track.ArrangedEvents[0].Id]);
         Editor.Snap = GridOption.For(GridDivision.Quarter);
 
         Editor.DuplicateCommand.Execute(null);
@@ -180,11 +180,11 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     [Fact]
     public void Resize_SetsTheLengthForTheNextNote()
     {
-        Editor.Select([Track.Events[0].Id]);
+        Editor.Select([Track.ArrangedEvents[0].Id]);
 
         Editor.ResizeSelection(NoteEdge.End, 720);
 
-        Assert.Equal(960, ((NoteEvent)Track.Events[0]).Duration.Value);
+        Assert.Equal(960, ((NoteEvent)Track.ArrangedEvents[0]).Duration.Value);
         Assert.Equal(960, Editor.NewNoteLength);
     }
 
@@ -197,11 +197,11 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         Editor.DrawControllerLine(0, 0, 3840, 120);
         Editor.DrawControllerLine(1920, 10, 1920, 10);
 
-        var values = Editor.LaneEvents(Track).Select(e => (e.Position.Value, ControllerLane.ValueOf(e))).ToList();
+        var values = Editor.LaneEvents().Select(e => (e.Position.Value, ControllerLane.ValueOf(e))).ToList();
         Assert.Equal([(0L, 0), (960L, 30), (1920L, 10), (2880L, 90), (3840L, 120)], values);
 
         Editor.EraseControllers(0, 2000);
-        Assert.Equal(2, Editor.LaneEvents(Track).Count());
+        Assert.Equal(2, Editor.LaneEvents().Count());
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         rows[1].Data2 = "33";
         rows[1].Data1 = "61";
 
-        var edited = Assert.IsType<NoteEvent>(Track.Events[1]);
+        var edited = Assert.IsType<NoteEvent>(Track.ArrangedEvents[1]);
         Assert.Equal((33, 61), ((int)edited.Velocity.Value, (int)edited.Note.Value));
         Assert.Equal("C♯4", _vm.EventList.Rows[1].Data1);
     }
@@ -238,20 +238,20 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     [Fact]
     public void EventList_SharesTheSelection()
     {
-        Editor.Select([Track.Events[2].Id]);
-        Assert.Equal([Track.Events[2].Id], _vm.EventList.SelectedRows.Select(r => r.Id));
+        Editor.Select([Track.ArrangedEvents[2].Id]);
+        Assert.Equal([Track.ArrangedEvents[2].Id], _vm.EventList.SelectedRows.Select(r => r.Id));
 
         _vm.EventList.SelectedRows.Clear();
         _vm.EventList.SelectedRows.Add(_vm.EventList.Rows[0]);
         _vm.EventList.OnRowsSelected();
 
-        Assert.Equal([Track.Events[0].Id], Editor.SelectedEvents);
+        Assert.Equal([Track.ArrangedEvents[0].Id], Editor.SelectedEvents);
     }
 
     [Fact]
     public void EventList_FiltersByKind()
     {
-        _session.Execute(ProjectCommands.AddEvents(Track.Id, "Add", [new ProgramEvent(Tick.Zero, MidiChannel.FromIndex(0), new ProgramSelection(new ProgramNumber(4)))]));
+        _session.Execute(ProjectCommands.AddEvents(Track.Id, Track.Clips[0].Id, "Add", [new ProgramEvent(Tick.Zero, MidiChannel.FromIndex(0), new ProgramSelection(new ProgramNumber(4)))]));
 
         _vm.EventList.Filter = EventFilter.All.Single(f => f.Name == "Program Changes");
 
@@ -281,7 +281,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         Assert.True(_vm.HasInputActivity);
         _vm.StopCommand.Execute(null);
 
-        var take = Assert.IsType<NoteEvent>(Track.Events[^1]);
+        var take = Assert.IsType<NoteEvent>(Track.ArrangedEvents[^1]);
         Assert.Equal((4800L, 480L, 72), (take.Position.Value, take.Duration.Value, (int)take.Note.Value));
         Assert.False(_vm.IsRecording);
         Assert.Contains(_vm.Messages, m => m.Text == "Recorded 1 note on Piano.");
@@ -291,16 +291,65 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Editor_EditsOneClipAndFollowsEventsAddedToAnother()
+    {
+        var first = Track.Clips[0];
+        _session.Execute(ClipCommands.CopyClips(Track.Id, [first.Id], 3840));
+        var second = Track.Clips[1];
+
+        Assert.Equal(first.Id, Editor.Clip?.Id);
+        Assert.Equal(3, Editor.Events.Length);
+
+        var id = Editor.AddNote(4000, 72);
+
+        Assert.Equal(second.Id, Editor.Clip?.Id);
+        Assert.Equal(4, Editor.Events.Length);
+        Assert.Equal([id!.Value], Editor.SelectedEvents);
+
+        Editor.EditClip(first.Id);
+        Assert.Equal(first.Id, Editor.Clip?.Id);
+        Assert.Empty(Editor.SelectedEvents);
+    }
+
+    [Fact]
+    public void AddNote_BetweenClips_GrowsTheEditedClip()
+    {
+        var first = Track.Clips[0];
+        _session.Execute(ClipCommands.CopyClips(Track.Id, [first.Id], 3840));
+
+        Editor.AddNote(2500, 72);
+
+        Assert.Equal((first.Id, 3840L), (Track.Clips[0].Id, Track.Clips[0].End.Value));
+        Assert.Equal(2, Track.Clips.Length);
+    }
+
+    [Fact]
+    public void AddNote_OnATrackWithoutClips_CreatesOne()
+    {
+        var empty = Track.Create("Empty");
+        _session.Execute(ProjectCommands.AddTrack(empty));
+        _vm.SelectedTracks.Clear();
+        _vm.SelectedTracks.Add(_vm.Tracks[^1]);
+        Assert.Null(Editor.Clip);
+
+        Editor.AddNote(100, 60);
+
+        var clip = Assert.Single(_session.Project.Sequence.FindTrack(empty.Id)!.Clips);
+        Assert.Equal(clip.Id, Editor.Clip?.Id);
+        Assert.Single(Editor.Events);
+    }
+
+    [Fact]
     public void MoveTrackContent_ShiftsOrCopiesTheWholeRegion()
     {
         _vm.MoveTrackContent(_vm.Tracks[0], 3840, copy: false);
-        Assert.Equal([3840L, 4800L, 5760L], Track.Events.Select(e => e.Position.Value));
-        Assert.Equal("Move Region", _session.History.UndoLabel);
+        Assert.Equal([3840L, 4800L, 5760L], Track.ArrangedEvents.Select(e => e.Position.Value));
+        Assert.Equal("Move Clip", _session.History.UndoLabel);
 
         _vm.MoveTrackContent(_vm.Tracks[0], -3840, copy: true);
-        Assert.Equal(6, Track.Events.Length);
-        Assert.Equal(0, Track.Events[0].Position.Value);
-        Assert.Equal("Copy Region", _session.History.UndoLabel);
+        Assert.Equal(6, Track.ArrangedEvents.Length);
+        Assert.Equal(0, Track.ArrangedEvents[0].Position.Value);
+        Assert.Equal("Copy Clip", _session.History.UndoLabel);
     }
 
     [Fact]

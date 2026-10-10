@@ -1,7 +1,10 @@
+using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
 using Cadence.Infrastructure.Projects;
 using Cadence.Playback;
+using CsCheck;
 using static Cadence.Tests.Unit.Playback.PlanDump;
 
 namespace Cadence.Tests.Unit.Infrastructure;
@@ -43,6 +46,37 @@ public sealed class PlanEquivalenceTests
         Assert.Equal(sharedSlot, Hash(PlaybackStream(project.Sequence, RoutedBindings(project, shared: true))));
         Assert.Equal(exported, Hash(ExportStream(project.Sequence)));
     }
+
+    private static readonly Gen<TrackEvent> GenEvent =
+        Gen.OneOf<TrackEvent>(
+            Gen.Select(Gen.Long[0, 20_000], Gen.Long[1, 4000], Gen.Int[0, 127]).Select(x =>
+                (TrackEvent)new NoteEvent(new Tick(x.Item1), new TickSpan(x.Item2), MidiChannel.FromIndex(0), new NoteNumber(x.Item3), Velocity.Max)),
+            Gen.Select(Gen.Long[0, 20_000], Gen.Int[0, 127]).Select(x =>
+                (TrackEvent)new NoteOffEvent(EventId.New(), new Tick(x.Item1), MidiChannel.FromIndex(0), new NoteNumber(x.Item2), Velocity.DefaultRelease)),
+            Gen.Long[0, 20_000].Select(x =>
+                (TrackEvent)new ControllerEvent(new Tick(x), MidiChannel.FromIndex(0), ControllerNumber.ModulationWheel, ControlValue.Max)));
+
+    // Wrapping events in a clip, from tick 0 or bar-aligned around them as import and migration do,
+    // never changes what plays.
+    [Fact]
+    public void AnEnclosingClip_PlaysLikeTheBareEvents() =>
+        Gen.Select(GenEvent.Array[1, 40], Gen.Int[0, 3]).Sample((events, meterIndex) =>
+        {
+            var ppqn = new Ppqn(480);
+            var meter = meterIndex switch
+            {
+                0 => MeterMap.Constant(ppqn, TimeSignature.CommonTime),
+                1 => MeterMap.Constant(ppqn, new TimeSignature(7, 8)),
+                2 => new MeterMap(ppqn, [new MeterChange(new Tick(1000), new TimeSignature(3, 4))]),
+                _ => new MeterMap(ppqn, [new MeterChange(new Tick(5000), new TimeSignature(5, 4)), new MeterChange(new Tick(9000), new TimeSignature(2, 4))]),
+            };
+            var id = TrackId.New();
+            Sequence SequenceOf(Track track) => new(TempoMap.Constant(ppqn, Tempo.Default), meter, [track], []);
+
+            var bare = PlaybackStream(SequenceOf(Track.FromEvents(id, "t", events)));
+            var enclosed = PlaybackStream(SequenceOf(new Track(id, "t", [NoteClip.Enclosing(events, meter)!])));
+            return bare.SequenceEqual(enclosed);
+        });
 
     private static Dictionary<TrackId, PlanTrackBinding> RoutedBindings(Project project, bool shared) =>
         project.Sequence.Tracks.Select((t, i) => (t.Id, Slot: shared ? 0 : i)).ToDictionary(

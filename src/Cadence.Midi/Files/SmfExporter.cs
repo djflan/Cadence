@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
@@ -71,9 +72,10 @@ public static class SmfExporter
             scheduled.Add((0, EventPhase.Meta, -1, Text(0, SmfMetaType.TrackName, track.Name, fileTrackIndex, diagnostics)));
         }
 
-        for (var i = 0; i < track.Events.Length; i++)
+        var events = track.ArrangedEvents;
+        for (var i = 0; i < events.Length; i++)
         {
-            var e = track.Events[i];
+            var e = events[i];
             var tick = e.Position.Value;
             switch (e)
             {
@@ -105,7 +107,7 @@ public static class SmfExporter
             }
         }
 
-        if (HasOverlappingNotes(track))
+        if (HasOverlappingNotes(events))
         {
             diagnostics.Warn(
                 SmfDiagnosticCodes.OverlappingNotes,
@@ -114,13 +116,14 @@ public static class SmfExporter
         }
 
         var ordered = scheduled.OrderBy(s => s.Tick).ThenBy(s => s.Phase).ThenBy(s => s.Sequence).Select(s => s.Event);
-        return new SmfTrack(ordered, track.EndPosition.Value);
+        // The track ends where its last event does, not at the end of its last clip.
+        return new SmfTrack(ordered, events.IsEmpty ? 0 : events.Max(e => e.EndPosition.Value));
     }
 
-    private static bool HasOverlappingNotes(Track track)
+    private static bool HasOverlappingNotes(ImmutableArray<TrackEvent> events)
     {
         var lastEnd = new Dictionary<(byte Channel, byte Note), long>();
-        foreach (var note in track.Events.OfType<NoteEvent>())
+        foreach (var note in events.OfType<NoteEvent>())
         {
             var key = (note.Channel.Index, note.Note.Value);
             if (lastEnd.TryGetValue(key, out var end) && note.Position.Value < end)

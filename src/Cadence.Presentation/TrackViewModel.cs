@@ -183,8 +183,8 @@ public sealed partial class TrackViewModel : ObservableObject
 
     private static string Summarize(Track track)
     {
-        var notes = track.Events.OfType<NoteEvent>().ToList();
-        var channels = track.Events.OfType<ChannelEvent>().Select(c => c.Channel.Number)
+        var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
+        var channels = track.ArrangedEvents.OfType<ChannelEvent>().Select(c => c.Channel.Number)
             .Distinct()
             .Order()
             .ToList();
@@ -194,6 +194,7 @@ public sealed partial class TrackViewModel : ObservableObject
             1 => string.Create(CultureInfo.InvariantCulture, $"ch {channels[0]}"),
             _ => string.Create(CultureInfo.InvariantCulture, $"ch {string.Join(", ", channels.Take(4))}{(channels.Count > 4 ? "…" : string.Empty)}"),
         };
-        return string.Create(CultureInfo.InvariantCulture, $"{notes.Count} notes · {channelText}");
+        var clips = track.Clips.Length == 1 ? string.Empty : string.Create(CultureInfo.InvariantCulture, $" · {track.Clips.Length} clips");
+        return string.Create(CultureInfo.InvariantCulture, $"{notes.Count} notes · {channelText}{clips}");
     }
 }
