@@ -1,6 +1,6 @@
 # 0008. Routing: profiles and endpoints bound independently, resolved at run time
 
-- Status: Accepted
+- Status: Superseded by 0023 (its profile and endpoint resolution rules carry over, per instrument port)
 - Date: 2026-10-04
 
 ## Context

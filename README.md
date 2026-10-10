@@ -15,6 +15,8 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); arrange tracks as clips that can be moved, copied, trimmed, and split; draw automation lanes for controllers, pitch bend, and pressure; edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
 
+Cadence is becoming a DAW without giving up MIDI depth. **Working today:** track roles (instrument, audio, hybrid, effect, group) that convert safely; device chains on tracks and shared racks with built-in Transpose, Event Filter, and Arpeggiator devices, bypass, reordering, parameters, and chain presets; one routing model (connections from a track or from after any device to other tracks, racks, external instruments by port and channel, and mixer channels) with feedback detection; external MIDI instruments as project entities; device parameter automation; project format 4 with a migration that plays older projects byte for byte. **Modelled but not yet sounding:** audio clips, software instruments, and the mixer (there is no audio engine yet). See [docs/architecture.md](docs/architecture.md).
+
 ### Platform support
 
 | Platform | App | MIDI output | MIDI input (recording, thru) | Notes |
@@ -58,15 +60,15 @@ GM/GM2 profile      -> arbitrary compliant endpoint
 Custom profile      -> virtual MIDI port
 ```
 
-Profiles are not ports, and ports are not instruments. Projects retain their musical intent even when a previously selected endpoint is unavailable.
+Profiles are not ports, and ports are not instruments. Projects retain their musical intent even when a previously selected endpoint is unavailable. An external instrument states its profile once and has ports bound to endpoints; tracks reach its parts (a port and a channel) through connections, so one MU2000 can play sixteen tracks without each track repeating it.
 
 In the same way, Cadence models music, not a MIDI wire format. MIDI 1.0 is fully supported, MIDI 2.0/UMP is a planned protocol beside it, and SysEx is always preserved byte for byte whether or not Cadence understands it. Universal SysEx, Yamaha XG, and Roland GS are recognized by separate dialect interpreters. [docs/architecture.md](docs/architecture.md) shows the layers, which project each concern belongs in, and the MIDI strategy.
 
 ## Technology direction
 
-Cadence uses .NET and C# for its domain, application, persistence, profile, and cross-platform UI code. Platform adapters isolate operating-system MIDI services.
+C# and .NET are the default for all of Cadence: domain, sequencing, MIDI processing, routing, device chains, persistence, plugin supervision, and the cross-platform UI. Platform adapters call operating-system MIDI services from C#.
 
-C or C++ components may be introduced where native MIDI APIs or measured high-resolution scheduling requirements justify them. Any native component must remain behind a narrow, versioned C ABI; vendor knowledge and domain rules stay in managed code.
+Rust is used for a component only when a measurement shows managed code cannot meet a real-time or throughput requirement after tuning (allocation on the real-time path, callback deadlines, garbage collection pauses), or when a native interface such as plugin binaries requires it. It replaces C and C++ for new Cadence-owned native code; C and C++ appear only as third-party libraries, vendor SDK requirements, or thin ABI shims. Native components sit behind a small, versioned C ABI, and vendor knowledge and domain rules stay in managed code. There is no native Cadence code today. See [ADR 0026](docs/adr/0026-native-technology-policy.md).
 
 ## Repository layout
 
@@ -78,7 +80,7 @@ Cadence/
 ├── global.json
 ├── docs/
 │   ├── adr/            Architecture decision records
-│   ├── architecture.md Layers, project map, and MIDI/SysEx strategy
+│   ├── architecture.md Layers, project map, tracks, devices, routing, and MIDI/SysEx strategy
 │   ├── midi-files.md   Standard MIDI File behavior and diagnostics
 │   ├── profiles.md     Device profile format
 │   └── project-format.md  Cadence project files, saving, and recovery
@@ -200,7 +202,7 @@ It appears as the **Computer Keyboard** input, so it records, thrus, and shows i
 any other. The middle row plays white keys (A S D F G H J K L ; ') and the row above plays black
 keys (W E T Y U O P). Z / X change octave and C / V change velocity; the transport bar shows the
 channel, octave, velocity, and last note. Notes go to the recording, armed, or selected track's
-channel (its route channel, else the channel of its first event), and a note always releases on
+channel (the channel its output forces, else the channel of its first event), and a note always releases on
 the channel it started on. Keys are matched by position, so the layout works on any keyboard
 language; other shortcuts are unavailable for the mapped keys while it is on.
 
