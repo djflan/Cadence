@@ -151,7 +151,7 @@ public static class ProjectCommands
         Batch(tracks.Count == 1 ? "Delete Track" : "Delete Tracks", tracks.Select(RemoveTrack));
 
     /// <summary>
-    /// Copies each track (with fresh track, clip, and event IDs, and its route) directly below the original.
+    /// Copies each track (with fresh track, clip, event, and lane IDs, and its route) directly below the original.
     /// </summary>
     public static IProjectCommand DuplicateTracks(IReadOnlyCollection<TrackId> tracks) =>
         new ProjectCommand(tracks.Count == 1 ? "Duplicate Track" : "Duplicate Tracks", p =>
@@ -165,7 +165,13 @@ public static class ProjectCommands
                 }
 
                 var name = track.Name.Length + 5 <= Track.MaxNameLength ? track.Name + " copy" : track.Name;
-                var copy = new Track(TrackId.New(), name, track.Clips.Select(c => c.CopyTo(c.Start)), track.IsMuted, track.IsSoloed);
+                var copy = new Track(
+                    TrackId.New(),
+                    name,
+                    track.Clips.Select(c => c.CopyTo(c.Start)),
+                    track.IsMuted,
+                    track.IsSoloed,
+                    track.Automation.Select(l => new AutomationLane(AutomationLaneId.New(), l.Target, l.Points)));
                 var index = result.Sequence.Tracks.IndexOf(track) + 1;
                 result = result with { Sequence = result.Sequence.InsertTrack(index, copy) };
                 if (result.Routing.Find(id) is { } route)

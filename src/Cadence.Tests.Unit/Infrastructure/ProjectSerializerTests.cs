@@ -118,6 +118,12 @@ public sealed class ProjectSerializerTests
     [InlineData("$.project.sequence.tracks[0].clips[0].type", "\"audio\"")]
     [InlineData("$.project.sequence.tracks[0].clips[0].id", "\"not-a-guid\"")]
     [InlineData("$.project.sequence.tracks[2].clips[0].name", "7")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].target.controller", "0")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].target.type", "\"aftertouch\"")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].target.channel", "0")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].points[0].curve", "\"smooth\"")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].points[0].value", "-1")]
+    [InlineData("$.project.sequence.tracks[2].automation[0].id", "1")]
     [InlineData("$.project.sequence.meter[0].denominator", "3")]
     [InlineData("$.project.routing[0].transpose", "99")]
     [InlineData("$.project.loop.end", "0")]
@@ -143,6 +149,29 @@ public sealed class ProjectSerializerTests
         events[1]!["id"] = (string)events[0]!["id"]!;
 
         Assert.Contains("more than once", Assert.Throws<ProjectFormatException>(() => FromJson(json)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AutomationLanes_AreCheckedForDuplicatesWithTheirPath()
+    {
+        var json = ToJson(ProjectSamples.Full());
+        var lanes = json["project"]!["sequence"]!["tracks"]![2]!["automation"]!.AsArray();
+        lanes[0]!["points"]![1]!["tick"] = 0L;
+
+        Assert.Equal("$.project.sequence.tracks[2].automation[0].points", Assert.Throws<ProjectFormatException>(() => FromJson(json)).JsonPath);
+
+        json = ToJson(ProjectSamples.Full());
+        json["project"]!["sequence"]!["tracks"]![2]!["automation"]![1]!["target"] = JsonNode.Parse("""{ "type": "controller", "channel": 2, "controller": 7 }""");
+        Assert.Equal("$.project.sequence.tracks[2].automation", Assert.Throws<ProjectFormatException>(() => FromJson(json)).JsonPath);
+    }
+
+    [Fact]
+    public void Tracks_WithoutAutomation_DoNotWriteIt()
+    {
+        var json = ToJson(ProjectSamples.Full());
+
+        Assert.Null(json["project"]!["sequence"]!["tracks"]![0]!["automation"]);
+        Assert.Equal(3, json["project"]!["sequence"]!["tracks"]![2]!["automation"]!.AsArray().Count);
     }
 
     [Fact]

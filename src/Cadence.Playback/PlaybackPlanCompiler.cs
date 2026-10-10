@@ -46,7 +46,18 @@ public static class PlaybackPlanCompiler
                 AddChannel(0, Prepare(binding.InitialEvents[i], transpose: false)!, i - binding.InitialEvents.Length);
             }
 
-            var events = track.ArrangedEvents;
+            var rendered = TrackRendering.Render(track, sequence.Ppqn, binding.Channel);
+            if (rendered.SuppressedEvents > 0)
+            {
+                diagnostics.Add(new PlanDiagnostic(track.Id, $"{rendered.SuppressedEvents} controller events in clips were replaced by the track's automation."));
+            }
+
+            if (rendered.DroppedLanes > 0)
+            {
+                diagnostics.Add(new PlanDiagnostic(track.Id, $"{rendered.DroppedLanes} automation lanes control the same thing as another lane once sent on the route's channel, and were left out."));
+            }
+
+            var events = rendered.Events;
             for (var i = 0; i < events.Length; i++)
             {
                 var e = events[i];

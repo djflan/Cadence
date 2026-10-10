@@ -5,13 +5,13 @@ using Cadence.Domain.Time;
 namespace Cadence.Domain.Sequencing;
 
 /// <summary>
-/// An immutable track: a name, mute/solo state, and clips. A track has no type; its clips decide what
-/// it holds (ADR 0020). Every edit returns a new track, so a prepared playback snapshot can never
-/// observe a half-applied change.
+/// An immutable track: a name, mute/solo state, clips, and automation lanes. A track has no type; its
+/// clips decide what it holds (ADR 0020). Every edit returns a new track, so a prepared playback
+/// snapshot can never observe a half-applied change.
 /// </summary>
 /// <remarks>
 /// Clips are sorted by start and never overlap, and event IDs are unique across all of a track's
-/// clips.
+/// clips. Each automation lane has its own target.
 /// </remarks>
 public sealed class Track
 {
@@ -20,20 +20,24 @@ public sealed class Track
     // Computed on first use. ImmutableArray is a single reference, written atomically.
     private ImmutableArray<TrackEvent> _arranged;
 
-    private Track(TrackId id, string name, ImmutableArray<Clip> clips, bool isMuted, bool isSoloed)
+    public const int MaxAutomationLanes = 1024;
+
+    private Track(TrackId id, string name, ImmutableArray<Clip> clips, ImmutableArray<AutomationLane> automation, bool isMuted, bool isSoloed)
     {
         Id = id;
         Name = name;
         Clips = clips;
+        Automation = automation;
         IsMuted = isMuted;
         IsSoloed = isSoloed;
     }
 
     /// <exception cref="ArgumentException">
-    /// Two clips overlap or share an ID, two events share an <see cref="EventId"/>, or the name is too long.
+    /// Two clips overlap or share an ID, two events share an <see cref="EventId"/>, two lanes share an ID
+    /// or a target, or the name is too long.
     /// </exception>
-    public Track(TrackId id, string name, IEnumerable<Clip> clips, bool isMuted = false, bool isSoloed = false)
-        : this(id, ValidateName(name), ValidateClips(clips), isMuted, isSoloed)
+    public Track(TrackId id, string name, IEnumerable<Clip> clips, bool isMuted = false, bool isSoloed = false, IEnumerable<AutomationLane>? automation = null)
+        : this(id, ValidateName(name), ValidateClips(clips), ValidateLanes(automation ?? []), isMuted, isSoloed)
     {
     }
 
@@ -63,6 +67,9 @@ public sealed class Track
     /// <summary>Clips in timeline order.</summary>
     public ImmutableArray<Clip> Clips { get; }
 
+    /// <summary>Automation lanes in display order.</summary>
+    public ImmutableArray<AutomationLane> Automation { get; }
+
     public bool IsMuted { get; }
 
     public bool IsSoloed { get; }
@@ -81,8 +88,8 @@ public sealed class Track
         }
     }
 
-    /// <summary>The end of the last clip, or zero if there are none.</summary>
-    public Tick EndPosition => Clips.IsEmpty ? Tick.Zero : Clips[^1].End;
+    /// <summary>The end of the last clip or the last automation point, whichever is later; zero if there are neither.</summary>
+    public Tick EndPosition => Tick.Max(Clips.IsEmpty ? Tick.Zero : Clips[^1].End, Automation.IsEmpty ? Tick.Zero : Automation.Max(l => l.EndPosition));
 
     /// <summary>The channel of the first channel event, which is the track's channel unless its route overrides it.</summary>
     public MidiChannel? FirstChannel
@@ -109,14 +116,38 @@ public sealed class Track
         }
     }
 
-    public Track WithName(string name) => new(Id, ValidateName(name), Clips, IsMuted, IsSoloed);
+    public Track WithName(string name) => new(Id, ValidateName(name), Clips, Automation, IsMuted, IsSoloed);
 
-    public Track WithMuted(bool isMuted) => new(Id, Name, Clips, isMuted, IsSoloed);
+    public Track WithMuted(bool isMuted) => new(Id, Name, Clips, Automation, isMuted, IsSoloed);
 
-    public Track WithSoloed(bool isSoloed) => new(Id, Name, Clips, IsMuted, isSoloed);
+    public Track WithSoloed(bool isSoloed) => new(Id, Name, Clips, Automation, IsMuted, isSoloed);
 
     /// <exception cref="ArgumentException">The clips overlap or share IDs, or two events share an ID.</exception>
-    public Track WithClips(IEnumerable<Clip> clips) => new(Id, Name, ValidateClips(clips), IsMuted, IsSoloed);
+    public Track WithClips(IEnumerable<Clip> clips) => new(Id, Name, ValidateClips(clips), Automation, IsMuted, IsSoloed);
+
+    /// <exception cref="ArgumentException">Two lanes share an ID or a target.</exception>
+    public Track WithAutomation(IEnumerable<AutomationLane> lanes) => new(Id, Name, Clips, ValidateLanes(lanes), IsMuted, IsSoloed);
+
+    public AutomationLane? FindLane(AutomationLaneId id) => Automation.FirstOrDefault(l => l.Id == id);
+
+    /// <summary>Replaces the lane with the same ID in place, or adds it at the end.</summary>
+    /// <exception cref="ArgumentException">Another lane already has its target.</exception>
+    public Track WithLane(AutomationLane lane)
+    {
+        ArgumentNullException.ThrowIfNull(lane);
+        for (var i = 0; i < Automation.Length; i++)
+        {
+            if (Automation[i].Id == lane.Id)
+            {
+                return WithAutomation(Automation.SetItem(i, lane));
+            }
+        }
+
+        return WithAutomation(Automation.Add(lane));
+    }
+
+    public Track RemoveLane(AutomationLaneId id) =>
+        FindLane(id) is null ? this : new Track(Id, Name, Clips, Automation.RemoveAll(l => l.Id == id), IsMuted, IsSoloed);
 
     public Clip? FindClip(ClipId id)
     {
@@ -173,7 +204,7 @@ public sealed class Track
     }
 
     public Track RemoveClip(ClipId id) =>
-        FindClip(id) is null ? this : new Track(Id, Name, Clips.RemoveAll(c => c.Id == id), IsMuted, IsSoloed);
+        FindClip(id) is null ? this : new Track(Id, Name, Clips.RemoveAll(c => c.Id == id), Automation, IsMuted, IsSoloed);
 
     /// <summary>
     /// Places <paramref name="clip"/>, replacing any clip with its ID. Clips it would overlap make room:
@@ -219,7 +250,7 @@ public sealed class Track
             }
         }
 
-        return new Track(Id, Name, [.. result], IsMuted, IsSoloed);
+        return new Track(Id, Name, [.. result], Automation, IsMuted, IsSoloed);
     }
 
     private int LastStartingAtOrBefore(Tick position)
@@ -281,6 +312,34 @@ public sealed class Track
         }
 
         return [.. sorted];
+    }
+
+    private static ImmutableArray<AutomationLane> ValidateLanes(IEnumerable<AutomationLane> lanes)
+    {
+        ArgumentNullException.ThrowIfNull(lanes);
+        var result = lanes.ToImmutableArray();
+        if (result.Length > MaxAutomationLanes)
+        {
+            throw new ArgumentException($"A track holds at most {MaxAutomationLanes} automation lanes.", nameof(lanes));
+        }
+
+        var ids = new HashSet<AutomationLaneId>();
+        var targets = new HashSet<AutomationTarget>();
+        foreach (var lane in result)
+        {
+            ArgumentNullException.ThrowIfNull(lane, nameof(lanes));
+            if (!ids.Add(lane.Id))
+            {
+                throw new ArgumentException($"Automation lane {lane.Id} appears more than once.", nameof(lanes));
+            }
+
+            if (!targets.Add(lane.Target))
+            {
+                throw new ArgumentException("Two automation lanes control the same thing.", nameof(lanes));
+            }
+        }
+
+        return result;
     }
 
     private static string ValidateName(string name)
