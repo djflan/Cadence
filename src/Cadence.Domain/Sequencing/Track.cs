@@ -5,13 +5,15 @@ using Cadence.Domain.Time;
 namespace Cadence.Domain.Sequencing;
 
 /// <summary>
-/// An immutable track: a name, mute/solo state, clips, and automation lanes. A track has no type; its
-/// clips decide what it holds (ADR 0020). Every edit returns a new track, so a prepared playback
-/// snapshot can never observe a half-applied change.
+/// An immutable track: a name, mute/solo state, clips, and automation lanes. There is one track type; its
+/// clips decide what it holds (ADR 0020) and its <see cref="Role"/> says what it is for (ADR 0021). Every
+/// edit returns a new track, so a prepared playback snapshot can never observe a half-applied change.
 /// </summary>
 /// <remarks>
 /// Clips are sorted by start and never overlap, and event IDs are unique across all of a track's
-/// clips. Each automation lane has its own target.
+/// clips. Each automation lane has its own target. The track does not reject clips because of its role:
+/// keeping the two in agreement is the job of <c>TrackRoleConversion</c>, so the sequencing model never
+/// depends on workflow.
 /// </remarks>
 public sealed class Track
 {
@@ -22,7 +24,7 @@ public sealed class Track
 
     public const int MaxAutomationLanes = 1024;
 
-    private Track(TrackId id, string name, ImmutableArray<Clip> clips, ImmutableArray<AutomationLane> automation, bool isMuted, bool isSoloed)
+    private Track(TrackId id, string name, ImmutableArray<Clip> clips, ImmutableArray<AutomationLane> automation, bool isMuted, bool isSoloed, TrackRole role, TrackId? group)
     {
         Id = id;
         Name = name;
@@ -30,18 +32,20 @@ public sealed class Track
         Automation = automation;
         IsMuted = isMuted;
         IsSoloed = isSoloed;
+        Role = role;
+        Group = group;
     }
 
     /// <exception cref="ArgumentException">
     /// Two clips overlap or share an ID, two events share an <see cref="EventId"/>, two lanes share an ID
-    /// or a target, or the name is too long.
+    /// or a target, the name is too long, or the track is its own group.
     /// </exception>
-    public Track(TrackId id, string name, IEnumerable<Clip> clips, bool isMuted = false, bool isSoloed = false, IEnumerable<AutomationLane>? automation = null)
-        : this(id, ValidateName(name), ValidateClips(clips), ValidateLanes(automation ?? []), isMuted, isSoloed)
+    public Track(TrackId id, string name, IEnumerable<Clip> clips, bool isMuted = false, bool isSoloed = false, IEnumerable<AutomationLane>? automation = null, TrackRole role = TrackRole.Instrument, TrackId? group = null)
+        : this(id, ValidateName(name), ValidateClips(clips), ValidateLanes(automation ?? []), isMuted, isSoloed, ValidateRole(role), ValidateGroup(id, group))
     {
     }
 
-    public static Track Create(string name) => new(TrackId.New(), name, []);
+    public static Track Create(string name, TrackRole role = TrackRole.Instrument) => new(TrackId.New(), name, [], role: role);
 
     /// <summary>
     /// A track holding <paramref name="events"/> (at timeline positions) in one clip from tick 0 to just
@@ -73,6 +77,12 @@ public sealed class Track
     public bool IsMuted { get; }
 
     public bool IsSoloed { get; }
+
+    /// <summary>What the track is for. See <see cref="TrackRole"/>.</summary>
+    public TrackRole Role { get; }
+
+    /// <summary>The group track this track belongs to, if any. Membership organizes; signal flow is a routing connection.</summary>
+    public TrackId? Group { get; }
 
     /// <summary>What the track plays: the visible events of its note clips at timeline positions, in canonical order.</summary>
     public ImmutableArray<TrackEvent> ArrangedEvents
@@ -115,21 +125,35 @@ public sealed class Track
                 }
             }
 
-            return Automation.IsEmpty ? null : Automation[0].Target.Channel;
+            foreach (var lane in Automation)
+            {
+                if (lane.Target.IsMidi)
+                {
+                    return lane.Target.Channel;
+                }
+            }
+
+            return null;
         }
     }
 
-    public Track WithName(string name) => new(Id, ValidateName(name), Clips, Automation, IsMuted, IsSoloed);
+    public Track WithName(string name) => new(Id, ValidateName(name), Clips, Automation, IsMuted, IsSoloed, Role, Group);
 
-    public Track WithMuted(bool isMuted) => new(Id, Name, Clips, Automation, isMuted, IsSoloed);
+    public Track WithMuted(bool isMuted) => new(Id, Name, Clips, Automation, isMuted, IsSoloed, Role, Group);
 
-    public Track WithSoloed(bool isSoloed) => new(Id, Name, Clips, Automation, IsMuted, isSoloed);
+    public Track WithSoloed(bool isSoloed) => new(Id, Name, Clips, Automation, IsMuted, isSoloed, Role, Group);
+
+    /// <summary>Changes the role without touching anything the track holds. Whether that is sensible is for <c>TrackRoleConversion</c> to say.</summary>
+    public Track WithRole(TrackRole role) => new(Id, Name, Clips, Automation, IsMuted, IsSoloed, ValidateRole(role), Group);
+
+    /// <exception cref="ArgumentException">The track would be its own group.</exception>
+    public Track WithGroup(TrackId? group) => new(Id, Name, Clips, Automation, IsMuted, IsSoloed, Role, ValidateGroup(Id, group));
 
     /// <exception cref="ArgumentException">The clips overlap or share IDs, or two events share an ID.</exception>
-    public Track WithClips(IEnumerable<Clip> clips) => new(Id, Name, ValidateClips(clips), Automation, IsMuted, IsSoloed);
+    public Track WithClips(IEnumerable<Clip> clips) => new(Id, Name, ValidateClips(clips), Automation, IsMuted, IsSoloed, Role, Group);
 
     /// <exception cref="ArgumentException">Two lanes share an ID or a target.</exception>
-    public Track WithAutomation(IEnumerable<AutomationLane> lanes) => new(Id, Name, Clips, ValidateLanes(lanes), IsMuted, IsSoloed);
+    public Track WithAutomation(IEnumerable<AutomationLane> lanes) => new(Id, Name, Clips, ValidateLanes(lanes), IsMuted, IsSoloed, Role, Group);
 
     public AutomationLane? FindLane(AutomationLaneId id) => Automation.FirstOrDefault(l => l.Id == id);
 
@@ -150,7 +174,7 @@ public sealed class Track
     }
 
     public Track RemoveLane(AutomationLaneId id) =>
-        FindLane(id) is null ? this : new Track(Id, Name, Clips, Automation.RemoveAll(l => l.Id == id), IsMuted, IsSoloed);
+        FindLane(id) is null ? this : new Track(Id, Name, Clips, Automation.RemoveAll(l => l.Id == id), IsMuted, IsSoloed, Role, Group);
 
     public Clip? FindClip(ClipId id)
     {
@@ -232,7 +256,7 @@ public sealed class Track
     }
 
     public Track RemoveClip(ClipId id) =>
-        FindClip(id) is null ? this : new Track(Id, Name, Clips.RemoveAll(c => c.Id == id), Automation, IsMuted, IsSoloed);
+        FindClip(id) is null ? this : new Track(Id, Name, Clips.RemoveAll(c => c.Id == id), Automation, IsMuted, IsSoloed, Role, Group);
 
     /// <summary>
     /// Places <paramref name="clip"/>, replacing any clip with its ID. Clips it would overlap make room:
@@ -278,7 +302,7 @@ public sealed class Track
             }
         }
 
-        return new Track(Id, Name, [.. result], Automation, IsMuted, IsSoloed);
+        return new Track(Id, Name, [.. result], Automation, IsMuted, IsSoloed, Role, Group);
     }
 
     private int LastStartingAtOrBefore(Tick position) => Search.LastAtOrBefore(Clips, position, c => c.Start);
@@ -351,6 +375,12 @@ public sealed class Track
 
         return result;
     }
+
+    private static TrackRole ValidateRole(TrackRole role) =>
+        Enum.IsDefined(role) ? role : throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown track role.");
+
+    private static TrackId? ValidateGroup(TrackId id, TrackId? group) =>
+        group == id ? throw new ArgumentException("A track cannot be its own group.", nameof(group)) : group;
 
     private static string ValidateName(string name)
     {

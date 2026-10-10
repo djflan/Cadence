@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Time;
 
@@ -17,32 +18,62 @@ public enum AutomationParameter
     Controller,
     PitchBend,
     ChannelPressure,
+
+    /// <summary>A parameter of one device instance. It is delivered to the device, never sent as MIDI (ADR 0024).</summary>
+    DeviceParameter,
 }
 
 /// <summary>
-/// What an automation lane controls: a controller, pitch bend, or channel pressure on one channel
-/// (ADR 0020). Controllers whose lone values mean something other than a level are refused: bank
-/// select, the LSB controllers (32-63), data entry and increment/decrement, RPN/NRPN selectors, and
-/// channel mode messages.
+/// What an automation lane controls. Either MIDI performance data on one channel: a controller, pitch
+/// bend, or channel pressure (ADR 0020); or one parameter of one device instance (ADR 0024).
 /// </summary>
+/// <remarks>
+/// <para>
+/// MIDI controllers whose lone values mean something other than a level are refused: bank select, the
+/// LSB controllers (32-63), data entry and increment/decrement, RPN/NRPN selectors, and channel mode
+/// messages.
+/// </para>
+/// <para>
+/// A device target names the device by its stable <see cref="DeviceId"/> and the parameter by its own
+/// ID, so moving the device within or between chains retargets nothing. Its values are normalized
+/// (0 to 1, see <see cref="ControlValue.FromFraction"/>).
+/// </para>
+/// </remarks>
 public readonly record struct AutomationTarget
 {
-    private AutomationTarget(AutomationParameter parameter, MidiChannel channel, ControllerNumber controller)
+    private AutomationTarget(AutomationParameter parameter, MidiChannel channel, ControllerNumber controller, DeviceId device = default, ParameterId deviceParameter = default)
     {
         Parameter = parameter;
         Channel = channel;
         Controller = controller;
+        Device = device;
+        DeviceParameter = deviceParameter;
     }
 
     public AutomationParameter Parameter { get; }
 
+    /// <summary>The channel, for MIDI targets. Meaningless for device targets.</summary>
     public MidiChannel Channel { get; }
 
     /// <summary>The controller, for <see cref="AutomationParameter.Controller"/> targets.</summary>
     public ControllerNumber Controller { get; }
 
+    /// <summary>The device, for <see cref="AutomationParameter.DeviceParameter"/> targets.</summary>
+    public DeviceId Device { get; }
+
+    /// <summary>The device's parameter, for <see cref="AutomationParameter.DeviceParameter"/> targets.</summary>
+    public ParameterId DeviceParameter { get; }
+
+    /// <summary>True for targets that become MIDI events; false for device parameters.</summary>
+    public bool IsMidi => Parameter != AutomationParameter.DeviceParameter;
+
     /// <summary>False for a target not made by one of the factories, such as <c>default</c>.</summary>
-    public bool IsValid => Parameter != AutomationParameter.Controller || IsAutomatable(Controller);
+    public bool IsValid => Parameter switch
+    {
+        AutomationParameter.Controller => IsAutomatable(Controller),
+        AutomationParameter.DeviceParameter => Device.Value != Guid.Empty,
+        _ => true,
+    };
 
     /// <exception cref="ArgumentException">The controller cannot be automated (see <see cref="IsAutomatable"/>).</exception>
     public static AutomationTarget ForController(MidiChannel channel, ControllerNumber controller) =>
@@ -53,6 +84,12 @@ public readonly record struct AutomationTarget
     public static AutomationTarget ForPitchBend(MidiChannel channel) => new(AutomationParameter.PitchBend, channel, default);
 
     public static AutomationTarget ForChannelPressure(MidiChannel channel) => new(AutomationParameter.ChannelPressure, channel, default);
+
+    /// <exception cref="ArgumentException">The device ID is empty.</exception>
+    public static AutomationTarget ForDevice(DeviceId device, ParameterId parameter) =>
+        device.Value != Guid.Empty
+            ? new(AutomationParameter.DeviceParameter, default, default, device, parameter)
+            : throw new ArgumentException("A device target needs a device.", nameof(device));
 
     public static bool IsAutomatable(ControllerNumber controller) =>
         !(controller.IsBankSelect || controller.Value is >= 32 and <= 63 or 6 or 96 or 97 || controller.IsParameterNumberSelector || controller.IsChannelMode);
@@ -71,17 +108,27 @@ public readonly record struct AutomationTarget
         _ => null,
     };
 
-    public AutomationTarget WithChannel(MidiChannel channel) => new(Parameter, channel, Controller);
+    /// <summary>The same target on <paramref name="channel"/>. A device target has no channel and is returned unchanged.</summary>
+    public AutomationTarget WithChannel(MidiChannel channel) => IsMidi ? new(Parameter, channel, Controller) : this;
 
-    /// <summary><paramref name="value"/> as MIDI 1.0 sends it for this target, scaled back up.</summary>
-    public ControlValue AtMidi1Resolution(ControlValue value) =>
-        Parameter == AutomationParameter.PitchBend ? ControlValue.FromFourteenBit(value.ToFourteenBit()) : ControlValue.FromSevenBit(value.ToSevenBit());
+    /// <summary>
+    /// <paramref name="value"/> as the target is sent, scaled back up: as MIDI 1.0 sends a MIDI target, and
+    /// unchanged for a device parameter, which is delivered at full resolution.
+    /// </summary>
+    public ControlValue AtMidi1Resolution(ControlValue value) => Parameter switch
+    {
+        AutomationParameter.PitchBend => ControlValue.FromFourteenBit(value.ToFourteenBit()),
+        AutomationParameter.DeviceParameter => value,
+        _ => ControlValue.FromSevenBit(value.ToSevenBit()),
+    };
 
     /// <summary>An event setting this target to <paramref name="value"/>. It is rendered, not stored, so it has no ID.</summary>
+    /// <exception cref="InvalidOperationException">The target is a device parameter, which is not MIDI.</exception>
     public ChannelEvent CreateEvent(Tick position, ControlValue value) => Parameter switch
     {
         AutomationParameter.PitchBend => new PitchBendEvent(default, position, Channel, value),
         AutomationParameter.ChannelPressure => new ChannelPressureEvent(default, position, Channel, value),
+        AutomationParameter.DeviceParameter => throw new InvalidOperationException("A device parameter is not a MIDI event."),
         _ => new ControllerEvent(default, position, Channel, Controller, value),
     };
 }
@@ -183,7 +230,11 @@ public sealed class AutomationLane
     private int LastAtOrBefore(Tick position) => Search.LastAtOrBefore(Points, position, p => p.Position);
 
     private static AutomationTarget Validate(AutomationTarget target) =>
-        target.IsValid ? target : throw new ArgumentException($"Controller {target.Controller} cannot be automated.", nameof(target));
+        target.IsValid
+            ? target
+            : throw new ArgumentException(
+                target.Parameter == AutomationParameter.DeviceParameter ? "A device target needs a device." : $"Controller {target.Controller} cannot be automated.",
+                nameof(target));
 
     private static ImmutableArray<AutomationPoint> Sort(IEnumerable<AutomationPoint> points)
     {
@@ -206,7 +257,7 @@ public sealed class AutomationLane
     }
 }
 
-/// <summary>Turns automation lanes into the values MIDI 1.0 sends.</summary>
+/// <summary>Turns automation lanes into the values a target is sent: MIDI 1.0 values, or full-resolution device parameter values.</summary>
 public static class AutomationRenderer
 {
     /// <summary>How often linear segments are sampled: every 1/32 of a quarter note, at least every tick.</summary>
