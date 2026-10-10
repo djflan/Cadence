@@ -6,7 +6,7 @@ other tracks, shared racks, external instruments, and mixer channels. MIDI 1.0, 
 dialects, and operating-system MIDI APIs sit at the edges. This page shows where things live and why.
 The decisions behind it are in [docs/adr/](adr/), in particular ADRs
 [0018](adr/0018-midi-protocol-layering.md), [0019](adr/0019-sysex-preservation-and-interpretation.md),
-and [0021](adr/0021-track-roles.md) to [0027](adr/0027-project-format-4.md).
+and [0021](adr/0021-track-roles.md) to [0028](adr/0028-plugin-midi-effects-at-plan-time.md).
 
 ## Layers
 
@@ -305,8 +305,9 @@ feed for their worker.
 ### Plugin workers
 
 Third-party plugins are hosted in separate worker processes (ADR 0025), never loaded into Cadence's own
-process. Process isolation is crash isolation, not a security sandbox. See
-[docs/plugin-hosting.md](plugin-hosting.md).
+process. Process isolation is crash isolation, not a security sandbox. When the plan is compiled, a
+plugin MIDI effect runs in its worker over the arrangement and its output joins the chain like a
+built-in device's (ADR 0028). See [docs/plugin-hosting.md](plugin-hosting.md).
 
 ## Known compromises
 
@@ -322,8 +323,9 @@ These are deliberate for now and are where MIDI 2.0 work will start:
   instrument's port and its endpoint, not to the music or to connections.
 - **No audio engine.** Audio clips, audio connections, and mixer channels are modelled, saved, and
   validated, and software instruments receive their event feeds, but nothing produces sound yet.
-- **Plugin MIDI effects at plan time.** A plugin that changes events runs only in a worker at run time;
-  when the plan is compiled its events pass through unchanged, with a diagnostic.
+- **Plugin MIDI effects are rendered, not played live.** When the plan is compiled, each plugin MIDI effect
+  runs in its own worker over the arrangement (ADR 0028), so its output is routed downstream. A worker that
+  is gone or hung leaves the events unchanged, with a diagnostic. Live input does not pass through plugins.
 - **Live notes apply only Transpose devices** from the chains on a track's live route; other devices
   (an arpeggiator, say) shape played-back notes but not live input.
 - **The playback plan is MIDI 1.0.** `PlaybackPlan` and `ChaseState` hold encoded `ChannelMessage`s,
@@ -411,6 +413,7 @@ Built as boundaries and tested where cheap, but not finished:
 | Plugins run out of process; isolation is not a sandbox | ADR 0025 |
 | C# first; Rust only for measured or native-interface needs | ADR 0026 |
 | Project format 4 and its migration | ADR 0027 |
+| Plugin MIDI effects run in their worker when the plan is compiled | ADR 0028 |
 
 ## Native technology
 

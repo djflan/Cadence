@@ -24,12 +24,13 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Undo merging: same merge key within 1 s is one undo step (parameter sliders, mixer gain/pan, master gain) | Done; `EditHistory` tests with a manual `TimeProvider`, view-model tests |
 | Plugin hosting (`Cadence.Plugins.Protocol`, `Cadence.Plugins`, `Cadence.PluginWorker`) | Done, merged; real worker processes killed in tests; reference plugins only |
 | Application bridge (`PluginDeviceHost`): devices ↔ worker instances, state into the project, status, restart | Done, tested with real workers; wired into the desktop app |
+| Plugin MIDI effects in the plan (ADR 0028): rendered in their worker at compile time, routed downstream | Done; `PluginMidiInThePlanTests` with real workers (transpose to a port, automation, tap, killed and hung workers) |
 | Acceptance scenarios 1–15 | All have tests: table in `docs/architecture.md` and `docs/plugin-hosting.md` |
-| Docs: ADRs 0021–0027, architecture, project format, MIDI files, plugin hosting, README | Done |
+| Docs: ADRs 0021–0028, architecture, project format, MIDI files, plugin hosting, README | Done |
 | Rust | Not introduced: nothing measured needs it yet (ADR 0026 sets the bar) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
-`dotnet test src/Cadence.slnx`: 1119 total, 1106 passed, 12 skipped (other platforms' adapters), 1 failed: the
+`dotnet test src/Cadence.slnx`: 1132 total, 1119 passed, 12 skipped (other platforms' adapters), 1 failed: the
 intermittent `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder`, which also fails on the
 untouched base (section 2). Plugin integration tests: 8 consecutive passes of 27, no workers left behind; the bridge
 and strip tests (5) pass.
@@ -82,7 +83,7 @@ devices, and routing"). Plugin hosting: `docs/plugin-hosting.md`, including the 
 10. `TrackRendering.Render(track, ppqn, channelOverride)`: the override is the **unique Force channel** of the track's outgoing event connections, else none. This preserves the old "two lanes collide after the channel override" behaviour.
 11. **Mute and solo apply to a track's own content** (the old rule: solo overrides mute). Events routed *into* a muted track from a playing one still pass through its chain. Revisit only if the UI needs "mute silences the track's output".
 12. **Device automation is not signal**: it is rendered for every track, playing or muted, applied to built-in processors at its ticks, and returned as `ParameterFeed`s for every other device. A lane whose device is missing is reported (`AutomationTargetMissing`) and kept.
-13. **At compile time, a plugin MIDI effect or an unknown device passes events through, with a diagnostic.** Its real output exists only at runtime in a worker. An instrument without an in-process processor takes its `Handles` classes out of the chain (this matches `SignalPresence.Through`); SysEx and other unhandled classes go on to the track's connections.
+13. **At compile time, a plugin MIDI effect runs in its own worker (ADR 0028)**: a `RenderEvents` request runs a fresh copy from the project's stored state and parameters over the timeline (sample frames on the tempo map), and its output joins the chain. If its worker is gone, hung, or failing, or the request is over the protocol's limits, its events pass through unchanged with a diagnostic. An unknown device always passes events through, with a diagnostic. An instrument without an in-process processor takes its `Handles` classes out of the chain (this matches `SignalPresence.Through`); SysEx and other unhandled classes go on to the track's connections.
 14. **The evaluator never fails on bad routing.** It leaves out every connection named in a validator error, reports it (`InvalidConnection`), and as a backstop drops any connection that still closes a loop during topological ordering (`Feedback`). Audio connections are validated and reported but not followed (no audio engine).
 15. **"Not routed"** is reported for a playing track with no outgoing event connection (from the track or a tap on its devices) and no instrument in its chain, whatever its content, like the old compiler. With an instrument but no connection, it is reported only when events remain after the chain (for example SysEx the instrument does not handle). A tap on a chain whose owning track is gone is left out and reported (it can never run).
 16. **Arpeggiator phrases are anchored at the first note** played while nothing is held, including after a gap shorter than a step; then they step every rate interval while anything is held, so every phrase sounds (a legato note, starting exactly where the last one ends, continues the phrase). Held pitches are deduplicated and played lowest first; generated notes take the source note's channel, velocities and ordering key, and an `EventId` derived from the source note's ID and the step's tick. Output, IDs included, is identical across evaluations and whether processed in one block or many (tested).
@@ -111,6 +112,10 @@ devices, and routing"). Plugin hosting: `docs/plugin-hosting.md`, including the 
     `EditHistory.MergeWindow` (1 s, measured with an injectable `TimeProvider`) replace the top undo step's result and
     keep its "before" state. Undo, redo, and reset end the run. Keys: `parameter:{device}:{parameter}`,
     `gain:{channel}`, `pan:{channel}`, `master-gain`.
+26. **`MainViewModel.RefreshAsync` coalesces**: a refresh asked for while one runs sets a flag and the running one goes
+    round once more. (It used to re-post itself, which spins the UI queue, and overflows the stack with an inline
+    test dispatcher.) `PlaybackController` evaluates the graph on the thread pool only when a device will be rendered
+    out of process, so refreshes without plugin MIDI effects keep their old synchronous behaviour.
 
 ## 5. Regression net (hold the refactor to these)
 
@@ -135,6 +140,9 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
   audio clip), and the Racks and Mixer sections with `format3-routing-full.cadence` (synthetic clicks and drags; an
   autosave restore brought the new rack back). Clicking through every workflow was not done by hand; view-model tests
   cover the workflows. There are no Avalonia headless UI tests.
+- Plugin MIDI rendering is tested with the reference Transpose plugin only, at the routing level with real workers.
+  The app's "recompile when a plugin MIDI effect's status changes" wiring has no UI-level test (the plugin strip tests
+  use an inline dispatcher that runs posted work on worker threads; a headless Avalonia test would be the right place).
 
 ## 7. Remaining work, in priority order
 
@@ -143,9 +151,8 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
    decides whether the callback is C# or Rust.
 2. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
    parameter enumeration, editors.
-3. **Plugin MIDI effects in the plan**: today their events pass through at plan time (decision 13).
-4. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
-5. **Avalonia headless UI tests** (`Avalonia.Headless.XUnit`) for the inspector sections, so the UI is checked without a
+3. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
+4. **Avalonia headless UI tests** (`Avalonia.Headless.XUnit`) for the inspector sections, so the UI is checked without a
    display (also what a cloud agent on Linux would need).
-6. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
+5. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
    track processing; a dedicated mixer view (the inspector section is a list, not a console with meters).

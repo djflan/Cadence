@@ -1,6 +1,6 @@
 # 0022. Device chains: definitions, instances, ownership, and processing semantics
 
-- Status: Accepted
+- Status: Accepted; amended by 0028 (plugin MIDI effects run in their worker at plan time)
 - Date: 2026-10-10
 
 ## Context

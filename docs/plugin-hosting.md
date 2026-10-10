@@ -80,7 +80,8 @@ reports `ProtocolError`.
 
 Messages: `Hello`/`HelloAck`, `Ping`/`Pong`, `CreateInstance`/`InstanceCreated`, `DestroyInstance`,
 `CaptureState`/`StateResult`, `RestoreState`/`RestoreStateResult`, `SetParameter`, `GetParameters`/`ParameterValues`,
-`Ack`, `Error`, `Shutdown`, `ScanModule`/`ScanResult`, and the test-only `InduceTestFault`.
+`Ack`, `Error`, `Shutdown`, `ScanModule`/`ScanResult`, `RenderEvents`/`RenderedEvents` (protocol version 2; see
+"Plugin MIDI effects in the plan"), and the test-only `InduceTestFault`.
 
 Plugin identity (`PluginIdentity`: format, module id, plugin id, display name, vendor, kind, version) and instance
 identity (`PluginInstanceId`, a GUID that stays the same across restarts) are different types. Parameters are
@@ -358,6 +359,27 @@ Tests: `PluginDeviceHostTests` (scenarios 11 to 13 through the project: save, re
 valid; one of two workers killed; a missing plugin; removing a device stops its worker) and
 `PluginDeviceStripTests` (the strip shows `[Reference Gain: Crashed]` with Restart after a real kill).
 
+### Plugin MIDI effects in the plan
+
+`PluginDeviceHost.Extend` also attaches a `PluginEventRenderer` to the device catalog (ADR 0028). When the plan is
+compiled, the chain runner hands each plugin MIDI effect the events it handles and its own automation, and the
+renderer sends a `RenderEvents` request to that device's worker. The worker runs a fresh copy of the plugin from the
+project's stored state and parameter values over the timeline, in blocks of the instance's block size, with the
+tempo map as transport, and replies with what the plugin put out. The live instance is not touched.
+
+- Ticks become sample frames on the tempo map and come back the same way; an output at an input's frame takes that
+  input's exact tick. Note-on and note-off pairs become notes again; a note that never ends is closed at the last
+  input and reported. Limits: 131,072 events and 32,768 parameter changes per request.
+- A worker that is gone or not running, does not answer within the request timeout (it is then stopped), or reports a
+  plugin error leaves the events unchanged and adds a diagnostic. The plan always compiles.
+- `PlaybackController` compiles off the caller's thread when a project has such a device; the app compiles again
+  when a plugin MIDI effect's status changes.
+
+Tests (`PluginMidiInThePlanTests`, real workers): the reference Transpose moves notes in the plan and the transposed
+bytes reach a loopback port while SysEx and controllers go around it; its automation changes the transposition from
+its tick on and a tap carries its output to another track; a killed worker and a hung worker both leave the notes
+unchanged with a reason, and a restart brings the transposition back.
+
 ## Acceptance scenarios
 
 | # | Scenario | Tests (real worker processes) |
@@ -377,6 +399,7 @@ isolation machinery is real, the plugins are Cadence's own.
 | Frame round trip of every message, strict decoding, fuzzing, version mismatch | `FrameCodecTests`, `HandshakeTests` |
 | Exchange state machine, withdraw, late-result discard, pipelining, faults, generations, disposal, dropped counts | `BlockExchangeTests`, `PipelineLatencyTests` |
 | Zero allocation on submit and collect; two-thread stress with pattern-checked audio | `BlockExchangeTests.HostSubmitAndCollect_AllocateNothing`, `BlockExchangeTests.TwoThreads_UnderStress_NeverDeliverAnotherBlocksAudio` |
+| Plugin MIDI effects rendered into the plan: transposition, automation, taps, killed and hung workers | `PluginMidiInThePlanTests`, `ChainRunnerTests.AnOutOfProcessDevice_*` |
 | The same across a real worker | `PluginDataPlaneProcessTests` |
 | Reference plugins (sample-accurate gain, polyphonic deterministic sine, transpose passing controllers and SysEx), state | `ReferencePluginTests`, `ReferencePluginProcessTests` |
 | Kill mid-stream, Unavailable(Crashed) once, silence at once, restart restores state and parameters | `PluginCrashRecoveryTests.KillingTheWorkerMidStream_MarksCrashedOnce_SilencesAtOnce_AndRestartRestoresStateAndParameters` |
@@ -405,6 +428,7 @@ and run as one non-parallel collection. The integration project references the w
 - **MIDI 2.0** events on the data plane.
 - **In-process hosting** of trusted plugins.
 - **Audio from plugins into a mixer.** There is no audio engine: plugin instances process blocks when asked (as the
-  tests do), but nothing drives them from playback yet, and a plugin MIDI effect's output does not reach the plan.
+  tests do), but nothing drives them from playback yet. Plugin MIDI effects reach the plan by rendering (above); live
+  input does not pass through plugins.
 - **Scanning from the UI.** The app scans `<application data>/Cadence/plugins` once at start; rescanning and
   clearing quarantine are API calls (`PluginScanner.RescanAsync`) without a menu yet.
