@@ -33,6 +33,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0026](0026-native-technology-policy.md) | Native technology policy: C# first, Rust where measurements or native interfaces demand it | Accepted |
 | [0027](0027-project-format-4.md) | Project format 4 and the migration from per-track routes | Accepted; amends 0009 |
 | [0028](0028-plugin-midi-effects-at-plan-time.md) | Plugin MIDI effects run in their worker when the plan is compiled | Accepted; amends 0022 and 0025 |
+| [0029](0029-rename-to-bluestone.md) | The project is renamed Bluestone, with no compatibility for Cadence files | Accepted |
 
 ## Template
 
