@@ -10,6 +10,7 @@ public sealed class DependencyDirectionTests
         { "Cadence.Domain", [] },
         { "Cadence.Midi", ["Cadence.Domain"] },
         { "Cadence.Profiles", ["Cadence.Domain"] },
+        { "Cadence.Signal", ["Cadence.Domain"] },
         { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi"] },
         { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
