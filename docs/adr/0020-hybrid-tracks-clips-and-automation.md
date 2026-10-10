@@ -37,11 +37,15 @@ clips. Cadence has no track types yet, so it can go hybrid from the start withou
   that start before the window do not play, and nothing is retriggered. A clip's length never
   changes on its own when its events change.
 - **Clips on a track never overlap.** The `Track` constructor refuses overlaps. Placing a clip
-  (moving, copying, recording) lets the placed clip win: clips it covers are removed, trimmed, or
-  split. Undo restores them. This keeps a track's arranged events a plain concatenation, with no
-  merge rule.
-- **Splitting divides events by timeline position.** Events keep their `EventId`s; the right half
-  gets a new `ClipId`. Event IDs stay unique across all clips on a track.
+  (moving, copying, recording a replacing take) lets the placed clip win: clips it covers are
+  removed, trimmed, or split. Undo restores them. This keeps a track's arranged events a plain
+  concatenation, with no merge rule.
+- **Overdubbing is the exception: it adds, so it joins.** An overdubbed take and every clip it
+  overlaps become one clip holding all of their visible events, so overdubbing never loses content.
+- **Event IDs stay unique across all clips on a track.** Copying a clip gives the copy a new `ClipId`
+  and new `EventId`s. Splitting divides events by timeline position; events keep their `EventId`s
+  and the right half gets a new `ClipId`. A note held across the split stays in the left half and is
+  cut at the split, like any note crossing a clip end.
 - **Clip content is inline, not pooled.** Linked clips (several placements sharing one content) are
   future work: they would add a content pool to the sequence and make event identity `(ClipId,
   EventId)`. Keeping placement fields separate from content means clip placement, the arranger, and
@@ -53,18 +57,20 @@ clips. Cadence has no track types yet, so it can go hybrid from the start withou
 - **Automation lanes belong to the track** and sit in arrangement time. They do not move with clips.
   A lane has an `AutomationTarget` and a list of `AutomationPoint`s.
 - **Targets are MIDI parameters on a channel:** a controller number, pitch bend, or channel pressure.
-  Bank select, data entry and increment/decrement, RPN/NRPN selectors, and channel mode messages are
-  refused, because a lone value of these means something different from a curve. Mixer and plugin
-  parameters become targets when they exist.
+  Bank select, the LSB controllers (32-63), data entry and increment/decrement, RPN/NRPN selectors,
+  and channel mode messages are refused, because a lone value of these means something different
+  from a curve. Controller lanes send 7-bit values; sending 14-bit MSB/LSB pairs for controllers 0-31
+  is future work. Mixer and plugin parameters become targets when they exist.
 - **A point is a position, a `ControlValue`, and a curve** (`Hold` or `Linear`) shaping the segment
   up to the next point. Values are 32-bit (ADR 0018), so a lane already has MIDI 2.0 resolution.
 - **Lanes are rendered into channel events when the plan is compiled.** The first value is sent at
-  tick 0, so chasing a position is deterministic. Linear segments are sampled every PPQN/32 ticks, and
-  a sample is sent only when its value differs at the target's MIDI 1.0 resolution (7 bits, or 14 for
-  pitch bend). The plan compiler and the SMF exporter share this rendering, so exported files carry
+  tick 0, so chasing a position is deterministic. Linear segments are sampled every
+  max(1, PPQN / 32) ticks (integer division), and a sample is sent only when its value differs at the
+  target's MIDI 1.0 resolution (7 bits, or 14 for pitch bend). The plan compiler and the SMF exporter share this rendering, so exported files carry
   automation as controller events.
-- **Automation wins over clip content.** Clip events aimed at the same target as a non-empty lane,
-  after the route's channel override, are left out of the plan and reported once per track. If a
+- **Automation wins over clip content.** Clip events aimed at the same target as a non-empty lane
+  are left out and reported once per track. Playback compares targets after the route's channel
+  override; SMF export has no routes, so it compares them as written. If a
   channel override sends two lanes to the same target, the first lane wins. At equal times, automation
   sorts after clip events.
 - **Lanes follow the track's route.** The channel override applies to them; transposition does not.
@@ -73,9 +79,10 @@ clips. Cadence has no track types yet, so it can go hybrid from the start withou
 
 The project format becomes version 3 (ADR 0009): each track writes `clips` (with event ticks
 relative to the clip) and `automation`. Format 2 projects are migrated by wrapping each track's
-events in one note clip. The clip starts on the bar of the first event and ends on the bar line after
-the last event's end, strictly after every event position, so nothing that played before is cut
-off. A migrated project must send and export exactly the same MIDI 1.0 bytes; `PlanEquivalenceTests`
+events in one note clip. The clip starts on the bar of the first event. It ends at the latest end of
+any event (note releases included) if that is a bar line, or else at the next bar line; if that is
+not after every event's position (an event at the very end), the clip ends at the following bar line.
+So nothing that played before is cut off. A track with no events gets no clip. A migrated project must send and export exactly the same MIDI 1.0 bytes; `PlanEquivalenceTests`
 guards this with fixtures written by the format 2 serializer.
 
 ## Consequences
@@ -89,6 +96,12 @@ guards this with fixtures written by the format 2 serializer.
   when the loop wraps, only at the next point. Clip controller events already behave this way, but
   automation makes it far more noticeable. A chase state computed with the plan and sent at the wrap
   would fix it without work on the playback thread.
+- Splitting a clip through a held note silences the rest of the note, because the right half does not
+  retrigger it. This matches the rule for clip ends; a split that keeps sounding notes would need
+  notes that carry over between clips.
+- When a channel override sends clip events and a lane to the same target only on playback, export
+  keeps those clip events and playback drops them. The export is still what the track says; the
+  difference comes from the route.
 - Re-importing an exported file brings automation back as clip controller events, not lanes,
   because a MIDI file cannot tell them apart.
 - Sampling interval and deduplication set how dense automation output is. A MIDI 2.0 encoder will
