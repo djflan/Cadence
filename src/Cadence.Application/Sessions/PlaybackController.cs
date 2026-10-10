@@ -56,7 +56,9 @@ public sealed class PlaybackController : IAsyncDisposable
     private TrackId? _thruTrack;
     private IReadOnlyCollection<EndpointId>? _inputSelection;
     private RecordOptions _recordOptions = new();
-    private (IMidiOutput Output, ChannelMessage Off)? _audition;
+    // A held piano key: the release to send to an output, and the release to play into the take.
+    private (IMidiOutput? Output, ChannelMessage? OutputOff, ChannelMessage? RecordedOff)? _audition;
+    private readonly IMonotonicClock _clock;
     private long _takeWraps;
 
     // Orders output changes and metronome slot assignments into the engine, which run on different threads.
@@ -74,6 +76,7 @@ public sealed class PlaybackController : IAsyncDisposable
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
         Profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         Engine = new PlaybackEngine(clock, session.Project.Sequence.TempoMap, options);
         Recorder = new MidiRecorder(Engine);
         _thread = startThread ? new PlaybackThread(Engine, playbackThreadSetup) : null;
@@ -256,33 +259,73 @@ public sealed class PlaybackController : IAsyncDisposable
         ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel
         ?? MidiChannel.FromIndex(0);
 
-    /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a piano key.</summary>
+    /// <summary>
+    /// Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a
+    /// piano key. While recording, the note is played into the take instead, like a note from a MIDI
+    /// input: it sounds on the recording track (through MIDI thru) and is recorded.
+    /// </summary>
     public void Audition(TrackId track, NoteNumber note, Velocity velocity)
     {
         EndAudition();
+        if (Recorder.RecordingTrack is { } recording)
+        {
+            var channel = ChannelFor(recording);
+            var off = ChannelMessage.NoteOff(channel, note, Velocity.DefaultRelease);
+            if (Recorder.PlayOnScreen(ChannelMessage.NoteOn(channel, note, velocity), _clock.Now))
+            {
+                _audition = (null, null, off);
+                return;
+            }
+
+            // No thru target (thru is off): it is still recorded, so sound it on the recording track directly.
+            var direct = SoundOn(recording, note, velocity);
+            _audition = (direct?.Output, direct?.Off, off);
+            return;
+        }
+
+        if (SoundOn(track, note, velocity) is { } sounded)
+        {
+            _audition = (sounded.Output, sounded.Off, null);
+        }
+    }
+
+    public void EndAudition()
+    {
+        if (_audition is not { } held)
+        {
+            return;
+        }
+
+        _audition = null;
+        if (held.RecordedOff is { } recorded)
+        {
+            // The release is input too, so the recorded note gets its length and thru releases it.
+            Recorder.PlayOnScreen(recorded, _clock.Now);
+        }
+
+        if (held is { Output: { } output, OutputOff: { } off })
+        {
+            Engine.SendNow(output, off);
+        }
+    }
+
+    /// <summary>Sends a note-on to <paramref name="track"/>'s output with its route's channel and transposition; returns the matching note-off.</summary>
+    private (IMidiOutput Output, ChannelMessage Off)? SoundOn(TrackId track, NoteNumber note, Velocity velocity)
+    {
         if (Routes.FirstOrDefault(r => r.Track == track) is not { CanPlay: true } route
             || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output))
         {
-            return;
+            return null;
         }
 
         var channel = route.Route!.Channel ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel ?? MidiChannel.FromIndex(0);
         if (!note.TryTranspose(route.Route.Transpose, out var sounding))
         {
-            return;
+            return null;
         }
 
         Engine.SendNow(output, ChannelMessage.NoteOn(channel, sounding, velocity));
-        _audition = (output, ChannelMessage.NoteOff(channel, sounding, Velocity.DefaultRelease));
-    }
-
-    public void EndAudition()
-    {
-        if (_audition is { } held)
-        {
-            Engine.SendNow(held.Output, held.Off);
-            _audition = null;
-        }
+        return (output, ChannelMessage.NoteOff(channel, sounding, Velocity.DefaultRelease));
     }
 
     public void Seek(Tick position) => Engine.Seek(position);

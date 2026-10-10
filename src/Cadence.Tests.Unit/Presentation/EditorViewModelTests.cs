@@ -260,6 +260,31 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Record_PianoKeysPlayAndAreRecorded()
+    {
+        _vm.IsCountInEnabled = false;
+        _vm.ToggleArm(_vm.Tracks[0]);
+        await Settle();
+        _vm.SeekTo(3840);
+
+        await _vm.RecordCommand.ExecuteAsync(null);
+        _playback.Engine.Pump();
+        _clock.Advance(TimeSpan.FromMilliseconds(500));
+        _playback.Engine.Pump();
+        Editor.Audition(72, 90);
+        _playback.Engine.Pump();
+        _clock.Advance(TimeSpan.FromMilliseconds(250));
+        _playback.Engine.Pump();
+        Editor.EndAudition();
+        _playback.Engine.Pump();
+        _vm.StopCommand.Execute(null);
+
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x90, 72, 90]);
+        var take = Assert.IsType<NoteEvent>(Track.ArrangedEvents[^1]);
+        Assert.Equal((4800L, 480L, 72), (take.Position.Value, take.Duration.Value, (int)take.Note.Value));
+    }
+
+    [Fact]
     public async Task Record_FromTheTransport_AddsATakeToTheArmedTrack()
     {
         _vm.SelectedInput = _vm.Inputs.Single(i => i.Name == "Keys");

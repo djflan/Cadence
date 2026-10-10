@@ -46,6 +46,9 @@ public sealed class MidiRecorder : IDisposable
     private long _received;
     private int _nextInputKey;
 
+    // Opened inputs are numbered from 1; the on-screen keyboard is input 0.
+    private const int OnScreenKey = 0;
+
     public MidiRecorder(PlaybackEngine engine) => _engine = engine ?? throw new ArgumentNullException(nameof(engine));
 
     public bool IsRecording => _recording;
@@ -210,6 +213,17 @@ public sealed class MidiRecorder : IDisposable
         }
     }
 
+    /// <summary>
+    /// Takes a message played on Cadence's own on-screen keyboard (the piano roll's keys) as input: it is
+    /// echoed through MIDI thru and, while recording, captured in the take at <paramref name="timestamp"/>.
+    /// </summary>
+    /// <returns>False when there is no thru target, so the caller must sound it some other way.</returns>
+    public bool PlayOnScreen(ChannelMessage message, TimeSpan timestamp)
+    {
+        Receive(OnScreenKey, null, message, timestamp);
+        return Volatile.Read(ref _thru) is not null;
+    }
+
     private void Receive(OpenInput input, ReadOnlySpan<byte> bytes, TimeSpan timestamp)
     {
         if (bytes.Length < 2 || bytes[0] < 0x80 || bytes[0] >= 0xF0
@@ -218,9 +232,14 @@ public sealed class MidiRecorder : IDisposable
             return;
         }
 
+        Receive(input.Key, input.Input.Endpoint, message, timestamp);
+    }
+
+    private void Receive(int inputKey, EndpointDescriptor? source, ChannelMessage message, TimeSpan timestamp)
+    {
         Interlocked.Increment(ref _received);
-        TrackHeld(input, message);
-        Echo(input, message);
+        TrackHeld(inputKey, message);
+        Echo(inputKey, source, message);
         if (_recording && _engine.TryGetTickAt(timestamp, out var tick))
         {
             lock (_gate)
@@ -233,9 +252,9 @@ public sealed class MidiRecorder : IDisposable
         }
     }
 
-    private void TrackHeld(OpenInput input, ChannelMessage message)
+    private void TrackHeld(int inputKey, ChannelMessage message)
     {
-        var key = (input.Key, message.Channel.Index, message.Data1);
+        var key = (inputKey, message.Channel.Index, message.Data1);
         lock (_gate)
         {
             if (message.IsNoteOn)
@@ -249,14 +268,14 @@ public sealed class MidiRecorder : IDisposable
             else if (message.Kind == ChannelMessageKind.ControlChange && message.Data1 is 120 or 123)
             {
                 // All Sound Off and All Notes Off release everything held on the channel.
-                _held.RemoveWhere(k => k.Input == input.Key && k.Channel == message.Channel.Index);
+                _held.RemoveWhere(k => k.Input == inputKey && k.Channel == message.Channel.Index);
             }
         }
     }
 
-    private void Echo(OpenInput input, ChannelMessage message)
+    private void Echo(int inputKey, EndpointDescriptor? source, ChannelMessage message)
     {
-        var key = (input.Key, message.Channel.Index, message.Data1);
+        var key = (inputKey, message.Channel.Index, message.Data1);
         if (message.IsNoteOff)
         {
             // A release goes wherever its note went, even if the thru target changed in between.
@@ -275,7 +294,7 @@ public sealed class MidiRecorder : IDisposable
             return;
         }
 
-        if (Volatile.Read(ref _thru) is not { } target || IsFeedback(input.Input.Endpoint, target.Output.Endpoint))
+        if (Volatile.Read(ref _thru) is not { } target || (source is not null && IsFeedback(source, target.Output.Endpoint)))
         {
             return;
         }

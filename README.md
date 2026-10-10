@@ -177,7 +177,7 @@ music lives in clips; the piano roll edits one clip at a time and darkens the ti
 | Quantize | Q (Shift + Q also quantizes note ends), with grid, strength, and swing in the header |
 | Copy, cut, paste at the playhead, duplicate, delete | Ctrl/Cmd + C, X, V, D; Delete |
 | Exact values | Type a position, length, pitch, velocity, or channel in the strip above the notes |
-| Hear a key | Click the keyboard |
+| Hear a key | Click the keyboard; while recording, clicked keys play on the recording track and are recorded |
 
 The event list (D) shows every event on the track with editable position, channel, data, and
 length, filtered by kind, and shares its selection with the piano roll. Every edit is one undo step.

@@ -97,6 +97,28 @@ public sealed class RecordingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task PianoKeys_WhileRecordingWithoutThru_SoundOnTheTrackAndAreRecorded()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+
+        // Thru is off here, so the key sounds on the track's output directly, and is still recorded.
+        _controller.Audition(track.Id, new NoteNumber(64), new Velocity(80));
+        RunTo(750);
+        _controller.EndAudition();
+        RunTo(800);
+        _controller.Stop();
+
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x90, 64, 80]);
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x80, 64, _]);
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
+        Assert.Equal((960L, 480L, 64), (note.Position.Value, note.Duration.Value, (int)note.Note.Value));
+    }
+
+    [Fact]
     public async Task Recording_ClicksTheMetronomeOnTheTracksOutput()
     {
         var track = AddTrack(_synth);
