@@ -20,8 +20,10 @@ plugins can be routed downstream.
   (`RenderedEvents`). Live instances are not touched.
 - **The project is the input.** The render starts from the project's stored state and parameters, not from the
   live instance, so the same project compiles to the same plan.
-- **Time travels as sample frames on the tempo map.** An event the plugin puts out at an input's frame takes that
-  input's exact tick; other frames are converted back through the tempo map. Note-on and note-off pairs become
+- **Time travels as sample frames on the tempo map.** The n-th event the plugin puts out at a frame answers the n-th
+  event sent at that frame and takes its exact tick, so ticks that share a frame (very high resolutions) come back
+  apart; events at other frames are converted back through the tempo map. A note shorter than a frame is sent
+  ending one frame after it starts, so the plugin always sees it start first. Note-on and note-off pairs become
   notes again. Output events take their place in the canonical order from the input they match, and keep that
   input's ID when they are the same kind of event; otherwise they get an ID derived from it.
 - **Failure never fails the plan.** A worker that is gone, does not answer within the request timeout (it is then

@@ -367,8 +367,9 @@ renderer sends a `RenderEvents` request to that device's worker. The worker runs
 project's stored state and parameter values over the timeline, in blocks of the instance's block size, with the
 tempo map as transport, and replies with what the plugin put out. The live instance is not touched.
 
-- Ticks become sample frames on the tempo map and come back the same way; an output at an input's frame takes that
-  input's exact tick. Note-on and note-off pairs become notes again; a note that never ends is closed at the last
+- Ticks become sample frames on the tempo map and come back the same way; an output that answers an input (the n-th
+  out at a frame for the n-th in) takes that input's exact tick, and a note shorter than a frame ends a frame after it
+  starts on the way in. Note-on and note-off pairs become notes again; a note that never ends is closed at the last
   input and reported. Limits: 131,072 events and 32,768 parameter changes per request.
 - A worker that is gone or not running, does not answer within the request timeout (it is then stopped), or reports a
   plugin error leaves the events unchanged and adds a diagnostic. The plan always compiles.

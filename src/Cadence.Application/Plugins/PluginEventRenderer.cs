@@ -17,8 +17,8 @@ namespace Cadence.Application.Plugins;
 /// Runs plugin MIDI effects in their workers when the plan is compiled, so what they put out is routed downstream like
 /// any other device's output (ADR 0025). Each render is a fresh copy of the plugin in the device's own worker, started
 /// from the state and parameter values the project stores; the live instance is not touched. Positions travel as
-/// sample frames on the project's tempo map and come back as ticks: an event at an input's frame takes that input's
-/// exact tick. A failure (worker gone or not answering, plugin error, request over the protocol's limits) leaves the
+/// sample frames on the project's tempo map and come back as ticks: an event the plugin puts out in answer to an input
+/// takes that input's exact tick, even when several ticks share a frame. A failure (worker gone or not answering, plugin error, request over the protocol's limits) leaves the
 /// events unchanged and is reported; it never fails the plan.
 /// </summary>
 internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcessRenderer
@@ -95,33 +95,35 @@ internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcess
         for (var i = 0; i < input.Length; i++)
         {
             var e = input[i].Event;
-            var frame = timeline.FrameAt(e.Position, remember: true);
+            var frame = timeline.FrameAt(e.Position);
+            var at = e.Position;
             switch (e)
             {
                 case NoteEvent n:
-                    sent.Add(new Sent(frame, 1, PluginEvent.NoteOn(0, n.Channel.Index, n.Note.Value, n.Velocity.Value), i));
-                    sent.Add(new Sent(timeline.FrameAt(n.EndPosition, remember: true), 0, PluginEvent.NoteOff(0, n.Channel.Index, n.Note.Value, n.ReleaseVelocity.Value), i));
+                    // A note shorter than a frame still ends a frame after it starts, so the plugin sees it start first.
+                    sent.Add(new Sent(frame, 1, PluginEvent.NoteOn(0, n.Channel.Index, n.Note.Value, n.Velocity.Value), i, at));
+                    sent.Add(new Sent(Math.Max(frame + 1, timeline.FrameAt(n.EndPosition)), 0, PluginEvent.NoteOff(0, n.Channel.Index, n.Note.Value, n.ReleaseVelocity.Value), i, n.EndPosition));
                     break;
                 case NoteOffEvent n:
-                    sent.Add(new Sent(frame, 0, PluginEvent.NoteOff(0, n.Channel.Index, n.Note.Value, n.ReleaseVelocity.Value), i));
+                    sent.Add(new Sent(frame, 0, PluginEvent.NoteOff(0, n.Channel.Index, n.Note.Value, n.ReleaseVelocity.Value), i, at));
                     break;
                 case PolyPressureEvent p:
-                    sent.Add(new Sent(frame, 1, PluginEvent.PolyPressure(0, p.Channel.Index, p.Note.Value, p.Pressure.ToSevenBit()), i));
+                    sent.Add(new Sent(frame, 1, PluginEvent.PolyPressure(0, p.Channel.Index, p.Note.Value, p.Pressure.ToSevenBit()), i, at));
                     break;
                 case ControllerEvent c:
-                    sent.Add(new Sent(frame, 1, PluginEvent.ControlChange(0, c.Channel.Index, c.Controller.Value, c.Value.ToSevenBit()), i));
+                    sent.Add(new Sent(frame, 1, PluginEvent.ControlChange(0, c.Channel.Index, c.Controller.Value, c.Value.ToSevenBit()), i, at));
                     break;
                 case ChannelPressureEvent c:
-                    sent.Add(new Sent(frame, 1, PluginEvent.ChannelPressure(0, c.Channel.Index, c.Pressure.ToSevenBit()), i));
+                    sent.Add(new Sent(frame, 1, PluginEvent.ChannelPressure(0, c.Channel.Index, c.Pressure.ToSevenBit()), i, at));
                     break;
                 case PitchBendEvent b:
-                    sent.Add(new Sent(frame, 1, PluginEvent.PitchBend(0, b.Channel.Index, b.Value.ToFourteenBit()), i));
+                    sent.Add(new Sent(frame, 1, PluginEvent.PitchBend(0, b.Channel.Index, b.Value.ToFourteenBit()), i, at));
                     break;
                 case ProgramEvent { Selection: { BankMsb: null, BankLsb: null } } program:
-                    sent.Add(new Sent(frame, 1, PluginEvent.ProgramChange(0, program.Channel.Index, program.Selection.Program.Value), i));
+                    sent.Add(new Sent(frame, 1, PluginEvent.ProgramChange(0, program.Channel.Index, program.Selection.Program.Value), i, at));
                     break;
                 case SysExEvent s when PluginEvent.TryCreateSystemExclusive(0, s.Message.Bytes.Span, out var sysEx):
-                    sent.Add(new Sent(frame, 1, sysEx, i));
+                    sent.Add(new Sent(frame, 1, sysEx, i, at));
                     break;
                 default:
                     around.Add(input[i]);
@@ -149,8 +151,8 @@ internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcess
         {
             var ordinal = seenAtFrame.GetValueOrDefault(frame);
             seenAtFrame[frame] = ordinal + 1;
-            var (source, id) = Origin(frame, ordinal, e, sent, frames, input, seed);
-            var tick = timeline.TickAt(frame);
+            var (source, id, matched) = Origin(frame, ordinal, e, sent, frames, input, seed);
+            var tick = matched ?? timeline.TickAt(frame);
             var channel = MidiChannel.FromIndex(e.Channel);
             switch (e.Kind)
             {
@@ -217,14 +219,15 @@ internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcess
     private static SignalEvent Note(Started on, Tick end, MidiChannel channel, int note, int release) =>
         on.Source.With(new NoteEvent(on.Id, on.Position, new TickSpan(Math.Max(1, end.Value - on.Position.Value)), channel, new NoteNumber(note), new Velocity(on.Velocity), new Velocity(release)));
 
-    // The input an output event belongs to, for its place in the order and its identity. The n-th event out at a frame
-    // matches the n-th event in at that frame; it keeps that input's ID when it is the same kind of event (a note moved,
-    // say) and gets an ID derived from it otherwise. An event at a frame with no input belongs to the last input before.
-    private static (SignalEvent Source, EventId Id) Origin(long frame, int ordinal, in PluginEvent e, List<Sent> sent, long[] frames, ReadOnlySpan<SignalEvent> input, EventId seed)
+    // The input an output event belongs to, for its place in the order, its tick, and its identity. The n-th event out at
+    // a frame matches the n-th event in at that frame and takes its exact tick; it keeps that input's ID when it is the
+    // same kind of event (a note moved, say) and gets an ID derived from it otherwise. An event at a frame with no input
+    // belongs to the last input before it, and its tick comes from the tempo map.
+    private static (SignalEvent Source, EventId Id, Tick? Tick) Origin(long frame, int ordinal, in PluginEvent e, List<Sent> sent, long[] frames, ReadOnlySpan<SignalEvent> input, EventId seed)
     {
         if (sent.Count == 0)
         {
-            return (default, DerivedId(seed, frame, ordinal));
+            return (default, DerivedId(seed, frame, ordinal), null);
         }
 
         var first = LowerBound(frames, frame);
@@ -238,11 +241,13 @@ internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcess
         {
             var match = sent[first + Math.Min(ordinal, count - 1)];
             var source = input[match.Source];
-            return ordinal < count && match.Event.Kind == e.Kind ? (source, source.Event.Id) : (source, DerivedId(source.Event.Id, frame, ordinal));
+            return ordinal < count && match.Event.Kind == e.Kind
+                ? (source, source.Event.Id, match.Tick)
+                : (source, DerivedId(source.Event.Id, frame, ordinal), match.Tick);
         }
 
         var before = sent[Math.Max(0, first - 1)];
-        return (input[before.Source], DerivedId(input[before.Source].Event.Id, frame, ordinal));
+        return (input[before.Source], DerivedId(input[before.Source].Event.Id, frame, ordinal), null);
     }
 
     private static int LowerBound(long[] frames, long frame)
@@ -276,27 +281,15 @@ internal sealed class PluginEventRenderer(PluginDeviceHost host) : IOutOfProcess
 
     private static Tick Max(Tick a, Tick b) => a >= b ? a : b;
 
-    private readonly record struct Sent(long Frame, int Rank, PluginEvent Event, int Source);
+    private readonly record struct Sent(long Frame, int Rank, PluginEvent Event, int Source, Tick Tick);
 
     private readonly record struct Started(Tick Position, int Velocity, SignalEvent Source, EventId Id);
 
-    // Ticks to sample frames on the tempo map, and back. A frame that came from a tick goes back to exactly that tick.
+    // Ticks to sample frames on the tempo map, and back (for events that answer no input).
     private sealed class Timeline(TempoMap tempo, double sampleRate)
     {
-        private readonly Dictionary<long, Tick> _exact = [];
+        public long FrameAt(Tick position) => (long)Math.Round(tempo.TimeAt(position).Ticks * sampleRate / TimeSpan.TicksPerSecond);
 
-        public long FrameAt(Tick position, bool remember = false)
-        {
-            var frame = (long)Math.Round(tempo.TimeAt(position).Ticks * sampleRate / TimeSpan.TicksPerSecond);
-            if (remember)
-            {
-                _exact.TryAdd(frame, position);
-            }
-
-            return frame;
-        }
-
-        public Tick TickAt(long frame) =>
-            _exact.TryGetValue(frame, out var exact) ? exact : tempo.TickAt(TimeSpan.FromTicks((long)Math.Round(frame * TimeSpan.TicksPerSecond / sampleRate)));
+        public Tick TickAt(long frame) => tempo.TickAt(TimeSpan.FromTicks((long)Math.Round(frame * TimeSpan.TicksPerSecond / sampleRate)));
     }
 }

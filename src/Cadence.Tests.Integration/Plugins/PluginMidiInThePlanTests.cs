@@ -35,11 +35,11 @@ public sealed class PluginMidiInThePlanTests
         new(new Tick(at), new TickSpan(length), One, new NoteNumber(note), new Velocity(100));
 
     // Lead: two notes, a chord, a volume controller and an XG SysEx message; Lead → [Reference Transpose +7] → port.
-    private static (ProjectSession Session, Track Lead, DeviceInstance Transpose, LoopbackPort Port, EndpointDirectory Directory) Setup(LoopbackMidiProvider provider)
+    private static (ProjectSession Session, Track Lead, DeviceInstance Transpose, LoopbackPort Port, EndpointDirectory Directory) Setup(LoopbackMidiProvider provider, TrackEvent[]? content = null, Ppqn? ppqn = null, int semitones = 7)
     {
         var port = provider.CreatePort("Synth", "synth");
         var directory = new EndpointDirectory([provider]);
-        TrackEvent[] events =
+        TrackEvent[] events = content ??
         [
             Note(0, 60),
             new ControllerEvent(new Tick(0), One, new ControllerNumber(7), ControlValue.FromSevenBit(100)),
@@ -49,12 +49,12 @@ public sealed class PluginMidiInThePlanTests
             Note(480, 67),
         ];
         var lead = Track.FromEvents(TrackId.New(), "Lead", events);
-        var transpose = DeviceInstance.Create(PluginDeviceHost.DefinitionOf(Transpose).ToReference()).WithParameter(Semitones, SemitonesValue(7));
+        var transpose = DeviceInstance.Create(PluginDeviceHost.DefinitionOf(Transpose).ToReference()).WithParameter(Semitones, SemitonesValue(semitones));
         var synth = ExternalInstrument.Create("Synth", new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value, "Synth"));
         var session = new ProjectSession();
         var project = session.Project with
         {
-            Sequence = session.Project.Sequence.WithTrack(lead),
+            Sequence = (ppqn is { } resolution ? Sequence.CreateEmpty(resolution) : session.Project.Sequence).WithTrack(lead),
             Instruments = [synth],
             Connections = [SignalConnection.Create(SignalKind.Events, SignalNode.Track(lead.Id), SignalNode.ExternalPart(synth.Id, synth.Ports[0].Id))],
         };
@@ -140,6 +140,26 @@ public sealed class PluginMidiInThePlanTests
         Assert.Equal(["0:sysex9", "0:cc7", "0:67/240", "240:71/240", "480:72/240", "480:79/240"], Notes(graph));
         Assert.Equal(MidiChannel.FromNumber(2), graph.ExternalParts[0].ForcedChannel);
         Assert.Equal(transpose.Id, Assert.Single(graph.Parameters).Device);
+    }
+
+    [Fact]
+    public async Task NotesShorterThanASampleFrame_AndTicksSharingAFrame_ComeBackExactly()
+    {
+        // At 30000 ticks per quarter and 120 bpm a tick is 0.8 frames at 48 kHz: one-tick notes start and end inside one
+        // frame, and neighbouring ticks share frames. A plugin that leaves notes alone must give back the same notes.
+        await using var host = new PluginTestHost();
+        using var provider = new LoopbackMidiProvider(new VirtualClock(TimeSpan.FromSeconds(1)));
+        TrackEvent[] hits = [Note(0, 36, length: 1), Note(1, 38, length: 1), Note(2, 42, length: 1), Note(3, 46, length: 3), Note(7, 49, length: 1)];
+        var (session, _, transpose, _, directory) = Setup(provider, hits, new Ppqn(30_000), semitones: 0);
+        using var _ = directory;
+        await using var bridge = new PluginDeviceHost(host.Manager, session, [Transpose]);
+        await bridge.SyncAsync(session.Project, Ct);
+        host.Track(bridge.InstanceOf(transpose.Id)!);
+
+        var graph = SignalGraph.Evaluate(session.Project, bridge.Extend(DeviceCatalog.BuiltIn));
+
+        Assert.Equal(["0:36/1", "1:38/1", "2:42/1", "3:46/3", "7:49/1"], Notes(graph));
+        Assert.DoesNotContain(graph.Diagnostics, d => d.Device == transpose.Id);
     }
 
     [Fact]

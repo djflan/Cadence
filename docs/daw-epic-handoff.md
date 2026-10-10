@@ -31,7 +31,7 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Rust | Not introduced: nothing measured needs it yet (ADR 0026 sets the bar) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
-`dotnet test src/Cadence.slnx`: 1136 total, 1123 passed, 12 skipped (other platforms' adapters), 1 failed: the
+`dotnet test src/Cadence.slnx`: 1137 total, 1124 passed, 12 skipped (other platforms' adapters), 1 failed: the
 intermittent `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder`, which also fails on the
 untouched base (section 2). Plugin integration tests: 8 consecutive passes of 27, no workers left behind; the bridge
 and strip tests (5) pass.
