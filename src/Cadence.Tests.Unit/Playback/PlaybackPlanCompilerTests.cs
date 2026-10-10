@@ -92,5 +92,60 @@ public sealed class PlaybackPlanCompilerTests
         Assert.Equal(0, Compile(With(track), (track, new(0))).EventCount);
     }
 
+    private static AutomationLane VolumeRamp(int channel = 0) => new(
+        AutomationLaneId.New(),
+        AutomationTarget.ForController(MidiChannel.FromIndex(channel), ControllerNumber.ChannelVolume),
+        [new AutomationPoint(Tick.Zero, ControlValue.Min), new AutomationPoint(new Tick(1000), ControlValue.FromSevenBit(127))]);
+
+    private static Track WithLanes(Track track, params AutomationLane[] lanes) => track.WithAutomation(lanes);
+
+    [Fact]
+    public void Automation_IsSentInPlaceOfClipEventsOnItsTarget()
+    {
+        var track = WithLanes(Track.FromEvents(TrackId.New(), "t", [Note(0, 10), Cc(100, 7, 127), Cc(100, 11, 5)]), VolumeRamp());
+
+        var plan = Compile(With(track), (track, new(0)));
+
+        var volume = plan.Events.Where(e => e.Message.Status == 0xB0 && e.Message.Data1 == 7).ToList();
+        // Sampled every 15 ticks at 500 PPQN, and only when the 7-bit value changes.
+        Assert.Equal(68, volume.Count);
+        Assert.Equal((0L, 0), (volume[0].Tick, (int)volume[0].Message.Data2));
+        Assert.Equal((1000L, 127), (volume[^1].Tick, (int)volume[^1].Message.Data2));
+        Assert.True(volume.Zip(volume.Skip(1)).All(p => p.Second.Message.Data2 > p.First.Message.Data2 && p.Second.Tick - p.First.Tick <= 15));
+        Assert.Single(plan.Events, e => e.Message.Status == 0xB0 && e.Message.Data1 == 11);
+        Assert.Contains("1 events in clips were replaced", Assert.Single(plan.Diagnostics).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Automation_IsChasedOnSeek()
+    {
+        var track = WithLanes(Track.FromEvents(TrackId.New(), "t", [Note(0, 10)]), VolumeRamp());
+        var plan = Compile(With(track), (track, new(0)));
+
+        var chased = ChaseState.Compute(plan, 500).Single(m => m.Message.Data1 == 7);
+
+        Assert.InRange(chased.Message.Data2, 61, 63);
+        Assert.Equal(0, ChaseState.Compute(plan, 1).Single(m => m.Message.Data1 == 7).Message.Data2);
+    }
+
+    [Fact]
+    public void Automation_FollowsTheChannelOverrideButNotTransposition()
+    {
+        var track = WithLanes(Track.FromEvents(TrackId.New(), "t", [Note(0, 10)]), VolumeRamp());
+
+        var plan = Compile(With(track), (track, new(0, MidiChannel.FromNumber(5), Transpose: 12)));
+
+        Assert.All(plan.Events.Where(e => e.Message.Status is >= 0xB0 and <= 0xBF), e => Assert.Equal((4, 7), (e.Message.Channel.Index, (int)e.Message.Data1)));
+        Assert.Equal(0x48, plan.Events.Single(e => e.IsNote).Message.Data1);
+    }
+
+    [Fact]
+    public void Automation_OnSilentTracks_IsNotSent()
+    {
+        var track = WithLanes(Track.FromEvents(TrackId.New(), "t", [], isMuted: true), VolumeRamp());
+
+        Assert.Equal(0, Compile(With(track), (track, new(0))).EventCount);
+    }
+
     private static RawMidiEvent Raw(long tick, params byte[] bytes) => new(EventId.New(), new Tick(tick), ByteBlock.Copy(bytes));
 }

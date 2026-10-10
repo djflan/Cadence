@@ -125,7 +125,8 @@ public sealed class EditHistoryTests
     public void DuplicateTracks_CopiesBelowWithFreshIdsAndRoutes()
     {
         var note = new NoteEvent(Tick.Zero, new TickSpan(10), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max);
-        var a = Track.FromEvents(TrackId.New(), "Bass", [note]);
+        var lane = AutomationLane.Create(AutomationTarget.ForPitchBend(MidiChannel.FromIndex(0)));
+        var a = Track.FromEvents(TrackId.New(), "Bass", [note]).WithLane(lane);
         var b = Track.Create("Drums");
         var history = new EditHistory(Project.CreateNew());
         history.Execute(ProjectCommands.AddTrack(a));
@@ -138,6 +139,8 @@ public sealed class EditHistoryTests
         Assert.Equal(["Bass", "Bass copy", "Drums"], tracks.Select(t => t.Name));
         Assert.NotEqual(a.Id, tracks[1].Id);
         Assert.NotEqual(note.Id, tracks[1].ArrangedEvents.Single().Id);
+        Assert.NotEqual(lane.Id, Assert.Single(tracks[1].Automation).Id);
+        Assert.Equal(lane.Target, tracks[1].Automation[0].Target);
         Assert.Equal(MidiChannel.FromNumber(2), history.Current.Routing.Find(tracks[1].Id)!.Channel);
     }
 

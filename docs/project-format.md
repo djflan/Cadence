@@ -27,6 +27,11 @@ indices, only stable identifiers and identity hints.
                 { "id": "…", "tick": 0, "type": "note", "length": 480, "channel": 2, "note": 40, "velocity": 100, "release": 64 },
                 { "id": "…", "tick": 0, "type": "sysex", "bytes": "F0 43 10 4C 00 00 7E 00 F7" }
               ] }
+          ],
+          "automation": [
+            { "id": "…", "target": { "type": "controller", "channel": 2, "controller": 7 },
+              "points": [ { "tick": 0, "value": 0, "curve": "linear" },
+                          { "tick": 7680, "value": 3355443200, "curve": "hold" } ] }
           ] }
       ]
     },
@@ -52,6 +57,11 @@ indices, only stable identifiers and identity hints.
   track's name.
 - The only clip `type` is `note`, holding the events below. `audio` is reserved.
 - Event IDs are unique across all clips of a track.
+- `automation` (optional; omitted when empty) holds a track's automation lanes, in display order. A
+  lane's `target` is a `controller` (with a `controller` number, not bank select, 32–63, data entry or
+  increment/decrement, RPN/NRPN selectors, or channel mode), `pitchBend`, or `channelPressure`, on a
+  `channel`; no two lanes on a track share a target. Its `points` have timeline `tick`s, at most one
+  per tick, 32-bit `value`s, and a `curve` (`hold` or `linear`) for the way to the next point.
 - Channel events describe what is played, not MIDI 1.0 bytes:
   - `note`: a note with its length, attack velocity, and release velocity.
   - `noteOff`: a release with no matching note, kept from an import.

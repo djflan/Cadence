@@ -16,6 +16,25 @@ public sealed class SmfImportExportTests
     private static SmfImportResult ImportBytes(byte[] bytes) => SmfImporter.Import(SmfReader.Read(bytes).File);
 
     [Fact]
+    public void Export_WritesAutomationAsTheControllerEventsItPlays()
+    {
+        var clipVolume = new ControllerEvent(new Tick(10), One, ControllerNumber.ChannelVolume, ControlValue.Max);
+        var lane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForController(One, ControllerNumber.ChannelVolume), [
+            new AutomationPoint(new Tick(0), ControlValue.FromSevenBit(20), AutomationCurve.Hold),
+            new AutomationPoint(new Tick(960), ControlValue.FromSevenBit(90), AutomationCurve.Hold),
+        ]);
+        var track = Track.FromEvents(TrackId.New(), "t", [clipVolume]).WithAutomation([lane]);
+        var sequence = Sequence.CreateEmpty(new Ppqn(480)).WithTrack(track);
+
+        var exported = SmfReader.Read(SmfWriter.Write(SmfExporter.Export(sequence).File)).File;
+
+        var fileTrack = exported.Tracks.ElementAt(1);
+        var volume = fileTrack.Events.OfType<SmfChannelEvent>().Select(e => (e.Tick, (int)e.Message.Data2)).ToList();
+        Assert.Equal([(0L, 20), (960L, 90)], volume);
+        Assert.Equal(960, fileTrack.EndTick);
+    }
+
+    [Fact]
     public void Import_FormatZeroSplitsChannelsAndKeepsGlobalEventsOnce()
     {
         var result = ImportBytes(File(0, 96, MTrk(

@@ -207,6 +207,17 @@ public sealed class ProjectSerializer
             }
 
             writer.WriteEndArray();
+            if (!track.Automation.IsEmpty)
+            {
+                writer.WriteStartArray("automation");
+                foreach (var lane in track.Automation)
+                {
+                    WriteLane(writer, lane);
+                }
+
+                writer.WriteEndArray();
+            }
+
             writer.WriteEndObject();
         }
 
@@ -242,6 +253,39 @@ public sealed class ProjectSerializer
             writer.WriteEndArray();
         }
 
+        writer.WriteEndObject();
+    }
+
+    private static void WriteLane(Utf8JsonWriter writer, AutomationLane lane)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("id", lane.Id.Value.ToString("D"));
+        writer.WriteStartObject("target");
+        var target = lane.Target;
+        writer.WriteString("type", target.Parameter switch
+        {
+            AutomationParameter.PitchBend => "pitchBend",
+            AutomationParameter.ChannelPressure => "channelPressure",
+            _ => "controller",
+        });
+        writer.WriteNumber("channel", target.Channel.Number);
+        if (target.Parameter == AutomationParameter.Controller)
+        {
+            writer.WriteNumber("controller", target.Controller.Value);
+        }
+
+        writer.WriteEndObject();
+        writer.WriteStartArray("points");
+        foreach (var point in lane.Points)
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("tick", point.Position.Value);
+            writer.WriteNumber("value", point.Value.Value);
+            writer.WriteString("curve", point.Curve == AutomationCurve.Hold ? "hold" : "linear");
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
         writer.WriteEndObject();
     }
 
@@ -455,12 +499,16 @@ public sealed class ProjectSerializer
     {
         var eventCount = 0;
         var clips = Array(json, "clips", path, MaxClipsPerTrack).Select((node, i) => ReadClip(Object(node, $"{path}.clips[{i}]"), $"{path}.clips[{i}]", ref eventCount)).ToList();
-        return Guard($"{path}.clips", () => new Track(
-            new TrackId(Guid(json, "id", path)),
-            String(json, "name", path, Track.MaxNameLength),
-            clips,
-            Bool(json, "muted", path, false),
-            Bool(json, "soloed", path, false)));
+        // Automation points share the track's budget with clip events.
+        var lanes = json["automation"] is null
+            ? []
+            : Array(json, "automation", path, Track.MaxAutomationLanes).Select((node, i) => ReadLane(Object(node, $"{path}.automation[{i}]"), $"{path}.automation[{i}]", ref eventCount)).ToList();
+        var id = new TrackId(Guid(json, "id", path));
+        var name = String(json, "name", path, Track.MaxNameLength);
+        var muted = Bool(json, "muted", path, false);
+        var soloed = Bool(json, "soloed", path, false);
+        var track = Guard($"{path}.clips", () => new Track(id, name, clips, muted, soloed));
+        return Guard($"{path}.automation", () => track.WithAutomation(lanes));
     }
 
     private static NoteClip ReadClip(JsonObject json, string path, ref int eventCount)
@@ -481,6 +529,37 @@ public sealed class ProjectSerializer
             default:
                 throw new ProjectFormatException($"{path}.type", $"\"{type}\" is not a known clip type.");
         }
+    }
+
+    private static AutomationLane ReadLane(JsonObject json, string path, ref int pointCount)
+    {
+        var id = new AutomationLaneId(Guid(json, "id", path));
+        var at = $"{path}.target";
+        var target = Object(json, "target", path);
+        var channel = Channel(target, at);
+        var type = String(target, "type", at, 16);
+        var automationTarget = type switch
+        {
+            "controller" => Guard($"{at}.controller", () => AutomationTarget.ForController(channel, new ControllerNumber(Int(target, "controller", at, 0, 127)))),
+            "pitchBend" => AutomationTarget.ForPitchBend(channel),
+            "channelPressure" => AutomationTarget.ForChannelPressure(channel),
+            _ => throw new ProjectFormatException($"{at}.type", $"\"{type}\" is not a known automation target."),
+        };
+        var array = Array(json, "points", path, Math.Min(AutomationLane.MaxPoints, MaxEventsPerTrack - pointCount));
+        pointCount += array.Count;
+        var points = array.Select((node, i) =>
+        {
+            var point = $"{path}.points[{i}]";
+            var item = Object(node, point);
+            var curve = String(item, "curve", point, 16) switch
+            {
+                "hold" => AutomationCurve.Hold,
+                "linear" => AutomationCurve.Linear,
+                var other => throw new ProjectFormatException($"{point}.curve", $"\"{other}\" is not a known curve."),
+            };
+            return new AutomationPoint(new Tick(Long(item, "tick", point, 0, long.MaxValue)), Value(item, point), curve);
+        }).ToList();
+        return Guard($"{path}.points", () => new AutomationLane(id, automationTarget, points));
     }
 
     private static TrackEvent ReadEvent(JsonObject json, string path)

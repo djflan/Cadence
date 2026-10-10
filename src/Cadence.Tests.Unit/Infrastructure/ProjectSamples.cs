@@ -36,6 +36,13 @@ internal static class ProjectSamples
             new NoteClip(ClipId.New(), new Tick(3840), new TickSpan(480), TickSpan.Zero, new EventList([
                 new NoteEvent(new Tick(0), new TickSpan(240), channel, new NoteNumber(76), new Velocity(92)),
             ])),
+        ], automation: [
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForController(channel, ControllerNumber.ChannelVolume), [
+                new AutomationPoint(new Tick(0), ControlValue.FromSevenBit(10)),
+                new AutomationPoint(new Tick(1920), new ControlValue(0xDEAD_BEEF), AutomationCurve.Hold),
+            ]),
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForPitchBend(channel), []),
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForChannelPressure(MidiChannel.FromNumber(16)), [new AutomationPoint(new Tick(5), ControlValue.Max)]),
         ]);
         var sequence = new Sequence(
             new TempoMap(ppqn, [new TempoChange(new Tick(960), new Tempo(400_000))]),
@@ -77,6 +84,7 @@ internal static class ProjectSamples
         foreach (var track in s.Tracks)
         {
             lines.Add($"track {track.Id} {track.Name} m={track.IsMuted} s={track.IsSoloed}");
+            lines.AddRange(track.Automation.Select(l => $"  lane {l.Id} {l.Target} {string.Join(",", l.Points)}"));
             foreach (var clip in track.Clips.Cast<NoteClip>())
             {
                 lines.Add($"  clip {clip.Id} {clip.Start}+{clip.Length} offset={clip.ContentOffset} \"{clip.Name}\"");

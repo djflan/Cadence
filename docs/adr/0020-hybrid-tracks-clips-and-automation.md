@@ -72,7 +72,8 @@ clips. Cadence has no track types yet, so it can go hybrid from the start withou
   target's MIDI 1.0 resolution (7 bits, or 14 for pitch bend). The plan compiler and the SMF exporter share this rendering, so exported files carry
   automation as controller events.
 - **Automation wins over clip content.** Clip events aimed at the same target as a non-empty lane
-  are left out and reported once per track. Playback compares targets after the route's channel
+  are left out and reported once per track. A controller lane also replaces its LSB partner
+  (controller + 32), so stale fine values cannot skew the automated level. Playback compares targets after the route's channel
   override; SMF export has no routes, so it compares them as written. If a
   channel override sends two lanes to the same target, the first lane wins. At equal times, automation
   sorts after clip events.
