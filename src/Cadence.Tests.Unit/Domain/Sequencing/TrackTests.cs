@@ -98,6 +98,17 @@ public sealed class TrackTests
     }
 
     [Fact]
+    public void GapAt_IsTheFreeSpaceAroundAPosition()
+    {
+        var track = With(Clip(1000, 500), Clip(3000, 500));
+
+        Assert.Equal((Tick.Zero, (Tick?)new Tick(1000)), track.GapAt(new Tick(10)));
+        Assert.Equal((new Tick(1500), (Tick?)new Tick(3000)), track.GapAt(new Tick(1500)));
+        Assert.Equal((new Tick(3500), (Tick?)null), track.GapAt(new Tick(9000)));
+        Assert.Equal((Tick.Zero, (Tick?)null), Track.Create("t").GapAt(new Tick(5)));
+    }
+
+    [Fact]
     public void PlaceClip_TrimsSplitsAndRemovesWhatItCovers()
     {
         var left = Clip(0, 100, Note(10), Note(90));

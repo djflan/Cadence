@@ -308,13 +308,13 @@ public sealed class TimelineView : Control
                 end++;
             }
 
-            DrawClip(context, track, clip, notes.GetRange(first, end - first), (low, high), lane, left, right, offset);
+            DrawClip(context, track, clip, notes, (first, end), (low, high), lane, left, right, offset);
             first = end;
         }
     }
 
-    // The notes given are this clip's, in timeline order.
-    private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Low, int High) range, int lane, double left, double right, long offset)
+    // notes[slice] are this clip's notes, in timeline order.
+    private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Start, int End) slice, (int Low, int High) range, int lane, double left, double right, long offset)
     {
         var shift = TickToX(offset);
         var x0 = Math.Round(TickToX(clip.Start.Value) + shift) + 1;
@@ -350,7 +350,7 @@ public sealed class TimelineView : Control
             context.DrawText(name, new Point(labelX, body.Y + 0.5));
         }
 
-        if (notes.Count == 0)
+        if (slice.Start == slice.End)
         {
             return;
         }
@@ -365,8 +365,9 @@ public sealed class TimelineView : Control
         var lastVisible = Math.Min(clip.End.Value - 1, XToTick(Math.Max(0, right - shift)));
         using (context.PushClip(body))
         {
-            foreach (var note in notes)
+            for (var i = slice.Start; i < slice.End; i++)
             {
+                var note = notes[i];
                 if (note.Position.Value > lastVisible)
                 {
                     break;

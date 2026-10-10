@@ -134,15 +134,20 @@ public sealed class Track
     /// <summary>The clip containing <paramref name="position"/>, if any.</summary>
     public Clip? ClipAt(Tick position)
     {
-        foreach (var clip in Clips)
-        {
-            if (clip.Contains(position))
-            {
-                return clip;
-            }
-        }
+        var index = LastStartingAtOrBefore(position);
+        return index >= 0 && Clips[index].Contains(position) ? Clips[index] : null;
+    }
 
-        return null;
+    /// <summary>
+    /// The free space around <paramref name="position"/>: from the end of the clip before it (or tick 0) to
+    /// the start of the clip after it (or null if there is none). Meaningful only where no clip is.
+    /// </summary>
+    public (Tick From, Tick? Until) GapAt(Tick position)
+    {
+        var index = LastStartingAtOrBefore(position);
+        var from = index >= 0 ? Clips[index].End : Tick.Zero;
+        Tick? until = index + 1 < Clips.Length ? Clips[index + 1].Start : null;
+        return (from, until);
     }
 
     /// <summary>The note clip holding the event with <paramref name="id"/>, if any.</summary>
@@ -215,6 +220,26 @@ public sealed class Track
         }
 
         return new Track(Id, Name, [.. result], IsMuted, IsSoloed);
+    }
+
+    private int LastStartingAtOrBefore(Tick position)
+    {
+        int low = 0, high = Clips.Length - 1, found = -1;
+        while (low <= high)
+        {
+            var mid = (low + high) / 2;
+            if (Clips[mid].Start <= position)
+            {
+                found = mid;
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid - 1;
+            }
+        }
+
+        return found;
     }
 
     private static ImmutableArray<Clip> ValidateClips(IEnumerable<Clip> clips)

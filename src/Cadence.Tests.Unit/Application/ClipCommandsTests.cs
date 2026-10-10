@@ -119,16 +119,45 @@ public sealed class ClipCommandsTests
     }
 
     [Fact]
-    public void EditEvents_ThatNeedANewClipAndGrowAnother_DoNotOverlap()
+    public void EditEvents_InSpaceAClipGrowsInto_GoToThatClip()
     {
-        // The first note grows its clip to the bar line; the second starts a clip in the gap it grew into.
+        // The first note grows its clip to the bar line, over where the second starts.
         var clip = Clip(0, 1000);
         var project = With(clip);
 
         var edited = ProjectCommands.AddEvents(TrackOf(project).Id, ClipId.New(), "Paste", [Note(500, length: 1000), Note(1200)]).Apply(project);
 
-        Assert.Equal([(0L, 1000L), (1000L, 1920L)], Bounds(edited));
+        Assert.Equal([(0L, 1920L)], Bounds(edited));
+        Assert.Equal(1000, ((NoteEvent)TrackOf(edited).ArrangedEvents[0]).Duration.Value);
         Assert.Equal(2, TrackOf(edited).ArrangedEvents.Length);
+    }
+
+    [Fact]
+    public void EditEvents_OnHiddenContent_KeepItHiddenInItsClip()
+    {
+        // A trimmed clip still holds a note at 4000, under the next clip.
+        var hidden = Note(4000);
+        var trimmed = Clip(0, 1920, hidden);
+        var next = Clip(3840, 1920);
+        var project = With(trimmed, next);
+
+        var edited = ProjectCommands.ReplaceEvent(TrackOf(project).Id, trimmed.Id, hidden with { Velocity = new Velocity(5) }).Apply(project);
+
+        Assert.Equal(hidden.Id, Assert.Single(((NoteClip)TrackOf(edited).Clips[0]).Content.Items).Id);
+        Assert.Empty(TrackOf(edited).ArrangedEvents);
+    }
+
+    [Fact]
+    public void EditEvents_WithoutAnEditedClip_NameTheFirstNewClip()
+    {
+        var existing = Clip(0, 1920);
+        var project = With(existing);
+        var id = ClipId.New();
+
+        // The paste starts inside the existing clip and continues into free space.
+        var edited = ProjectCommands.AddEvents(TrackOf(project).Id, id, "Paste", [Note(100), Note(5000)]).Apply(project);
+
+        Assert.Equal([existing.Id, id], TrackOf(edited).Clips.Select(c => c.Id));
     }
 
     [Fact]

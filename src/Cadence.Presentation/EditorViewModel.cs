@@ -563,7 +563,11 @@ public sealed partial class EditorViewModel : ObservableObject
             }
         }
 
-        var replaced = LaneEvents().Where(e => e.Position.Value >= fromTick && e.Position.Value <= toTick).Select(e => e.Id).ToList();
+        // What the line covers, in this clip and in any other clip the line reaches.
+        var replaced = LaneEvents().Concat(track.ArrangedEvents.OfType<ChannelEvent>().Where(Lane.Matches))
+            .Where(e => e.Position.Value >= fromTick && e.Position.Value <= toTick)
+            .Select(e => e.Id)
+            .ToHashSet();
         _owner.Execute(ProjectCommands.EditEvents(track.Id, EditedClipId, $"Draw {Lane.Name}", replaced, points));
         FollowClipOf(points);
     }
@@ -718,10 +722,15 @@ public sealed partial class EditorViewModel : ObservableObject
     /// <summary>The edited clip's ID, or a new one for the clip the next added events will create.</summary>
     private ClipId EditedClipId => _clipId ??= ClipId.New();
 
-    /// <summary>Switches to the clip that received <paramref name="added"/>, if it is not the edited one.</summary>
+    /// <summary>Switches to the clip holding the earliest of <paramref name="added"/>, unless the edited clip received any of them.</summary>
     private void FollowClipOf(IReadOnlyCollection<TrackEvent> added)
     {
-        if (added.Count > 0 && Track is { } track && track.ClipOf(added.First().Id) is { } clip && clip.Id != Clip?.Id)
+        if (added.Count == 0 || Track is not { } track || (Clip is { } edited && added.Any(e => edited.Content.Find(e.Id) is not null)))
+        {
+            return;
+        }
+
+        if (track.ClipOf(added.MinBy(e => e.Position)!.Id) is { } clip && clip.Id != Clip?.Id)
         {
             _clipId = clip.Id;
             Sync(track, ColorIndex);
