@@ -55,7 +55,7 @@ The full reasoning is in the ADRs listed in section 5. In short:
 8. **Plugins run out of process, always.** There is no in-process fallback. A shared-memory block
    exchange carries audio and timestamped events; a pipe carries control messages. Crash recovery
    restores from the last captured state.
-9. **C# first.** No Rust is introduced: nothing measured requires it (ADR in section 5 sets the bar).
+9. **C# first, Rust where it pays.** C# is the default. Rust is preferred over C/C++ for performance-critical or native components (likely the plugin worker's VST3 layer and the real-time data plane), each with a stated reason and a versioned C ABI. None has been needed yet (ADR in section 5 sets the bar).
 
 ## 3. Phases
 

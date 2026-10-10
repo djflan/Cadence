@@ -25,7 +25,7 @@ Branch: `claude/busy-gates-qengpq`. Do not open a PR unless asked.
 | Application commands, Presentation, Desktop UI | Not started. |
 | Plugin hosting | **Incomplete, uncommitted, unmerged, never compiled by me.** See section 6. |
 | ADRs, architecture docs, README, CI | Not started (only the plan and this handoff exist). |
-| Rust | Deliberately not introduced. Nothing measured needs it. |
+| Rust | Not introduced yet, because nothing built so far needed native code. **Allowed and preferred over C/C++ for performance-critical or native parts** (decision 17); it is not banned. |
 
 Nothing here is a finished capability. Do not describe any of it as complete in the docs. In particular, saving a project that contains a new-model entity is **not** supported yet.
 
@@ -92,6 +92,7 @@ The rest of this section applies only to the earlier Linux sandbox (SDK 10.0.112
 14. **The evaluator never fails on bad routing.** It leaves out every connection named in a validator error, reports it (`InvalidConnection`), and as a backstop drops any connection that still closes a loop during topological ordering (`Feedback`). Audio connections are validated and reported but not followed (no audio engine).
 15. **"Not routed"** is reported for a playing track with no outgoing event connection (from the track or a tap on its devices) and no instrument in its chain, whatever its content, like the old compiler. With an instrument but no connection, it is reported only when events remain after the chain (for example SysEx the instrument does not handle). A tap on a chain whose owning track is gone is left out and reported (it can never run).
 16. **Arpeggiator phrases are anchored at the first note** played while nothing is held, including after a gap shorter than a step; then they step every rate interval while anything is held, so every phrase sounds (a legato note, starting exactly where the last one ends, continues the phrase). Held pitches are deduplicated and played lowest first; generated notes take the source note's channel, velocities and ordering key, and an `EventId` derived from the source note's ID and the step's tick. Output, IDs included, is identical across evaluations and whether processed in one block or many (tested).
+17. **Language policy (owner clarification, 2026-10-10; overrides any "C# only, no Rust" wording in earlier task instructions or the plugin spec).** C#/.NET is the default for all code. Rust is the choice for performance-critical or native sections, and replaces C/C++ for new Cadence-owned native code; C/C++ only for third-party libraries, vendor SDK requirements, and thin ABI shims. Likely Rust candidates: the plugin worker's native VST3 hosting layer, the real-time shared-memory data plane and audio callback path, and DSP once an audio engine exists. Each needs a stated reason (a measurement or a native ABI constraint), a small versioned C ABI to .NET (prompt section 16.3), and must not become a second application language. This is the same as prompt section 16.
 
 ## 5. Regression net (hold the refactor to these)
 

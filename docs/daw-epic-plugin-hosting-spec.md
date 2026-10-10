@@ -15,8 +15,12 @@ Nothing had been compiled by me.
 - New projects only, plus the wiring listed at the end. Do not touch `Cadence.Domain`, `Application`,
   `Presentation`, `Desktop`, `Playback`, `Infrastructure`, `Midi`, `Profiles`, `Platform.*`, any ADR, `README.md`,
   or `global.json`.
-- C# only. No Rust, no C or C++. No VST3 loading and **no VST3 support claims** anywhere (code, docs, test names).
-  Process isolation is crash isolation only; never call it a security sandbox.
+- Language policy (owner clarification, 2026-10-10; see `docs/daw-epic-handoff.md` section 4, decision 17): C# is
+  the default for everything here (protocol, host, supervision, scanner, tests). Rust is allowed, and preferred over
+  C or C++, for a performance-critical or native part such as the worker's VST3 hosting layer or the real-time
+  data-plane path, when the reason is stated and measured or forced by a native ABI. No new Cadence-owned C or C++
+  beyond thin vendor/ABI shims. No VST3 loading and **no VST3 support claims** until loading, processing, state, and
+  recovery are demonstrated by tests. Process isolation is crash isolation only; never call it a security sandbox.
 - Build environment, analyzer rules, and test-running quirks are in `docs/daw-epic-handoff.md` section 2 and 4.
 - Style: file-scoped namespaces, braces always, sparse comments that explain why, tests named `Subject_Condition_Expectation`.
 - Everything builds with 0 warnings; the whole existing suite still passes; format check passes.
