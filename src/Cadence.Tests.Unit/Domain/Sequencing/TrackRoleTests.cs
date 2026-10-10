@@ -1,5 +1,4 @@
 using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
@@ -157,8 +156,9 @@ public sealed class TrackRoleTests
         var plan = TrackRoleConversion.ForAddedClip(project, track.Id, content, TestDevices.Lookup);
 
         Assert.Equal(RoleChangeOutcome.Refused, plan.Outcome);
+        Assert.Contains("do not hold clips", plan.Message, StringComparison.Ordinal);
         Assert.Throws<InvalidOperationException>(() => plan.Apply(project));
-        Assert.Same(project, project);
+        Assert.Empty(project.Sequence.FindTrack(track.Id)!.Clips);
     }
 
     [Fact]
@@ -226,7 +226,11 @@ public sealed class TrackRoleTests
         Assert.Equal(TrackRole.Instrument, result.Sequence.FindTrack(wrong.Id)!.Role);
         Assert.Equal(TrackRole.Hybrid, result.Sequence.FindTrack(wide.Id)!.Role);
         Assert.Equal(2, changes.Length);
-        Assert.Equal((project, 0), (TrackRoleConversion.Reconcile(result).Project.Equals(result) ? project : result, TrackRoleConversion.Reconcile(result).Changes.Length));
+
+        // Reconciling again finds nothing more to do, and says so by returning the same project.
+        var (again, none) = TrackRoleConversion.Reconcile(result);
+        Assert.Same(result, again);
+        Assert.Empty(none);
     }
 
     [Fact]
