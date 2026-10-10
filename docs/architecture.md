@@ -288,6 +288,12 @@ Live notes (audition, MIDI thru, the on-screen keyboard, the metronome) follow t
 the nearest playable instrument through its connections, with the forced channel and the Transpose
 devices on the way.
 
+In the app, the inspector's Devices strip edits the selected track's chain, or a rack's chain after
+"Edit" in the Racks section; Connections follows whichever chain the strip shows. The Mixer section
+edits channels, their outputs, and the master gain (kept and saved; nothing sounds without an audio
+engine). Every edit is a command, and one that would add a routing error is refused with a message.
+Consecutive edits with the same merge key within a second (a slider drag) are one undo step.
+
 ### Automation
 
 Automation is separate from signal flow (ADR 0024). A MIDI lane targets a controller, pitch bend, or
@@ -379,8 +385,6 @@ Built as boundaries and tested where cheap, but not finished:
   produced and validated so the engine has a defined input.
 - **Third-party plugin formats** (VST3 loading, parameter enumeration) and **plugin editors** (windows, focus,
   DPI, a worker dying with its editor open). The worker hosts Cadence's reference plugins today.
-- **Rack and mixer UI**: racks and mixer channels can be created and edited through commands and connected from
-  the routing inspector, but the device strip edits track chains only and there is no mixer view.
 - **MIDI 2.0** transport and UMP, **MPE**, and per-note controllers.
 - **Visual node-graph editing** and **feedback routing** (loops are refused).
 - **Operating-system sandboxing** of plugin workers.

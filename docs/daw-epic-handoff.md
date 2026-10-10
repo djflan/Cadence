@@ -20,6 +20,8 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Format 4, 3→4 migration, chain preset files (`cadence-chain-preset` v1) | Done, tested; roles reconciled on load |
 | Commands (devices, presets, racks, connections, instruments, mixer, roles, groups), refusal of routing errors | Done, tested |
 | UI: Track (role), Devices (strip), Connections (routing inspector), audio clips drawn, plugin status and Restart | Done; view-model tests; **the app was run on macOS** and the sections checked visually |
+| UI: Racks (new, rename, edit in the strip, remove), Mixer (channels: name, gain, pan, mute, solo, output, remove; master gain) | Done; view-model tests; run on macOS: new rack → strip edits it → back; channel added; fader drag then one Undo restored 0 dB |
+| Undo merging: same merge key within 1 s is one undo step (parameter sliders, mixer gain/pan, master gain) | Done; `EditHistory` tests with a manual `TimeProvider`, view-model tests |
 | Plugin hosting (`Cadence.Plugins.Protocol`, `Cadence.Plugins`, `Cadence.PluginWorker`) | Done, merged; real worker processes killed in tests; reference plugins only |
 | Application bridge (`PluginDeviceHost`): devices ↔ worker instances, state into the project, status, restart | Done, tested with real workers; wired into the desktop app |
 | Acceptance scenarios 1–15 | All have tests: table in `docs/architecture.md` and `docs/plugin-hosting.md` |
@@ -27,7 +29,7 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Rust | Not introduced: nothing measured needs it yet (ADR 0026 sets the bar) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
-`dotnet test src/Cadence.slnx`: 1114 total, 1101 passed, 12 skipped (other platforms' adapters), 1 failed: the
+`dotnet test src/Cadence.slnx`: 1119 total, 1106 passed, 12 skipped (other platforms' adapters), 1 failed: the
 intermittent `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder`, which also fails on the
 untouched base (section 2). Plugin integration tests: 8 consecutive passes of 27, no workers left behind; the bridge
 and strip tests (5) pass.
@@ -105,6 +107,10 @@ devices, and routing"). Plugin hosting: `docs/plugin-hosting.md`, including the 
 24. **Plugin devices** have definition IDs `plugin:<format>:<module>/<plugin>`; available plugins join the catalog as
     data with the parameters their worker reports. State is captured into the project before every save (not on
     autosave). Removing a device stops its worker.
+25. **Undo merging** is opt-in per command: `IProjectCommand.MergeKey`. Consecutive commands with the same key within
+    `EditHistory.MergeWindow` (1 s, measured with an injectable `TimeProvider`) replace the top undo step's result and
+    keep its "before" state. Undo, redo, and reset end the run. Keys: `parameter:{device}:{parameter}`,
+    `gain:{channel}`, `pan:{channel}`, `master-gain`.
 
 ## 5. Regression net (hold the refactor to these)
 
@@ -126,21 +132,20 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
   and deadline handling are tested only with the reference plugins and a test clock.
 - Any third-party plugin: no VST3 or other format is loaded; claims are limited to the reference plugins.
 - The UI was run and inspected on macOS with a hand-made format 4 project (role, chain with a tap and a missing plugin,
-  audio clip). Clicking through every workflow was not done by hand; view-model tests cover the workflows.
+  audio clip), and the Racks and Mixer sections with `format3-routing-full.cadence` (synthetic clicks and drags; an
+  autosave restore brought the new rack back). Clicking through every workflow was not done by hand; view-model tests
+  cover the workflows. There are no Avalonia headless UI tests.
 
 ## 7. Remaining work, in priority order
 
-1. **Rack and mixer UI.** Racks (shared instruments, scenario 1) and mixer channels exist in the model, commands, file
-   format, and routing inspector, but there is no button to create a rack or view to edit its devices (the strip edits
-   track chains only), and no mixer view. Generalize `DeviceStripViewModel` to a chain ID and add "New rack" and a
-   mixer panel.
-2. **Slider edits coalescing.** Dragging a parameter slider records one undo step per value; coalesce into one step.
-3. **Audio engine** (deferred by the prompt; listed in `docs/architecture.md` "Deferred"): play audio clips and
+1. **Audio engine** (deferred by the prompt; listed in `docs/architecture.md` "Deferred"): play audio clips and
    software-instrument feeds, mixer gain/pan, and drive plugin instances from playback. ADR 0026's measurement bar
    decides whether the callback is C# or Rust.
-4. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
+2. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
    parameter enumeration, editors.
-5. **Plugin MIDI effects in the plan**: today their events pass through at plan time (decision 13).
-6. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
-7. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
-   track processing.
+3. **Plugin MIDI effects in the plan**: today their events pass through at plan time (decision 13).
+4. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
+5. **Avalonia headless UI tests** (`Avalonia.Headless.XUnit`) for the inspector sections, so the UI is checked without a
+   display (also what a cloud agent on Linux would need).
+6. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
+   track processing; a dedicated mixer view (the inspector section is a list, not a console with meters).
