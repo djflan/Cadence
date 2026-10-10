@@ -140,6 +140,18 @@ public sealed class TrackTests
             Gen.Select(Gen.Long[0, 20], Gen.Int[0, 127]).Select(x => (TrackEvent)Program(x.Item1, x.Item2)));
 
     [Fact]
+    public void FirstChannel_IsTheChannelOfTheFirstChannelEvent()
+    {
+        var two = MidiChannel.FromNumber(2);
+        var meta = new MetaEvent(EventId.New(), Tick.Zero, 0x03, ByteBlock.Copy("name"u8));
+        var late = Note(100);
+        var early = new ControllerEvent(new Tick(5), two, ControllerNumber.ChannelVolume, ControlValue.Max);
+
+        Assert.Null(new Track(TrackId.New(), "t", [meta]).FirstChannel);
+        Assert.Equal(two, new Track(TrackId.New(), "t", [late, meta, early]).FirstChannel);
+    }
+
+    [Fact]
     public void Events_AreAStableSortOfTheInput() =>
         GenEvent.Array[0, 40].Sample(events =>
         {

@@ -682,8 +682,7 @@ public sealed partial class EditorViewModel : ObservableObject
         }
     }
 
-    private static MidiChannel DefaultChannel(Track track) =>
-        track.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel ?? MidiChannel.FromIndex(0);
+    private static MidiChannel DefaultChannel(Track track) => track.FirstChannel ?? MidiChannel.FromIndex(0);
 
     private void SyncInfo()
     {

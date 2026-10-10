@@ -182,8 +182,7 @@ internal static class TimeGrid
         }
     }
 
-    public static Tick NextBar(MeterMap meter, Tick bar) =>
-        meter.TryGetTick(new BarBeatTick(meter.ToBarBeatTick(bar).Bar + 1, 1, 0), out var next) ? next : bar;
+    public static Tick NextBar(MeterMap meter, Tick bar) => meter.NextBarStart(bar);
 
     /// <summary>Aligns a vertical line to the pixel grid so it stays one pixel wide.</summary>
     public static double Snap(double x) => Math.Round(x) + 0.5;
