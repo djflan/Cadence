@@ -91,7 +91,7 @@ public sealed record Project
     public ImmutableArray<SignalConnection> Connections
     {
         get => _connections;
-        init => _connections = value.IsDefault ? [] : value;
+        init => _connections = UniqueBy(value, c => c.Id, nameof(value), "Connection");
     }
 
     /// <summary>Mixer channels, which are audio paths and are independent of tracks.</summary>

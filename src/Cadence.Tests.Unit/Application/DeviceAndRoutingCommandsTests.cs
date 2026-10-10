@@ -244,6 +244,21 @@ public sealed class DeviceAndRoutingCommandsTests
     }
 
     [Fact]
+    public void RoleAndOutputEdits_ThatWouldBreakRouting_AreRefused()
+    {
+        var (history, a, b) = TwoTracks();
+        history.Execute(ProjectCommands.SetTrackOutput(a.Id, new TrackOutput { Endpoint = new EndpointReference("coremidi", "1", "MU2000") }));
+        history.Execute(TrackRoleCommands.SetRole(b.Id, TrackRole.Audio, Definitions));
+
+        // An audio track has no events, so its events connection to hardware would carry nothing.
+        Assert.Throws<CommandRefusedException>(() => history.Execute(TrackRoleCommands.SetRole(a.Id, TrackRole.Audio, Definitions)));
+        Assert.Throws<CommandRefusedException>(() => history.Execute(ProjectCommands.SetTrackOutput(b.Id, new TrackOutput { Endpoint = new EndpointReference("coremidi", "1", "MU2000") })));
+
+        Assert.Equal(TrackRole.Instrument, history.Current.Sequence.FindTrack(a.Id)!.Role);
+        Assert.Null(TrackOutputs.PrimaryConnection(history.Current, b.Id));
+    }
+
+    [Fact]
     public void Tracks_CanOnlyJoinAGroupTrack()
     {
         var (history, a, b) = TwoTracks();

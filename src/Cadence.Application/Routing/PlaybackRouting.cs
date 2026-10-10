@@ -74,8 +74,14 @@ public static class PlaybackRouting
         var instruments = RouteResolver.ResolveInstruments(project, profiles, endpoints);
         var graph = SignalGraph.Evaluate(project, devices);
         var trackIndex = sequence.Tracks.Select((t, i) => (t.Id, i)).ToDictionary(x => x.Id, x => x.i);
-        var connectionIndex = project.Connections.Select((c, i) => (c.Id, i)).ToDictionary(x => x.Id, x => x.i);
-        var connections = project.Connections.ToDictionary(c => c.Id);
+        var connectionIndex = new Dictionary<ConnectionId, int>();
+        var connections = new Dictionary<ConnectionId, SignalConnection>();
+        for (var i = 0; i < project.Connections.Length; i++)
+        {
+            connectionIndex.TryAdd(project.Connections[i].Id, i);
+            connections.TryAdd(project.Connections[i].Id, project.Connections[i]);
+        }
+
 
         var slots = new List<EndpointId>();
         var parts = ImmutableArray.CreateBuilder<PlanPart>();

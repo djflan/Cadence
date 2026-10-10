@@ -109,7 +109,7 @@ public static class TrackRoleCommands
     /// the plan's message. Use <see cref="TrackRoleConversion.ForRoleChange"/> first to ask the user.
     /// </summary>
     public static IProjectCommand SetRole(TrackId track, TrackRole role, DeviceDefinitionLookup definitions, bool confirmed = false) =>
-        new ProjectCommand("Change Track Role", p => ApplyPlan(p, TrackRoleConversion.ForRoleChange(p, track, role, definitions), confirmed));
+        RoutingGuard.Command("Change Track Role", definitions, p => ApplyPlan(p, TrackRoleConversion.ForRoleChange(p, track, role, definitions), confirmed));
 
     /// <summary>
     /// Adds an audio clip, converting the track's role when its content requires it (an instrument track
@@ -118,7 +118,7 @@ public static class TrackRoleCommands
     public static IProjectCommand AddAudioClip(TrackId track, AudioClip clip, DeviceDefinitionLookup definitions, bool confirmed = false)
     {
         ArgumentNullException.ThrowIfNull(clip);
-        return new ProjectCommand("Add Audio Clip", p =>
+        return RoutingGuard.Command("Add Audio Clip", definitions, p =>
         {
             var converted = ApplyPlan(p, TrackRoleConversion.ForAddedClip(p, track, ClipContent.Audio, definitions), confirmed);
             var target = converted.Sequence.FindTrack(track)!;

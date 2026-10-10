@@ -177,6 +177,16 @@ public sealed class ProjectSerializerTests
     }
 
     [Fact]
+    public void DuplicateConnectionIds_AreFormatErrors()
+    {
+        var json = ToJson(ProjectSamples.Full());
+        var connections = json["project"]!["connections"]!.AsArray();
+        connections[1]!["id"] = (string)connections[0]!["id"]!;
+
+        Assert.Contains("more than once", Assert.Throws<ProjectFormatException>(() => FromJson(json)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Tracks_WithoutAutomation_DoNotWriteIt()
     {
         var json = ToJson(ProjectSamples.Full());

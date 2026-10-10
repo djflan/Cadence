@@ -104,7 +104,11 @@ public static class TrackOutputs
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(output);
-        project = WriteTranspose(project, track, output.Transpose);
+        if (output.Transpose != Read(project, track).Transpose)
+        {
+            project = WriteTranspose(project, track, output.Transpose);
+        }
+
         var existing = PrimaryConnection(project, track);
         if (!output.HasPart)
         {

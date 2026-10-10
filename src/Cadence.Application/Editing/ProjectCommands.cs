@@ -137,9 +137,12 @@ public static class ProjectCommands
             return Route(cleared, start, [.. take], meter, [], []);
         });
 
-    /// <summary>Sets a track's output as the inspector shows it (see <see cref="TrackOutputs.Write"/>).</summary>
-    public static IProjectCommand SetTrackOutput(TrackId track, TrackOutput output) =>
-        new ProjectCommand("Change Routing", p => Equals(TrackOutputs.Read(p, track), output) ? p : TrackOutputs.Write(p, track, output));
+    /// <summary>
+    /// Sets a track's output as the inspector shows it (see <see cref="TrackOutputs.Write"/>). Refused when it would
+    /// add a routing error, such as sending events from a track whose role carries none.
+    /// </summary>
+    public static IProjectCommand SetTrackOutput(TrackId track, TrackOutput output, DeviceDefinitionLookup? definitions = null) =>
+        RoutingGuard.Command("Change Routing", definitions ?? BuiltInDevices.Find, p => Equals(TrackOutputs.Read(p, track), output) ? p : TrackOutputs.Write(p, track, output));
 
     public static IProjectCommand SetLoop(TickRange? loop) =>
         new ProjectCommand(loop is null ? "Clear Loop" : "Set Loop", p => Equals(p.Loop, loop) ? p : p with { Loop = loop });

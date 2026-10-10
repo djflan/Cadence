@@ -97,6 +97,27 @@ public sealed class TrackOutputsTests
     }
 
     [Fact]
+    public void EditingOtherSettings_LeavesABypassedTransposeDeviceAlone()
+    {
+        var (project, a, _) = TwoTracks();
+        var transpose = BuiltInDevices.CreateTranspose(12) with { IsBypassed = true };
+        project = project.WithChain(DeviceChain.Create(ChainOwner.ForTrack(a.Id)) with { Devices = [transpose] });
+
+        var written = TrackOutputs.Write(project, a.Id, TrackOutputs.Read(project, a.Id) with { Endpoint = Qy, Channel = MidiChannel.FromNumber(3) });
+
+        Assert.Equal(transpose, Assert.Single(written.ChainOf(a.Id)!.Devices));
+    }
+
+    [Fact]
+    public void ConnectionIds_AreUnique()
+    {
+        var (project, a, b) = TwoTracks();
+        var connection = SignalConnection.Create(SignalKind.Events, SignalNode.Track(a.Id), SignalNode.Track(b.Id));
+
+        Assert.Throws<ArgumentException>(() => project with { Connections = [connection, connection with { Destination = SignalNode.Master }] });
+    }
+
+    [Fact]
     public void RemovingATrack_RemovesItsChainAndEveryConnectionTouchingIt()
     {
         var (project, a, b) = TwoTracks();
