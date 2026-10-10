@@ -1,4 +1,6 @@
 using Cadence.Domain.Midi;
+using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Playback;
@@ -8,8 +10,11 @@ namespace Cadence.Tests.Unit.Playback;
 
 public sealed class PlaybackPlanCompilerTests
 {
-    private static PlaybackPlan Compile(Sequence sequence, params (Track Track, PlanTrackBinding Binding)[] bindings) =>
-        PlaybackPlanCompiler.Compile(sequence, bindings.ToDictionary(b => b.Track.Id, b => b.Binding));
+    // Each route is written into the routing model the way the track inspector writes it, then compiled
+    // through the signal graph like the controller does.
+    private static PlaybackPlan Compile(Sequence sequence, params (Track Track, Output Output)[] routes) =>
+        PlanDump.Compile(routes.Aggregate(Project.CreateNew("t") with { Sequence = sequence }, (project, route) =>
+            TrackOutputs.Write(project, route.Track.Id, new TrackOutput { Endpoint = PlanDump.SlotReference(route.Output.Slot), Channel = route.Output.Channel, Transpose = route.Output.Transpose })));
 
     private static Sequence With(params Track[] tracks) => tracks.Aggregate(Sequence.CreateEmpty(Resolution), (s, t) => s.WithTrack(t));
 
@@ -148,4 +153,6 @@ public sealed class PlaybackPlanCompilerTests
     }
 
     private static RawMidiEvent Raw(long tick, params byte[] bytes) => new(EventId.New(), new Tick(tick), ByteBlock.Copy(bytes));
+
+    private sealed record Output(int Slot, MidiChannel? Channel = null, int Transpose = 0);
 }

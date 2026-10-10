@@ -56,6 +56,32 @@ internal static class NodeReader
 
     public static int Int(JsonObject parent, string name, string path, int min, int max) => (int)Long(parent, name, path, min, max);
 
+    /// <summary>A whole number that is an array element rather than a named property.</summary>
+    public static int IntValue(JsonNode? node, string path, int min, int max)
+    {
+        if (node is not JsonValue value || value.GetValueKind() != JsonValueKind.Number || !value.TryGetValue(out long number))
+        {
+            throw new ProjectFormatException(path, "must be a whole number.");
+        }
+
+        return number >= min && number <= max
+            ? (int)number
+            : throw new ProjectFormatException(path, string.Create(CultureInfo.InvariantCulture, $"must be between {min} and {max}."));
+    }
+
+    public static double Double(JsonObject parent, string name, string path, double min, double max)
+    {
+        var at = $"{path}.{name}";
+        if (parent[name] is not JsonValue value || value.GetValueKind() != JsonValueKind.Number || !value.TryGetValue(out double number) || !double.IsFinite(number))
+        {
+            throw new ProjectFormatException(at, "must be a number.");
+        }
+
+        return number >= min && number <= max
+            ? number
+            : throw new ProjectFormatException(at, string.Create(CultureInfo.InvariantCulture, $"must be between {min} and {max}."));
+    }
+
     public static int? OptionalInt(JsonObject parent, string name, string path, int min, int max) =>
         parent[name] is null ? null : Int(parent, name, path, min, max);
 

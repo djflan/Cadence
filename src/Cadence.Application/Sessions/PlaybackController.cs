@@ -10,6 +10,7 @@ using Cadence.Midi.Timing;
 using Cadence.Midi.Wire;
 using Cadence.Playback;
 using Cadence.Profiles;
+using Cadence.Signal;
 
 namespace Cadence.Application.Sessions;
 
@@ -93,18 +94,29 @@ public sealed class PlaybackController : IAsyncDisposable
 
     public ProfileCatalog Profiles { get; private set; }
 
-    /// <summary>Every track's route as last resolved, in track order.</summary>
-    public ImmutableArray<ResolvedRoute> Routes { get; private set; } = [];
+    /// <summary>The devices chains can run: built-ins, and plugin definitions as data (plugins run in workers).</summary>
+    public DeviceCatalog Devices { get; private set; } = DeviceCatalog.BuiltIn;
+
+    /// <summary>Every track's output as last resolved, in track order.</summary>
+    public ImmutableArray<ResolvedTrackOutput> Tracks => Routing?.Tracks ?? [];
+
+    /// <summary>Every external instrument as last resolved.</summary>
+    public ImmutableArray<ResolvedInstrument> Instruments => Routing?.Instruments ?? [];
+
+    /// <summary>The routing as last prepared, including the evaluated signal graph.</summary>
+    public PreparedRouting? Routing { get; private set; }
 
     /// <summary>Problems opening outputs during the last refresh.</summary>
     public ImmutableArray<string> OutputProblems { get; private set; } = [];
 
     public ImmutableArray<PlanDiagnostic> PlanDiagnostics { get; private set; } = [];
 
-    /// <summary>Raised after <see cref="Routes"/> or the prepared plan changes.</summary>
+    /// <summary>Raised after <see cref="Routing"/> or the prepared plan changes.</summary>
     public event EventHandler? Refreshed;
 
     public void UseProfiles(ProfileCatalog profiles) => Profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
+
+    public void UseDevices(DeviceCatalog devices) => Devices = devices ?? throw new ArgumentNullException(nameof(devices));
 
     /// <summary>
     /// Re-resolves routes against the current endpoints, opens and closes outputs as needed, and loads
@@ -116,8 +128,8 @@ public sealed class PlaybackController : IAsyncDisposable
         try
         {
             var project = _session.Project;
-            Routes = RouteResolver.ResolveAll(project.Sequence, project.Routing, Profiles, _endpoints.GetEndpoints());
-            var prepared = PlaybackRouting.Prepare(project.Sequence, Routes);
+            var prepared = PlaybackRouting.Prepare(project, Devices, Profiles, _endpoints.GetEndpoints());
+            Routing = prepared;
             var problems = ImmutableArray.CreateBuilder<string>();
 
             // The metronome may click on an output no track uses; it gets a slot of its own.
@@ -151,7 +163,7 @@ public sealed class PlaybackController : IAsyncDisposable
             ApplyThru();
             InputProblems = await Recorder.SetInputsAsync(_endpoints, WantedInputs(), cancellationToken).ConfigureAwait(false);
 
-            var plan = PlaybackPlanCompiler.Compile(project.Sequence, prepared.Bindings);
+            var plan = prepared.Compile(project.Sequence);
             Engine.Load(plan);
             Engine.SetLoop(project.Loop is { } loop ? new LoopRegion(loop.Start, loop.End) : null);
             PlanDiagnostics = [.. plan.Diagnostics];
@@ -252,11 +264,14 @@ public sealed class PlaybackController : IAsyncDisposable
         return take;
     }
 
-    /// <summary>The channel <paramref name="track"/> plays on: its route's channel, else its first event's, else channel 1.</summary>
+    /// <summary>The channel <paramref name="track"/>'s live notes play on: the one its route forces, else its first event's, else channel 1.</summary>
     public MidiChannel ChannelFor(TrackId track) =>
-        Routes.FirstOrDefault(r => r.Track == track)?.Route?.Channel
+        LiveRouteOf(track)?.Channel
         ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel
         ?? MidiChannel.FromIndex(0);
+
+    /// <summary>Where live and auditioned notes for <paramref name="track"/> go, as last resolved.</summary>
+    public LiveRoute? LiveRouteOf(TrackId track) => Routing?.FindTrack(track)?.Live;
 
     /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking or dragging a note.</summary>
     public void Audition(TrackId track, NoteNumber note, Velocity velocity)
@@ -308,12 +323,12 @@ public sealed class PlaybackController : IAsyncDisposable
         }
     }
 
-    /// <summary>Sends a note-on to <paramref name="track"/>'s output with its route's channel and transposition; returns the matching note-off.</summary>
+    /// <summary>Sends a note-on along <paramref name="track"/>'s live route, with its channel and transposition; returns the matching note-off.</summary>
     private (IMidiOutput Output, ChannelMessage Off)? SoundOn(TrackId track, NoteNumber note, Velocity velocity)
     {
-        if (Routes.FirstOrDefault(r => r.Track == track) is not { CanPlay: true } route
-            || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output)
-            || !note.TryTranspose(route.Route!.Transpose, out var sounding))
+        if (LiveRouteOf(track) is not { } route
+            || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Id, out var output)
+            || !note.TryTranspose(route.Transpose, out var sounding))
         {
             return null;
         }
@@ -328,7 +343,7 @@ public sealed class PlaybackController : IAsyncDisposable
     public void Panic() => Engine.Panic();
 
     /// <summary>
-    /// Sends a track's profile initialization messages (for example a System On) to its output, after
+    /// Sends the profile initialization messages (for example a System On) of the instrument <paramref name="track"/>'s live route reaches, after
     /// asking <paramref name="confirm"/> for each template that resets or overwrites instrument state.
     /// Nothing is sent unless the user asks; opening a project never does this.
     /// </summary>
@@ -336,8 +351,7 @@ public sealed class PlaybackController : IAsyncDisposable
     public async Task<int> InitializeInstrumentAsync(TrackId track, Func<SysExTemplate, Task<bool>> confirm, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(confirm);
-        var route = Routes.FirstOrDefault(r => r.Track == track);
-        if (route?.Profile.Profile is not { } profile || !route.CanPlay)
+        if (LiveRouteOf(track) is not { Instrument.Profile.Profile: { } profile } route)
         {
             return 0;
         }
@@ -346,7 +360,7 @@ public sealed class PlaybackController : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var output = await GetOrOpenAsync(route.Endpoint.Endpoint!.Id, problems, cancellationToken).ConfigureAwait(false);
+            var output = await GetOrOpenAsync(route.Endpoint.Id, problems, cancellationToken).ConfigureAwait(false);
             if (output is null)
             {
                 return 0;
@@ -429,7 +443,7 @@ public sealed class PlaybackController : IAsyncDisposable
             .Where(e => !playing.Any(o => o.Id.Provider == e.Id.Provider && string.Equals(o.DisplayName, e.DisplayName, StringComparison.Ordinal)))
             .Select(e => e.Id)];
 
-    /// <summary>The metronome's endpoint: the one chosen, or else the thru track's output.</summary>
+    /// <summary>The metronome's endpoint: the one chosen, or else the recording or thru track's live output.</summary>
     private EndpointId? MetronomeEndpoint()
     {
         if (_metronome.Output is { } chosen)
@@ -438,7 +452,7 @@ public sealed class PlaybackController : IAsyncDisposable
         }
 
         var track = Recorder.RecordingTrack ?? _thruTrack;
-        return Routes.FirstOrDefault(r => r.Track == track) is { CanPlay: true } route ? route.Endpoint.Endpoint!.Id : null;
+        return track is { } id && LiveRouteOf(id) is { } route ? route.Endpoint.Id : null;
     }
 
     private void ApplyMetronome()
@@ -455,10 +469,10 @@ public sealed class PlaybackController : IAsyncDisposable
     {
         ThruTarget? target = null;
         if (_thruTrack is { } track
-            && Routes.FirstOrDefault(r => r.Track == track) is { CanPlay: true } route
-            && Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output))
+            && LiveRouteOf(track) is { } route
+            && Volatile.Read(ref _published).TryGetValue(route.Endpoint.Id, out var output))
         {
-            target = new ThruTarget(output, route.Route!.Channel, route.Route.Transpose);
+            target = new ThruTarget(output, route.Channel, route.Transpose);
         }
 
         Recorder.SetThru(target);

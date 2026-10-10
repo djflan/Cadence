@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using Cadence.Domain.Projects;
 
@@ -18,6 +19,9 @@ public sealed class ProjectDocument
     }
 
     public Project Project { get; }
+
+    /// <summary>What reading changed to make the project consistent, such as track roles widened to fit their content. Not saved.</summary>
+    public ImmutableArray<string> Notes { get; init; } = [];
 
     /// <summary>A copy of the preserved top-level properties, keyed by name.</summary>
     public JsonObject Preserved => (JsonObject)_preserved.DeepClone();

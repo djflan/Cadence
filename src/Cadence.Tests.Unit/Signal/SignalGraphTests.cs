@@ -5,7 +5,6 @@ using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Signal;
-using Cadence.Signal.BuiltIn;
 using static Cadence.Tests.Unit.Signal.SignalFixture;
 
 namespace Cadence.Tests.Unit.Signal;
@@ -22,8 +21,8 @@ public sealed class SignalGraphTests
     [Fact]
     public void Scenario2_ATrackMidiEffect_TransformsNotesBeforeTheSynth()
     {
-        var arp = ArpeggiatorProcessor.CreateInstance(rate: 2);
-        var transpose = TransposeProcessor.CreateInstance(12);
+        var arp = BuiltInDevices.CreateArpeggiator(rate: 2);
+        var transpose = BuiltInDevices.CreateTranspose(12);
         var synth = Instance(TestDevices.Synth);
         var project = NewProject().With(Chord("Keys"), arp, transpose, synth);
 
@@ -41,7 +40,7 @@ public sealed class SignalGraphTests
     {
         var keys = Chord("Keys", length: 480);
         var project = NewProject()
-            .With(keys, TransposeProcessor.CreateInstance(-12))
+            .With(keys, BuiltInDevices.CreateTranspose(-12))
             .WithInstrument(out var mu2000)
             .Connect(out var route, SignalNode.Track(keys.Id), SignalNode.ExternalPart(mu2000.Id), ChannelMapping.ForceTo(Four));
 
@@ -57,13 +56,13 @@ public sealed class SignalGraphTests
     [Fact]
     public void Scenario3_EventsAMidiEffectGenerates_AreReceivedByAnotherTrack()
     {
-        var arp = ArpeggiatorProcessor.CreateInstance(rate: 2);
+        var arp = BuiltInDevices.CreateArpeggiator(rate: 2);
         var synth = Instance(TestDevices.Synth);
         var lead = Chord("Lead");
         var harmony = TrackOf("Harmony", Note(1440, 48));
         var project = NewProject()
             .With(lead, arp, synth)
-            .With(harmony, TransposeProcessor.CreateInstance(12))
+            .With(harmony, BuiltInDevices.CreateTranspose(12))
             .WithInstrument(out var mu2000)
             .Connect(SignalNode.Device(arp.Id), SignalNode.Track(harmony.Id))
             .Connect(out var toHardware, SignalNode.Track(harmony.Id), SignalNode.ExternalPart(mu2000.Id, "B"), ChannelMapping.ForceTo(Two));
@@ -86,8 +85,8 @@ public sealed class SignalGraphTests
         var source = TrackOf("Source", Note(0, 60));
         var follower = TrackOf("Follower");
         var project = NewProject()
-            .With(source, TransposeProcessor.CreateInstance(5))
-            .With(follower, TransposeProcessor.CreateInstance(5))
+            .With(source, BuiltInDevices.CreateTranspose(5))
+            .With(follower, BuiltInDevices.CreateTranspose(5))
             .WithInstrument(out var mu2000)
             .Connect(SignalNode.Track(source.Id), SignalNode.Track(follower.Id))
             .Connect(out var out1, SignalNode.Track(follower.Id), SignalNode.ExternalPart(mu2000.Id));
@@ -107,7 +106,7 @@ public sealed class SignalGraphTests
             .With(piano)
             .With(strings)
             .With(bass)
-            .WithRack(out var rack, "Shared FX", TransposeProcessor.CreateInstance(12))
+            .WithRack(out var rack, "Shared FX", BuiltInDevices.CreateTranspose(12))
             .WithInstrument(out var mu2000)
             .Connect(SignalNode.Track(piano.Id), SignalNode.Rack(rack.Id))
             .Connect(SignalNode.Track(strings.Id), SignalNode.Rack(rack.Id))
@@ -133,7 +132,7 @@ public sealed class SignalGraphTests
         var project = NewProject()
             .With(low)
             .With(high)
-            .WithRack(out var rack, "Shared arp", ArpeggiatorProcessor.CreateInstance(rate: 2), synth)
+            .WithRack(out var rack, "Shared arp", BuiltInDevices.CreateArpeggiator(rate: 2), synth)
             .Connect(SignalNode.Track(low.Id), SignalNode.Rack(rack.Id))
             .Connect(SignalNode.Track(high.Id), SignalNode.Rack(rack.Id));
 
@@ -153,7 +152,7 @@ public sealed class SignalGraphTests
         var split = new RawMidiEvent(EventId.New(), new Tick(480), ByteBlock.Copy([0xF0, 0x41, 0x10]));
         var keys = TrackOf("Keys", sysEx, volume, program, Note(0, 60, length: 480), bend, split);
         var project = NewProject()
-            .With(keys, ArpeggiatorProcessor.CreateInstance(rate: 2), TransposeProcessor.CreateInstance(12))
+            .With(keys, BuiltInDevices.CreateArpeggiator(rate: 2), BuiltInDevices.CreateTranspose(12))
             .WithInstrument(out var mu2000)
             .Connect(out var route, SignalNode.Track(keys.Id), SignalNode.ExternalPart(mu2000.Id));
 
@@ -172,7 +171,7 @@ public sealed class SignalGraphTests
     {
         var keys = TrackOf("Keys", XgOn(0), Volume(0, 100), Note(0, 60));
         var project = NewProject()
-            .With(keys, EventFilterProcessor.CreateInstance(EventClass.SystemExclusive))
+            .With(keys, BuiltInDevices.CreateEventFilter(EventClass.SystemExclusive))
             .WithInstrument(out var mu2000)
             .Connect(out var route, SignalNode.Track(keys.Id), SignalNode.ExternalPart(mu2000.Id));
 
@@ -247,7 +246,7 @@ public sealed class SignalGraphTests
     [Fact]
     public void Scenario10_AFeedbackLoopThroughADeviceTap_IsDetected()
     {
-        var arp = ArpeggiatorProcessor.CreateInstance();
+        var arp = BuiltInDevices.CreateArpeggiator();
         var a = TrackOf("A", Note(0, 60));
         var b = TrackOf("B");
         var project = NewProject()
@@ -335,7 +334,7 @@ public sealed class SignalGraphTests
     [Fact]
     public void ATapOnAChainWithoutATrack_IsLeftOut_AndEvaluationFinishes()
     {
-        var arp = ArpeggiatorProcessor.CreateInstance();
+        var arp = BuiltInDevices.CreateArpeggiator();
         var orphan = DeviceChain.Create(ChainOwner.ForTrack(TrackId.New())) with { Devices = [arp] };
         var listener = TrackOf("Listener", Note(0));
         var project = NewProject()
@@ -374,12 +373,12 @@ public sealed class SignalGraphTests
     [Fact]
     public void DeviceAutomation_IsAppliedToBuiltIns_AndHandedOutForEveryOtherDevice()
     {
-        var transpose = TransposeProcessor.CreateInstance(0);
+        var transpose = BuiltInDevices.CreateTranspose(0);
         var synth = Instance(TestDevices.Synth);
-        var semitones = TransposeProcessor.Definition.Parameters[0];
+        var semitones = BuiltInDevices.Transpose.Parameters[0];
         var transposeLane = new AutomationLane(
             AutomationLaneId.New(),
-            AutomationTarget.ForDevice(transpose.Id, TransposeProcessor.SemitonesParameter),
+            AutomationTarget.ForDevice(transpose.Id, BuiltInDevices.TransposeSemitones),
             [new AutomationPoint(new Tick(0), semitones.ToStored(0), AutomationCurve.Hold), new AutomationPoint(new Tick(240), semitones.ToStored(12), AutomationCurve.Hold)]);
         var releaseLane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(synth.Id, new ParameterId(1)), [new AutomationPoint(new Tick(0), ControlValue.Max, AutomationCurve.Hold)]);
         var keys = TrackOf("Keys", Note(0, 60), Note(480, 60)).WithAutomation([transposeLane, releaseLane]);
@@ -457,7 +456,7 @@ public sealed class SignalGraphTests
     {
         var keys = TrackOf("Keys", Note(0, 120));
         var project = NewProject()
-            .With(keys, TransposeProcessor.CreateInstance(12))
+            .With(keys, BuiltInDevices.CreateTranspose(12))
             .WithInstrument(out var mu2000)
             .Connect(SignalNode.Track(keys.Id), SignalNode.ExternalPart(mu2000.Id));
 
@@ -473,9 +472,9 @@ public sealed class SignalGraphTests
         var piano = Chord("Piano");
         var bass = TrackOf("Bass", Note(0, 36), XgOn(0), Volume(120, 80));
         var project = NewProject()
-            .With(piano, ArpeggiatorProcessor.CreateInstance(rate: 3, ArpeggiatorPattern.UpDown, 2))
+            .With(piano, BuiltInDevices.CreateArpeggiator(rate: 3, ArpeggiatorPattern.UpDown, 2))
             .With(bass)
-            .WithRack(out var rack, "Shared", TransposeProcessor.CreateInstance(3))
+            .WithRack(out var rack, "Shared", BuiltInDevices.CreateTranspose(3))
             .WithInstrument(out var mu2000)
             .Connect(SignalNode.Track(piano.Id), SignalNode.Rack(rack.Id))
             .Connect(SignalNode.Track(bass.Id), SignalNode.Rack(rack.Id))

@@ -1,4 +1,6 @@
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
+using Cadence.Domain.Mixing;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
@@ -25,7 +27,12 @@ internal static class ProjectSamples
             new RawMidiEvent(EventId.New(), new Tick(20), ByteBlock.Copy([0xF0, 0x43])),
             new MetaEvent(EventId.New(), new Tick(30), 0x05, ByteBlock.Copy("la"u8)),
         ], isMuted: true);
-        var drums = Track.FromEvents(TrackId.New(), "Drüms ♪", [], isSoloed: true);
+        var drums = new Track(
+            TrackId.New(),
+            "Drüms ♪",
+            [new AudioClip(ClipId.New(), new Tick(960), new TickSpan(1920), new TickSpan(48), new AudioSource("audio/loop.wav", 48_000, 96_000, 2), "Loop")],
+            isSoloed: true,
+            role: TrackRole.Hybrid);
         // Two clips, one trimmed and named, with content hidden on both sides.
         var lead = new Track(TrackId.New(), "Lead", [
             new NoteClip(ClipId.New(), new Tick(1920), new TickSpan(960), new TickSpan(240), new EventList([
@@ -44,29 +51,58 @@ internal static class ProjectSamples
             new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForPitchBend(channel), []),
             new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForChannelPressure(MidiChannel.FromNumber(16)), [new AutomationPoint(new Tick(5), ControlValue.Max)]),
         ]);
+        var group = Track.Create("Band", TrackRole.Group);
+        var arp = BuiltInDevices.CreateArpeggiator(rate: 3, ArpeggiatorPattern.UpDown, octaves: 2) with { Name = "Up and down" };
+        var plugin = DeviceInstance.Create(new DeviceReference(new DeviceDefinitionId("vst3:ABCDEF0123456789ABCDEF0123456789"), "Vital", "1.5")) with
+        {
+            IsBypassed = true,
+            Parameters = [new ParameterValue(new ParameterId(4_000_000_001), ControlValue.Center)],
+            State = new PluginState(ByteBlock.Copy([0, 1, 2, 0xFF]), "vst3-component-v1"),
+        };
+        lead = lead.WithLane(new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(arp.Id, BuiltInDevices.ArpeggiatorRate), [new AutomationPoint(Tick.Zero, ControlValue.Max, AutomationCurve.Hold)]));
         var sequence = new Sequence(
             new TempoMap(ppqn, [new TempoChange(new Tick(960), new Tempo(400_000))]),
             new MeterMap(ppqn, [new MeterChange(new Tick(1920), new TimeSignature(7, 8))]),
-            [bass, drums, lead],
+            [bass, drums, lead.WithGroup(group.Id), group],
             [new Marker(new Tick(480), "Verse \"A\"")]);
 
-        return new Project
+        var rack = DeviceChain.Create(ChainOwner.Rack, "Shared synth") with { Devices = [plugin] };
+        var bus = MixerChannel.Create("Synth bus") with { GainDecibels = -3.5, Pan = 0.25, IsMuted = true };
+        var master = MixerChannel.Create("Sub mix") with { IsSoloed = true };
+        var project = new Project
         {
             Id = ProjectId.New(),
             Name = "Demo",
             Sequence = sequence,
             Loop = new TickRange(Tick.Zero, new Tick(1920)),
-            Routing = RoutingTable.From([
-                new TrackRoute(bass.Id)
+            Mixer = new Mixer { Channels = [bus with { Output = master.Id }, master], MasterGainDecibels = -1 },
+        };
+        project = TrackOutputs.Write(project, bass.Id, new TrackOutput
+        {
+            Profile = new ProfileReference("cadence.generic.xg", "Generic XG"),
+            Endpoint = new EndpointReference("coremidi", "-12345", "QY Out", "Maker", "Model"),
+            Channel = MidiChannel.FromNumber(3),
+            Transpose = -12,
+            Voice = new VoiceAssignment("normal", ProgramNumber.FromNumber(34)),
+        });
+        var qy = project.Instruments[0].WithPort(new ExternalPort("B", "Port B")) with { OperatingMode = "XG" };
+        project = project.WithChain(DeviceChain.Create(ChainOwner.ForTrack(lead.Id)) with { Devices = [arp] }).WithChain(rack) with
+        {
+            Instruments = [qy],
+        };
+        return project with
+        {
+            Connections = project.Connections.AddRange(new SignalConnection[]
+            {
+                SignalConnection.Create(SignalKind.Events, SignalNode.Track(lead.Id), SignalNode.Rack(rack.Id)) with
                 {
-                    Profile = new ProfileReference("cadence.generic.xg", "Generic XG"),
-                    Endpoint = new EndpointReference("coremidi", "-12345", "QY Out", "Maker", "Model"),
-                    Channel = MidiChannel.FromNumber(3),
-                    Transpose = -12,
-                    Voice = new VoiceAssignment("normal", ProgramNumber.FromNumber(34)),
+                    Mapping = new ChannelMapping { Only = [MidiChannel.FromNumber(2), MidiChannel.FromNumber(9)], Remap = [new ChannelRemap(MidiChannel.FromNumber(2), MidiChannel.FromNumber(16))] },
                 },
-                new TrackRoute(TrackId.New()) { Endpoint = new EndpointReference("loopback", "orphan") },
-            ]),
+                SignalConnection.Create(SignalKind.Events, SignalNode.Device(arp.Id), SignalNode.ExternalPart(qy.Id, "B")),
+                SignalConnection.Create(SignalKind.Audio, SignalNode.Rack(rack.Id), SignalNode.Mixer(bus.Id)),
+                SignalConnection.Create(SignalKind.Audio, SignalNode.Track(drums.Id), SignalNode.Master),
+                SignalConnection.Create(SignalKind.Events, SignalNode.Track(TrackId.New()), SignalNode.ExternalPart(qy.Id)),
+            }),
         };
     }
 
@@ -83,9 +119,10 @@ internal static class ProjectSamples
         };
         foreach (var track in s.Tracks)
         {
-            lines.Add($"track {track.Id} {track.Name} m={track.IsMuted} s={track.IsSoloed}");
+            lines.Add($"track {track.Id} {track.Name} m={track.IsMuted} s={track.IsSoloed} role={track.Role} group={track.Group}");
             lines.AddRange(track.Automation.Select(l => $"  lane {l.Id} {l.Target} {string.Join(",", l.Points)}"));
-            foreach (var clip in track.Clips.Cast<NoteClip>())
+            lines.AddRange(track.Clips.OfType<AudioClip>().Select(c => $"  audio {c.Id} {c.Start}+{c.Length} offset={c.ContentOffset} \"{c.Name}\" {c.Source}"));
+            foreach (var clip in track.Clips.OfType<NoteClip>())
             {
                 lines.Add($"  clip {clip.Id} {clip.Start}+{clip.Length} offset={clip.ContentOffset} \"{clip.Name}\"");
                 lines.AddRange(clip.Content.Items.Select(e => e switch
@@ -98,7 +135,23 @@ internal static class ProjectSamples
             }
         }
 
-        lines.AddRange(project.Routing.Routes.Values.OrderBy(r => r.Track.Value).Select(r => $"route {r}"));
+        foreach (var instrument in project.Instruments)
+        {
+            lines.Add($"instrument {instrument.Id} {instrument.Name} {instrument.Profile} mode={instrument.OperatingMode}");
+            lines.AddRange(instrument.Ports.Select(p => $"  port {p}"));
+        }
+
+        foreach (var chain in project.Chains)
+        {
+            lines.Add($"chain {chain.Id} {chain.Owner} \"{chain.Name}\"");
+            lines.AddRange(chain.Devices.Select(d =>
+                $"  device {d.Id} {d.Definition} \"{d.Name}\" bypassed={d.IsBypassed} {string.Join(",", d.Parameters)} state={d.State?.Format}:{(d.State is null ? string.Empty : Convert.ToHexString(d.State.Data.Span))}"));
+        }
+
+        lines.AddRange(project.Connections.Select(c =>
+            $"connection {c.Id} {c.Kind} {c.Source} -> {c.Destination} only={string.Join(",", c.Mapping.Only)} force={c.Mapping.Force} remap={string.Join(",", c.Mapping.Remap)} voice={c.Voice}"));
+        lines.Add($"mixer master={project.Mixer.MasterGainDecibels}");
+        lines.AddRange(project.Mixer.Channels.Select(c => $"  channel {c}"));
         return string.Join("\n", lines);
     }
 }

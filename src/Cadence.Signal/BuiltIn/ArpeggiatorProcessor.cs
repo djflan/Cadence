@@ -6,17 +6,8 @@ using Cadence.Domain.Time;
 
 namespace Cadence.Signal.BuiltIn;
 
-public enum ArpeggiatorPattern
-{
-    Up,
-    Down,
-
-    /// <summary>Up, then down, without repeating the top and bottom notes.</summary>
-    UpDown,
-}
-
 /// <summary>
-/// Plays the notes held at each step one at a time, in a pattern, across one or more octaves. Three notes
+/// Runs <see cref="BuiltInDevices.Arpeggiator"/>: plays the notes held at each step one at a time, in a pattern, across one or more octaves. Three notes
 /// held for three beats at sixteenths become twelve notes.
 /// </summary>
 /// <remarks>
@@ -31,39 +22,13 @@ public enum ArpeggiatorPattern
 /// </remarks>
 public sealed class ArpeggiatorProcessor : ISignalProcessor, IReportingProcessor
 {
-    public static readonly ParameterId RateParameter = new(1);
-    public static readonly ParameterId PatternParameter = new(2);
-    public static readonly ParameterId OctavesParameter = new(3);
-    public static readonly ParameterId GateParameter = new(4);
-
-    public const int MaxOctaves = 4;
-
     /// <summary>Steps per quarter note for each rate position: quarters, eighths, sixteenths, thirty-seconds.</summary>
     private static readonly int[] StepsPerQuarter = [1, 2, 4, 8];
 
-    public static DeviceDefinition Definition { get; } = new()
-    {
-        Id = new DeviceDefinitionId("cadence.midi.arpeggiator"),
-        Name = "Arpeggiator",
-        Origin = DeviceOrigin.BuiltIn,
-        Vendor = "Cadence",
-        Version = "1",
-        Consumes = SignalKinds.Events,
-        Produces = SignalKinds.Events,
-        Handles = EventClass.Notes,
-        Parameters =
-        [
-            new ParameterDescriptor(RateParameter, "Rate", 0, 3, 2, steps: 3),
-            new ParameterDescriptor(PatternParameter, "Pattern", 0, 2, 0, steps: 2),
-            new ParameterDescriptor(OctavesParameter, "Octaves", 1, MaxOctaves, 1, steps: MaxOctaves - 1),
-            new ParameterDescriptor(GateParameter, "Gate", 0.05, 1, 0.5, unit: "%"),
-        ],
-    };
-
-    private static readonly ParameterDescriptor Rate = Definition.Parameters[0];
-    private static readonly ParameterDescriptor Pattern = Definition.Parameters[1];
-    private static readonly ParameterDescriptor Octaves = Definition.Parameters[2];
-    private static readonly ParameterDescriptor Gate = Definition.Parameters[3];
+    private static readonly ParameterDescriptor Rate = BuiltInDevices.Arpeggiator.Parameters[0];
+    private static readonly ParameterDescriptor Pattern = BuiltInDevices.Arpeggiator.Parameters[1];
+    private static readonly ParameterDescriptor Octaves = BuiltInDevices.Arpeggiator.Parameters[2];
+    private static readonly ParameterDescriptor Gate = BuiltInDevices.Arpeggiator.Parameters[3];
 
     private readonly Ppqn _ppqn;
     private readonly List<SignalEvent> _held = new(32);
@@ -91,29 +56,21 @@ public sealed class ArpeggiatorProcessor : ISignalProcessor, IReportingProcessor
     /// <summary>The length of one step at the current rate, in ticks.</summary>
     public long StepLength => Math.Max(1, _ppqn.TicksPerQuarterNote / StepsPerQuarter[_rate]);
 
-    /// <summary>An Arpeggiator device with the given settings; <paramref name="rate"/> is 0 (quarters) to 3 (thirty-seconds).</summary>
-    public static DeviceInstance CreateInstance(int rate = 2, ArpeggiatorPattern pattern = ArpeggiatorPattern.Up, int octaves = 1, double gate = 0.5) =>
-        DeviceInstance.Create(Definition.ToReference())
-            .WithParameter(RateParameter, Rate.ToStored(rate))
-            .WithParameter(PatternParameter, Pattern.ToStored((int)pattern))
-            .WithParameter(OctavesParameter, Octaves.ToStored(octaves))
-            .WithParameter(GateParameter, Gate.ToStored(gate));
-
     public void SetParameter(ParameterId parameter, ControlValue value)
     {
-        if (parameter == RateParameter)
+        if (parameter == BuiltInDevices.ArpeggiatorRate)
         {
             _rate = (int)Math.Round(Rate.ToPlain(value));
         }
-        else if (parameter == PatternParameter)
+        else if (parameter == BuiltInDevices.ArpeggiatorPatternParameter)
         {
             _pattern = (ArpeggiatorPattern)(int)Math.Round(Pattern.ToPlain(value));
         }
-        else if (parameter == OctavesParameter)
+        else if (parameter == BuiltInDevices.ArpeggiatorOctaves)
         {
             _octaves = (int)Math.Round(Octaves.ToPlain(value));
         }
-        else if (parameter == GateParameter)
+        else if (parameter == BuiltInDevices.ArpeggiatorGate)
         {
             _gate = Gate.ToPlain(value);
         }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Routing;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Routing;
 using Cadence.Profiles;
@@ -101,7 +102,7 @@ public sealed partial class SelectionViewModel : ObservableObject
             SyncOutputs(outputs);
             SyncProfiles(catalog);
             SyncChannels();
-            var transposes = tracks.Select(t => t.Route?.Transpose ?? 0).Distinct().ToList();
+            var transposes = tracks.Select(t => t.Route.Transpose).Distinct().ToList();
             Transpose = transposes.Count == 1 ? transposes[0] : null;
             SyncVoice();
 
@@ -161,7 +162,7 @@ public sealed partial class SelectionViewModel : ObservableObject
     {
         if (!_syncing && value is { } semitones)
         {
-            var clamped = (int)Math.Clamp(semitones, -TrackRoute.MaxTranspose, TrackRoute.MaxTranspose);
+            var clamped = (int)Math.Clamp(semitones, -BuiltInDevices.MaxTranspose, BuiltInDevices.MaxTranspose);
             _owner.ApplyToSelection("Transpose", r => r with { Transpose = clamped });
         }
     }
@@ -251,7 +252,7 @@ public sealed partial class SelectionViewModel : ObservableObject
     private void SyncChannels()
     {
         ChannelChoices.Clear();
-        var distinct = _tracks.Select(t => t.Route?.Channel).Distinct().ToList();
+        var distinct = _tracks.Select(t => t.Route.Channel).Distinct().ToList();
         if (distinct.Count > 1)
         {
             ChannelChoices.Add(ChannelOption.Mixed);
@@ -285,7 +286,7 @@ public sealed partial class SelectionViewModel : ObservableObject
             return;
         }
 
-        var banks = _tracks.Select(t => t.Route?.Voice?.BankId).Distinct().ToList();
+        var banks = _tracks.Select(t => t.Route.Voice?.BankId).Distinct().ToList();
         if (banks.Count > 1)
         {
             Banks.Add(BankOption.Mixed);
@@ -305,7 +306,7 @@ public sealed partial class SelectionViewModel : ObservableObject
             return;
         }
 
-        var programs = _tracks.Select(t => t.Route?.Voice?.Program).Distinct().ToList();
+        var programs = _tracks.Select(t => t.Route.Voice?.Program).Distinct().ToList();
         if (programs.Count > 1)
         {
             Programs.Add(ProgramOption.Mixed);

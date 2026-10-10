@@ -4,7 +4,6 @@ using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Signal;
-using Cadence.Signal.BuiltIn;
 using static Cadence.Tests.Unit.Signal.SignalFixture;
 
 namespace Cadence.Tests.Unit.Signal;
@@ -31,7 +30,7 @@ public sealed class ChainRunnerTests
         var recorder = new RecordingProcessor();
         var chord = Keyed(0, Note(0, 60, length: 1440), Note(0, 64, length: 1440), Note(0, 67, length: 1440));
 
-        var output = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2), TransposeProcessor.CreateInstance(7), Instance(Recorder)), chord, CatalogWith(recorder));
+        var output = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2), BuiltInDevices.CreateTranspose(7), Instance(Recorder)), chord, CatalogWith(recorder));
 
         Assert.Equal(12, recorder.Received.Count);
         Assert.Equal([67, 71, 74, 67, 71, 74, 67, 71, 74, 67, 71, 74], output.Notes().Select(n => (int)n.Note.Value));
@@ -41,8 +40,8 @@ public sealed class ChainRunnerTests
     public void ABypassedDevice_IsTransparent()
     {
         var events = Keyed(0, XgOn(), Note(0, 60), Note(120, 64));
-        var arp = ArpeggiatorProcessor.CreateInstance() with { IsBypassed = true };
-        var transpose = TransposeProcessor.CreateInstance(12) with { IsBypassed = true };
+        var arp = BuiltInDevices.CreateArpeggiator() with { IsBypassed = true };
+        var transpose = BuiltInDevices.CreateTranspose(12) with { IsBypassed = true };
 
         var output = Run(Chain(arp, transpose), events);
 
@@ -114,8 +113,8 @@ public sealed class ChainRunnerTests
     [Fact]
     public void TheObserver_SeesTheSignalAfterEachDevice()
     {
-        var arp = ArpeggiatorProcessor.CreateInstance(rate: 2);
-        var transpose = TransposeProcessor.CreateInstance(12);
+        var arp = BuiltInDevices.CreateArpeggiator(rate: 2);
+        var transpose = BuiltInDevices.CreateTranspose(12);
         var observer = new CollectingObserver();
 
         Run(Chain(arp, transpose), Keyed(0, Note(0, 60, length: 480)), observer: observer);
@@ -127,9 +126,9 @@ public sealed class ChainRunnerTests
     [Fact]
     public void ParameterChanges_ApplyFromTheirOwnTick()
     {
-        var transpose = TransposeProcessor.CreateInstance(0);
-        var up = TransposeProcessor.Definition.Parameters[0].ToStored(12);
-        ImmutableArray<ParameterChange> changes = [new(new Tick(100), transpose.Id, TransposeProcessor.SemitonesParameter, up)];
+        var transpose = BuiltInDevices.CreateTranspose(0);
+        var up = BuiltInDevices.Transpose.Parameters[0].ToStored(12);
+        ImmutableArray<ParameterChange> changes = [new(new Tick(100), transpose.Id, BuiltInDevices.TransposeSemitones, up)];
 
         var output = Run(Chain(transpose), Keyed(0, Note(0), Note(99), Note(100), Note(200)), changes: changes);
 
@@ -156,7 +155,7 @@ public sealed class ChainRunnerTests
         // The arpeggiator passes the release on before it generates the notes around it.
         var release = new NoteOffEvent(EventId.New(), new Tick(200), Note(0).Channel, Note(0).Note, Note(0).ReleaseVelocity);
 
-        var output = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), Keyed(0, Note(0, 60, length: 480), release));
+        var output = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), Keyed(0, Note(0, 60, length: 480), release));
 
         Assert.True(SignalOrder.IsOrdered(output.AsSpan()));
         Assert.Equal([0L, 120, 200, 240, 360], output.Select(e => e.Event.Position.Value));
@@ -166,9 +165,9 @@ public sealed class ChainRunnerTests
     public void APassthroughChain_AllocatesNothingAfterWarmUp()
     {
         var chain = Chain(
-            TransposeProcessor.CreateInstance(0),
-            Instance(EventFilterProcessor.Definition),
-            ArpeggiatorProcessor.CreateInstance() with { IsBypassed = true },
+            BuiltInDevices.CreateTranspose(0),
+            Instance(BuiltInDevices.EventFilter),
+            BuiltInDevices.CreateArpeggiator() with { IsBypassed = true },
             Instance(TestDevices.Filter));
         var events = Keyed(0, [.. Enumerable.Range(0, 500).SelectMany(i => new TrackEvent[] { Note(i * 10, 40 + (i % 40)), Volume(i * 10, i % 128), XgOn(i * 10) })]);
         var runner = new ChainRunner(chain, Catalog, Resolution);

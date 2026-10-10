@@ -70,8 +70,6 @@ public sealed record Project
         init => _sequence = value ?? throw new ArgumentNullException(nameof(Sequence));
     }
 
-    public RoutingTable Routing { get; init; } = RoutingTable.Empty;
-
     /// <summary>Hardware and hardware-like MIDI instruments, independent of any track (ADR 0023).</summary>
     public ImmutableArray<ExternalInstrument> Instruments
     {
@@ -178,6 +176,25 @@ public sealed record Project
     }
 
     public Project WithoutChain(DeviceChainId id) => this with { Chains = _chains.RemoveAll(c => c.Id == id) };
+
+    /// <summary>
+    /// Removes a track with everything it owns: its chain, and every connection from or to it or from one
+    /// of its devices. Instruments, racks, mixer channels, and other tracks' automation stay.
+    /// </summary>
+    public Project WithoutTrack(TrackId track)
+    {
+        var node = SignalNode.Track(track);
+        var chain = ChainOf(track);
+        return this with
+        {
+            Sequence = _sequence.WithoutTrack(track),
+            Chains = chain is null ? _chains : _chains.Remove(chain),
+            Connections = _connections.RemoveAll(c =>
+                c.Source == node
+                || c.Destination == node
+                || (c.Source.Kind == SignalNodeKind.Device && chain?.Find(c.Source.AsDevice()) is not null)),
+        };
+    }
 
     public IEnumerable<SignalConnection> ConnectionsFrom(SignalNode source) => _connections.Where(c => c.Source == source);
 

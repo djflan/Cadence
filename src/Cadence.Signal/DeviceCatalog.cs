@@ -28,9 +28,9 @@ public sealed class DeviceCatalog
 
     /// <summary>The devices that ship with Cadence: Transpose, Event Filter, and Arpeggiator.</summary>
     public static DeviceCatalog BuiltIn { get; } = Empty
-        .With(TransposeProcessor.Definition, _ => new TransposeProcessor())
-        .With(EventFilterProcessor.Definition, _ => new EventFilterProcessor())
-        .With(ArpeggiatorProcessor.Definition, ppqn => new ArpeggiatorProcessor(ppqn));
+        .With(BuiltInDevices.Transpose, _ => new TransposeProcessor())
+        .With(BuiltInDevices.EventFilter, _ => new EventFilterProcessor())
+        .With(BuiltInDevices.Arpeggiator, ppqn => new ArpeggiatorProcessor(ppqn));
 
     /// <summary>Every definition, in ID order.</summary>
     public ImmutableArray<DeviceDefinition> Definitions => [.. _definitions.Values.OrderBy(d => d.Id.Value, StringComparer.Ordinal)];

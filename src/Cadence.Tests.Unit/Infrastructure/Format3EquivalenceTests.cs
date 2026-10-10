@@ -1,15 +1,16 @@
 using Cadence.Application.Routing;
 using Cadence.Infrastructure.Projects;
 using Cadence.Midi.Endpoints;
-using Cadence.Playback;
 using Cadence.Profiles;
+using Cadence.Signal;
 using static Cadence.Tests.Unit.Playback.PlanDump;
 
 namespace Cadence.Tests.Unit.Infrastructure;
 
 /// <summary>
 /// Holds projects saved in format 3 to the MIDI 1.0 bytes the pre-refactor pipeline sent for them
-/// (docs/daw-epic-handoff.md section 5). The fixtures and hashes are frozen: a failure is a regression.
+/// (docs/daw-epic-handoff.md section 5), now through the format 4 migration, the routing model, the
+/// signal graph, and the compiler. The fixtures and hashes are frozen: a failure is a regression.
 /// </summary>
 /// <remarks>
 /// Every endpoint the fixtures name is present except <c>gone-*</c> (missing) and <c>old-*</c>, which is
@@ -42,9 +43,8 @@ public sealed class Format3EquivalenceTests
     {
         var project = ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", fixture))).Project;
 
-        var routes = RouteResolver.ResolveAll(project.Sequence, project.Routing, Profiles, Endpoints);
-        var prepared = PlaybackRouting.Prepare(project.Sequence, routes);
-        var plan = PlaybackPlanCompiler.Compile(project.Sequence, prepared.Bindings);
+        var prepared = PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, Profiles, Endpoints);
+        var plan = prepared.Compile(project.Sequence);
 
         Assert.Equal(slots, prepared.Slots.Length);
         Assert.Equal(events, plan.EventCount);
@@ -57,8 +57,7 @@ public sealed class Format3EquivalenceTests
     {
         var project = ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", "format3-routing-full.cadence"))).Project;
 
-        var routes = RouteResolver.ResolveAll(project.Sequence, project.Routing, Profiles, Endpoints);
-        var plan = PlaybackPlanCompiler.Compile(project.Sequence, PlaybackRouting.Prepare(project.Sequence, routes).Bindings);
+        var plan = PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, Profiles, Endpoints).Compile(project.Sequence);
 
         var byTrack = plan.Diagnostics.Select(d => (project.Sequence.FindTrack(d.Track)!.Name, d.Message)).ToList();
         Assert.Equal(

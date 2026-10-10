@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Text;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
@@ -78,6 +79,12 @@ public static class SmfExporter
         if (rendered.SuppressedEvents > 0)
         {
             diagnostics.Info(SmfDiagnosticCodes.AutomationReplacedEvents, $"{rendered.SuppressedEvents} events in clips were left out because the track's automation replaces them.", fileTrackIndex);
+        }
+
+        var deviceLanes = track.Automation.Count(l => !l.Target.IsMidi && !l.Points.IsEmpty);
+        if (deviceLanes > 0)
+        {
+            diagnostics.Warn(SmfDiagnosticCodes.DeviceAutomationNotExported, string.Create(CultureInfo.InvariantCulture, $"{deviceLanes} automation lanes control device parameters, which a MIDI file cannot hold; they are not in the file."), fileTrackIndex);
         }
 
         var events = rendered.Events;

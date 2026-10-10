@@ -4,6 +4,7 @@ using Cadence.Application.Editing;
 using Cadence.Application.Sessions;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Infrastructure.Projects;
@@ -347,8 +348,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal void Execute(IProjectCommand command) => _session.Execute(command);
 
-    /// <summary>The channel a track's route sends on, when it overrides the track's own.</summary>
-    internal MidiChannel? RouteChannel(TrackId track) => Project.Routing.Find(track)?.Channel;
+    /// <summary>The channel a track's output sends on, when it overrides the track's own.</summary>
+    internal MidiChannel? RouteChannel(TrackId track) => TrackOutputs.Read(Project, track).Channel;
 
     internal void OnTrackLayoutChanged()
     {
@@ -367,7 +368,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal void AddAutomationLane(TrackViewModel track, AutomationOption option)
     {
         ArgumentNullException.ThrowIfNull(option);
-        var channel = track.Route?.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
+        var channel = track.Route.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
         Execute(AutomationCommands.AddLane(track.Id, AutomationLane.Create(option.On(channel))));
         track.IsAutomationExpanded = true;
     }
@@ -377,7 +378,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal DeviceProfile? FindProfile(string id) => _playback.Profiles.Find(id);
 
     /// <summary>Applies a routing change to every selected track as one undoable step.</summary>
-    internal void ApplyToSelection(string label, Func<Domain.Routing.TrackRoute, Domain.Routing.TrackRoute> change)
+    internal void ApplyToSelection(string label, Func<TrackOutput, TrackOutput> change)
     {
         var tracks = SelectedTracks.ToList();
         if (tracks.Count == 0)
@@ -385,7 +386,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var commands = tracks.Select(t => ProjectCommands.SetRoute(change(Project.Routing.Find(t.Id) ?? new Domain.Routing.TrackRoute(t.Id))));
+        var commands = tracks.Select(t => ProjectCommands.SetTrackOutput(t.Id, change(TrackOutputs.Read(Project, t.Id))));
         Execute(ProjectCommands.Batch(tracks.Count == 1 ? label : $"{label} ({tracks.Count} Tracks)", commands));
     }
 
@@ -965,8 +966,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var reference = Application.Routing.RouteResolver.ReferenceTo(endpoint);
         foreach (var track in Project.Sequence.Tracks)
         {
-            var route = Project.Routing.Find(track.Id) ?? new Domain.Routing.TrackRoute(track.Id);
-            Execute(ProjectCommands.SetRoute(route with { Endpoint = reference }));
+            Execute(ProjectCommands.SetTrackOutput(track.Id, TrackOutputs.Read(Project, track.Id) with { Endpoint = reference }));
         }
     }
 
@@ -1138,7 +1138,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 Tracks.Move(Tracks.IndexOf(existing), i);
             }
 
-            existing.Sync(i + 1, tracks[i], _playback.Routes.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
+            existing.Sync(i + 1, tracks[i], _playback.Tracks.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
         }
 
         if (ArmedTrack is { } armed && !Tracks.Contains(armed))

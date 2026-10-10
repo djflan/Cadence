@@ -84,10 +84,10 @@ public sealed partial class TrackViewModel : ObservableObject
     [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
 
-    /// <summary>The stored route, or null if the track has never been routed.</summary>
-    public TrackRoute? Route { get; private set; }
+    /// <summary>The track's output settings as the inspector edits them (see <see cref="TrackOutputs"/>).</summary>
+    public TrackOutput Route { get; private set; } = TrackOutput.None;
 
-    /// <summary>The installed profile the route refers to, if any.</summary>
+    /// <summary>The installed profile of the track's instrument, if any.</summary>
     public DeviceProfile? ResolvedProfile { get; private set; }
 
     /// <summary>The track's output as a choice: an available endpoint, a disconnected placeholder, or none.</summary>
@@ -117,7 +117,7 @@ public sealed partial class TrackViewModel : ObservableObject
     {
         RouteHealth.Ready => Output.Name,
         RouteHealth.Attention => $"{Output.Name} · Check",
-        _ when Route?.Endpoint is null => "No output",
+        _ when Route.Endpoint is null => "No output",
         _ => $"{Output.Name} · Offline",
     };
 
@@ -129,7 +129,7 @@ public sealed partial class TrackViewModel : ObservableObject
 
     public bool CanInitialize => ResolvedProfile is { Initialization.Length: > 0 } && Health != RouteHealth.Offline;
 
-    internal void Sync(int number, Track track, ResolvedRoute? resolved, IReadOnlyList<OutputOption> outputs)
+    internal void Sync(int number, Track track, ResolvedTrackOutput? resolved, IReadOnlyList<OutputOption> outputs)
     {
         _syncing = true;
         try
@@ -140,10 +140,10 @@ public sealed partial class TrackViewModel : ObservableObject
             IsSoloed = track.IsSoloed;
             Summary = Summarize(track);
             SyncLanes(track);
-            Route = resolved?.Route;
-            ResolvedProfile = resolved?.Profile.Profile;
+            Route = resolved?.Output ?? TrackOutput.None;
+            ResolvedProfile = resolved?.Instrument?.Profile.Profile;
             Output = ResolveOutput(outputs, resolved);
-            Profile = Route?.Profile is not { } reference
+            Profile = Route.Profile is not { } reference
                 ? ProfileOption.None
                 : ResolvedProfile is { } installed
                     ? new ProfileOption(installed.Id, installed.Name, true)
@@ -151,7 +151,7 @@ public sealed partial class TrackViewModel : ObservableObject
 
             Health = resolved switch
             {
-                null or { CanPlay: false } => RouteHealth.Offline,
+                null or { CanPlay: false, Live: null } => RouteHealth.Offline,
                 { Problems.Length: > 0 } => RouteHealth.Attention,
                 _ => RouteHealth.Ready,
             };
@@ -211,14 +211,14 @@ public sealed partial class TrackViewModel : ObservableObject
         _owner.OnTrackLayoutChanged();
     }
 
-    private OutputOption ResolveOutput(IReadOnlyList<OutputOption> outputs, ResolvedRoute? resolved)
+    private OutputOption ResolveOutput(IReadOnlyList<OutputOption> outputs, ResolvedTrackOutput? resolved)
     {
-        if (Route?.Endpoint is not { } reference)
+        if (Route.Endpoint is not { } reference)
         {
             return OutputOption.None;
         }
 
-        if (resolved?.Endpoint.Endpoint is { } bound && outputs.FirstOrDefault(o => o.Id == bound.Id) is { } match)
+        if (resolved?.Port?.Endpoint.Endpoint is { } bound && outputs.FirstOrDefault(o => o.Id == bound.Id) is { } match)
         {
             return match;
         }

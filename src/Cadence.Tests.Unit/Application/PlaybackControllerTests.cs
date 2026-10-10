@@ -39,7 +39,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
     {
         var track = Track.FromEvents(TrackId.New(), "t", events);
         _session.Execute(ProjectCommands.AddTrack(track));
-        _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value, port.Name) }));
+        _session.Execute(ProjectCommands.SetTrackOutput(track.Id, new TrackOutput { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value, port.Name) }));
         return track;
     }
 
@@ -54,7 +54,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
         await _controller.PlayAsync(Tick.Zero, Ct);
         _controller.Engine.Pump();
 
-        Assert.Equal(EndpointBindingKind.Bound, Assert.Single(_controller.Routes).Endpoint.Kind);
+        Assert.Equal(EndpointBindingKind.Bound, Assert.Single(_controller.Tracks).Port!.Endpoint.Kind);
         Assert.Equal(2, port.Sent.Count);
     }
 
@@ -84,13 +84,13 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
 
         _provider.RemovePort("s");
         await _controller.RefreshAsync(Ct);
-        Assert.Equal(EndpointBindingKind.Missing, Assert.Single(_controller.Routes).Endpoint.Kind);
+        Assert.Equal(EndpointBindingKind.Missing, Assert.Single(_controller.Tracks).Port!.Endpoint.Kind);
 
         var replugged = _provider.CreatePort("Synth", "s");
         await _controller.PlayAsync(Tick.Zero, Ct);
         _controller.Engine.Pump();
 
-        Assert.Equal(EndpointBindingKind.Bound, Assert.Single(_controller.Routes).Endpoint.Kind);
+        Assert.Equal(EndpointBindingKind.Bound, Assert.Single(_controller.Tracks).Port!.Endpoint.Kind);
         Assert.Equal(2, replugged.Sent.Count);
     }
 
@@ -106,7 +106,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
               "initialization": [ { "sysex": "on" } ] }
             """u8));
         _controller.UseProfiles(catalog);
-        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(track.Id)! with { Profile = new ProfileReference("p.one") }));
+        _session.Execute(ProjectCommands.SetTrackOutput(track.Id, TrackOutputs.Read(_session.Project, track.Id) with { Profile = new ProfileReference("p.one") }));
         await _controller.RefreshAsync(Ct);
 
         Assert.Equal(0, await _controller.InitializeInstrumentAsync(track.Id, _ => Task.FromResult(false), Ct));

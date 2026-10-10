@@ -1,4 +1,5 @@
 using Cadence.Application.Editing;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Routing;
@@ -88,19 +89,22 @@ public sealed class EditHistoryTests
         var clip = ClipId.New();
         history.Execute(ProjectCommands.AddEvent(track.Id, clip, note));
         history.Execute(ProjectCommands.ReplaceEvent(track.Id, clip, note with { Position = new Tick(5) }));
-        history.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Channel = MidiChannel.FromNumber(4) }));
+        history.Execute(ProjectCommands.SetTrackOutput(track.Id, new TrackOutput { Channel = MidiChannel.FromNumber(4), Transpose = 3 }));
 
         var edited = history.Current.Sequence.FindTrack(track.Id)!;
         Assert.Equal(("Lead", true, true), (edited.Name, edited.IsMuted, edited.IsSoloed));
         Assert.Equal(new Tick(5), Assert.Single(edited.ArrangedEvents).Position);
-        Assert.NotNull(history.Current.Routing.Find(track.Id));
+        Assert.NotNull(TrackOutputs.PrimaryConnection(history.Current, track.Id));
+        Assert.NotNull(history.Current.ChainOf(track.Id));
 
         history.Execute(ProjectCommands.RemoveEvent(track.Id, note.Id));
         Assert.Empty(history.Current.Sequence.FindTrack(track.Id)!.ArrangedEvents);
 
         history.Execute(ProjectCommands.RemoveTrack(track.Id));
         Assert.Empty(history.Current.Sequence.Tracks);
-        Assert.Null(history.Current.Routing.Find(track.Id));
+        Assert.Null(TrackOutputs.PrimaryConnection(history.Current, track.Id));
+        Assert.Null(history.Current.ChainOf(track.Id));
+        Assert.Empty(history.Current.Connections);
     }
 
     [Fact]
@@ -122,7 +126,7 @@ public sealed class EditHistoryTests
     }
 
     [Fact]
-    public void DuplicateTracks_CopiesBelowWithFreshIdsAndRoutes()
+    public void DuplicateTracks_CopiesBelowWithFreshIdsChainAndRouting()
     {
         var note = new NoteEvent(Tick.Zero, new TickSpan(10), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max);
         var lane = AutomationLane.Create(AutomationTarget.ForPitchBend(MidiChannel.FromIndex(0)));
@@ -131,7 +135,10 @@ public sealed class EditHistoryTests
         var history = new EditHistory(Project.CreateNew());
         history.Execute(ProjectCommands.AddTrack(a));
         history.Execute(ProjectCommands.AddTrack(b));
-        history.Execute(ProjectCommands.SetRoute(new TrackRoute(a.Id) { Channel = MidiChannel.FromNumber(2) }));
+        history.Execute(ProjectCommands.SetTrackOutput(a.Id, new TrackOutput { Channel = MidiChannel.FromNumber(2), Transpose = -5 }));
+        var transpose = TrackOutputs.TransposeDevice(history.Current, a.Id)!;
+        var deviceLane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(transpose.Id, BuiltInDevices.TransposeSemitones), [new AutomationPoint(Tick.Zero, ControlValue.Center)]);
+        history.Execute(AutomationCommands.AddLane(a.Id, deviceLane));
 
         history.Execute(ProjectCommands.DuplicateTracks([a.Id]));
 
@@ -139,9 +146,15 @@ public sealed class EditHistoryTests
         Assert.Equal(["Bass", "Bass copy", "Drums"], tracks.Select(t => t.Name));
         Assert.NotEqual(a.Id, tracks[1].Id);
         Assert.NotEqual(note.Id, tracks[1].ArrangedEvents.Single().Id);
-        Assert.NotEqual(lane.Id, Assert.Single(tracks[1].Automation).Id);
+        Assert.Equal(2, tracks[1].Automation.Length);
+        Assert.NotEqual(lane.Id, tracks[1].Automation[0].Id);
         Assert.Equal(lane.Target, tracks[1].Automation[0].Target);
-        Assert.Equal(MidiChannel.FromNumber(2), history.Current.Routing.Find(tracks[1].Id)!.Channel);
+        var copied = TrackOutputs.Read(history.Current, tracks[1].Id);
+        Assert.Equal((MidiChannel.FromNumber(2), -5), (copied.Channel!.Value, copied.Transpose));
+        var copiedTranspose = TrackOutputs.TransposeDevice(history.Current, tracks[1].Id)!;
+        Assert.NotEqual(transpose.Id, copiedTranspose.Id);
+        Assert.Equal(copiedTranspose.Id, tracks[1].Automation[1].Target.Device);
+        Assert.Equal(transpose.Id, history.Current.Sequence.Tracks[0].Automation[1].Target.Device);
     }
 
     [Fact]

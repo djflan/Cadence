@@ -3,7 +3,7 @@ using Cadence.Domain.Sequencing;
 using Cadence.Infrastructure.Projects;
 using Cadence.Midi.Files;
 using Cadence.Midi.SysEx;
-using Cadence.Playback;
+using Cadence.Tests.Unit.Playback;
 using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
 
 namespace Cadence.Tests.Unit.Midi.SysEx;
@@ -63,7 +63,7 @@ public sealed class SysExPreservationTests
         var sequence = SmfImporter.Import(SmfReader.Read(Song).File).Sequence;
         var track = Assert.Single(sequence.Tracks);
 
-        var plan = PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = new(0) });
+        var plan = PlanDump.Compile(PlanDump.Routed(sequence));
         var sent = plan.Payloads.Select(p => Convert.ToHexString(p.Span)).ToList();
 
         Assert.Null(SysExInterpreter.Interpret(Unknown));

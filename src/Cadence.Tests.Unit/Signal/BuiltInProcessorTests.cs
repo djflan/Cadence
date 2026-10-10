@@ -42,7 +42,7 @@ public sealed class BuiltInProcessorTests
         var release = new NoteOffEvent(EventId.New(), new Tick(10), note.Channel, new NoteNumber(62), Velocity.DefaultRelease);
         var pressure = new PolyPressureEvent(EventId.New(), new Tick(5), note.Channel, new NoteNumber(61), ControlValue.Center);
 
-        var output = Run(Chain(TransposeProcessor.CreateInstance(12)), Keyed(0, note, release, pressure));
+        var output = Run(Chain(BuiltInDevices.CreateTranspose(12)), Keyed(0, note, release, pressure));
 
         Assert.Equal(72, ((NoteEvent)output[0].Event).Note.Value);
         Assert.Equal(73, ((PolyPressureEvent)output[1].Event).Note.Value);
@@ -53,7 +53,7 @@ public sealed class BuiltInProcessorTests
     [Fact]
     public void Transpose_DropsNotesThatLeaveTheRange_AndReportsThem()
     {
-        var device = TransposeProcessor.CreateInstance(24);
+        var device = BuiltInDevices.CreateTranspose(24);
         var runner = new ChainRunner(Chain(device), Catalog, Resolution);
         var output = new SignalBuffer();
 
@@ -75,7 +75,7 @@ public sealed class BuiltInProcessorTests
     [InlineData(48)]
     public void Transpose_StoredSemitones_ComeBackExactly(int semitones)
     {
-        var output = Run(Chain(TransposeProcessor.CreateInstance(semitones)), Keyed(0, Note(0, 60)));
+        var output = Run(Chain(BuiltInDevices.CreateTranspose(semitones)), Keyed(0, Note(0, 60)));
 
         Assert.Equal(60 + semitones, Assert.Single(output.Notes()).Note.Value);
     }
@@ -85,7 +85,7 @@ public sealed class BuiltInProcessorTests
     {
         var events = Keyed(0, XgOn(), Program(0, 5), Volume(0, 90), Note(0));
 
-        var output = Run(Chain(EventFilterProcessor.CreateInstance(EventClass.SystemExclusive | EventClass.Notes)), events);
+        var output = Run(Chain(BuiltInDevices.CreateEventFilter(EventClass.SystemExclusive | EventClass.Notes)), events);
 
         Assert.Equal([events[1], events[2]], output);
     }
@@ -95,7 +95,7 @@ public sealed class BuiltInProcessorTests
     {
         var events = Keyed(0, XgOn(), Program(0, 5), Volume(0, 90), Note(0));
 
-        var output = Run(Chain(Instance(EventFilterProcessor.Definition)), events);
+        var output = Run(Chain(Instance(BuiltInDevices.EventFilter)), events);
 
         Assert.Equal(events, output);
     }
@@ -105,7 +105,7 @@ public sealed class BuiltInProcessorTests
     {
         var chord = Keyed(0, Note(0, 60, length: 1440), Note(0, 64, length: 1440), Note(0, 67, length: 1440));
 
-        var notes = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), chord).Notes().ToList();
+        var notes = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), chord).Notes().ToList();
 
         Assert.Equal(12, notes.Count);
         Assert.Equal([0, 120, 240, 360, 480, 600, 720, 840, 960, 1080, 1200, 1320], notes.Select(n => n.Position.Value));
@@ -122,7 +122,7 @@ public sealed class BuiltInProcessorTests
     {
         var chord = Keyed(0, Note(0, 67, length: 720), Note(0, 60, length: 720), Note(0, 64, length: 720));
 
-        var notes = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2, pattern, octaves)), chord).Notes();
+        var notes = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2, pattern, octaves)), chord).Notes();
 
         Assert.Equal(expected, notes.Select(n => (int)n.Note.Value));
     }
@@ -134,7 +134,7 @@ public sealed class BuiltInProcessorTests
         var high = new NoteEvent(new Tick(0), new TickSpan(240), MidiChannel.FromNumber(4), new NoteNumber(72), new Velocity(110));
         var input = Keyed(5, low, high);
 
-        var output = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), input);
+        var output = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), input);
 
         Assert.Equal([3, 4], output.Notes().Select(n => n.Channel.Number));
         Assert.Equal([30, 110], output.Notes().Select(n => (int)n.Velocity.Value));
@@ -147,7 +147,7 @@ public sealed class BuiltInProcessorTests
     {
         var input = Keyed(0, Note(50, 60, length: 200), Note(1000, 62, length: 100));
 
-        var notes = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), input).Notes();
+        var notes = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), input).Notes();
 
         Assert.Equal([50L, 170, 1000], notes.Select(n => n.Position.Value));
     }
@@ -157,7 +157,7 @@ public sealed class BuiltInProcessorTests
     {
         var input = Keyed(0, Note(0, 60, length: 100), Note(110, 62, length: 100));
 
-        var notes = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), input).Notes();
+        var notes = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), input).Notes();
 
         Assert.Equal([0L, 110], notes.Select(n => n.Position.Value));
     }
@@ -167,7 +167,7 @@ public sealed class BuiltInProcessorTests
     {
         var input = Keyed(0, Note(0, 60, length: 100), Note(100, 62, length: 100));
 
-        var notes = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 2)), input).Notes();
+        var notes = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 2)), input).Notes();
 
         Assert.Equal([0L, 120], notes.Select(n => n.Position.Value));
     }
@@ -175,7 +175,7 @@ public sealed class BuiltInProcessorTests
     [Fact]
     public void Arpeggiator_GivesTheSameEventsEveryTime()
     {
-        var chain = Chain(ArpeggiatorProcessor.CreateInstance(rate: 3, ArpeggiatorPattern.UpDown, 2));
+        var chain = Chain(BuiltInDevices.CreateArpeggiator(rate: 3, ArpeggiatorPattern.UpDown, 2));
         var input = Keyed(0, Note(0, 60, length: 960), Note(0, 64, length: 960));
 
         var first = Run(chain, input);
@@ -189,10 +189,10 @@ public sealed class BuiltInProcessorTests
     public void Arpeggiator_InBlocks_PlaysTheSameAsInOneBlock()
     {
         var input = Keyed(0, Note(0, 60, length: 1000), Note(100, 64, length: 800), Note(700, 67, length: 900), Note(2000, 70, length: 300));
-        var whole = Run(Chain(ArpeggiatorProcessor.CreateInstance(rate: 3, ArpeggiatorPattern.UpDown, 2)), input);
+        var whole = Run(Chain(BuiltInDevices.CreateArpeggiator(rate: 3, ArpeggiatorPattern.UpDown, 2)), input);
 
         var processor = new ArpeggiatorProcessor(Resolution);
-        var device = ArpeggiatorProcessor.CreateInstance(rate: 3, ArpeggiatorPattern.UpDown, 2);
+        var device = BuiltInDevices.CreateArpeggiator(rate: 3, ArpeggiatorPattern.UpDown, 2);
         foreach (var parameter in device.Parameters)
         {
             processor.SetParameter(parameter.Id, parameter.Value);

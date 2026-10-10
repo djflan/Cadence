@@ -6,46 +6,20 @@ using Cadence.Domain.Sequencing;
 namespace Cadence.Signal.BuiltIn;
 
 /// <summary>
-/// Moves notes by a number of semitones. Notes that would leave 0-127 are dropped and reported, as the
-/// old per-track transpose did. Everything else passes around it (it handles only notes).
+/// Runs <see cref="BuiltInDevices.Transpose"/>: moves notes by a number of semitones. Notes that would
+/// leave 0-127 are dropped and reported, as the old per-track transpose did. Everything else passes
+/// around it (it handles only notes).
 /// </summary>
 public sealed class TransposeProcessor : ISignalProcessor, IReportingProcessor
 {
-    public const int MaxSemitones = 48;
-
-    public static readonly ParameterId SemitonesParameter = new(1);
-
-    public static DeviceDefinition Definition { get; } = new()
-    {
-        Id = new DeviceDefinitionId("cadence.midi.transpose"),
-        Name = "Transpose",
-        Origin = DeviceOrigin.BuiltIn,
-        Vendor = "Cadence",
-        Version = "1",
-        Consumes = SignalKinds.Events,
-        Produces = SignalKinds.Events,
-        Handles = EventClass.Notes,
-        Parameters = [new ParameterDescriptor(SemitonesParameter, "Semitones", -MaxSemitones, MaxSemitones, 0, steps: 2 * MaxSemitones, unit: "st")],
-    };
-
-    private static readonly ParameterDescriptor Semitones = Definition.Parameters[0];
-
     private int _semitones;
     private int _dropped;
 
-    /// <summary>A Transpose device set to <paramref name="semitones"/>.</summary>
-    public static DeviceInstance CreateInstance(int semitones)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(semitones, -MaxSemitones);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(semitones, MaxSemitones);
-        return DeviceInstance.Create(Definition.ToReference()).WithParameter(SemitonesParameter, Semitones.ToStored(semitones));
-    }
-
     public void SetParameter(ParameterId parameter, ControlValue value)
     {
-        if (parameter == SemitonesParameter)
+        if (parameter == BuiltInDevices.TransposeSemitones)
         {
-            _semitones = (int)Math.Round(Semitones.ToPlain(value));
+            _semitones = BuiltInDevices.SemitonesFrom(value);
         }
     }
 

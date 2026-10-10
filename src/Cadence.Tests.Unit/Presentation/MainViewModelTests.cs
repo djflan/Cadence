@@ -1,5 +1,6 @@
 using Cadence.Application.Sessions;
 using Cadence.Domain.Midi;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
@@ -285,7 +286,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await Settle();
 
         Assert.All(_vm.Tracks, t => Assert.True(t.IsReady));
-        Assert.All(_session.Project.Routing.Routes.Values, r => Assert.Equal((5, 7), (r.Channel!.Value.Number, r.Transpose)));
+        Assert.All(_session.Project.Sequence.Tracks.Select(t => TrackOutputs.Read(_session.Project, t.Id)), r => Assert.Equal((5, 7), (r.Channel!.Value.Number, r.Transpose)));
         Assert.Equal("Transpose (3 Tracks)", _session.History.UndoLabel);
 
         _vm.UndoCommand.Execute(null);

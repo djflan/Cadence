@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
+    <ProjectReference Include="../Cadence.Signal/Cadence.Signal.csproj" />
   </ItemGroup>
 </Project>

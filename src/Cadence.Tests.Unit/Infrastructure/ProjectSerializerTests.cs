@@ -34,7 +34,7 @@ public sealed class ProjectSerializerTests
         var text = Encoding.UTF8.GetString(first);
 
         Assert.Equal(first, Serializer.Serialize(document));
-        Assert.StartsWith("{\n  \"format\": \"cadence-project\",\n  \"formatVersion\": 3,", text, StringComparison.Ordinal);
+        Assert.StartsWith("{\n  \"format\": \"cadence-project\",\n  \"formatVersion\": 4,", text, StringComparison.Ordinal);
         Assert.Contains("\"bytes\": \"F0 43 10 4C 00 00 7E 00 F7\"", text, StringComparison.Ordinal);
         Assert.Contains("\"channel\": 2", text, StringComparison.Ordinal);
         Assert.EndsWith("}\n", text, StringComparison.Ordinal);
@@ -125,7 +125,18 @@ public sealed class ProjectSerializerTests
     [InlineData("$.project.sequence.tracks[2].automation[0].points[0].value", "-1")]
     [InlineData("$.project.sequence.tracks[2].automation[0].id", "1")]
     [InlineData("$.project.sequence.meter[0].denominator", "3")]
-    [InlineData("$.project.routing[0].transpose", "99")]
+    [InlineData("$.project.sequence.tracks[0].role", "\"lead\"")]
+    [InlineData("$.project.sequence.tracks[2].automation[3].target.parameter", "-1")]
+    [InlineData("$.project.instruments[0].ports[0].id", "\"\"")]
+    [InlineData("$.project.chains[0].owner.type", "\"bus\"")]
+    [InlineData("$.project.chains[0].devices[0].parameters[0].id", "-1")]
+    [InlineData("$.project.chains[2].devices[0].state.data", "\"not base64!\"")]
+    [InlineData("$.project.connections[0].mapping.force", "17")]
+    [InlineData("$.project.connections[1].mapping.remap[0].to", "0")]
+    [InlineData("$.project.connections[0].source.type", "\"bus\"")]
+    [InlineData("$.project.connections[0].kind", "\"light\"")]
+    [InlineData("$.project.mixer.channels[0].gain", "99")]
+    [InlineData("$.project.mixer.masterGain", "\"loud\"")]
     [InlineData("$.project.loop.end", "0")]
     public void InvalidValues_AreReportedWithTheirPath(string path, string replacement)
     {
@@ -171,7 +182,7 @@ public sealed class ProjectSerializerTests
         var json = ToJson(ProjectSamples.Full());
 
         Assert.Null(json["project"]!["sequence"]!["tracks"]![0]!["automation"]);
-        Assert.Equal(3, json["project"]!["sequence"]!["tracks"]![2]!["automation"]!.AsArray().Count);
+        Assert.Equal(4, json["project"]!["sequence"]!["tracks"]![2]!["automation"]!.AsArray().Count);
     }
 
     [Fact]

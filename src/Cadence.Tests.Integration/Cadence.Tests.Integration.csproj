@@ -18,6 +18,7 @@
     <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
     <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
+    <ProjectReference Include="../Cadence.Signal/Cadence.Signal.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

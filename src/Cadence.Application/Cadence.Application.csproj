@@ -12,5 +12,6 @@
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
     <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
+    <ProjectReference Include="../Cadence.Signal/Cadence.Signal.csproj" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,5 @@
 using BenchmarkDotNet.Attributes;
+using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Infrastructure.Projects;
@@ -10,12 +11,11 @@ using Cadence.Profiles;
 
 namespace Cadence.Benchmarks;
 
-/// <summary>Preparing a plan from the edit model, which happens after every edit during playback.</summary>
+/// <summary>Preparing a plan from the project, which happens after every edit during playback.</summary>
 [MemoryDiagnoser]
 public class PlanCompileBenchmarks
 {
-    private Sequence _sequence = null!;
-    private Dictionary<TrackId, PlanTrackBinding> _bindings = null!;
+    private Project _project = null!;
 
     [Params(16)]
     public int Tracks { get; set; }
@@ -26,12 +26,12 @@ public class PlanCompileBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _sequence = Workloads.Dense(Tracks, NotesPerTrack);
-        _bindings = Workloads.Bindings(_sequence);
+        _project = Workloads.Routed(Workloads.Dense(Tracks, NotesPerTrack));
     }
 
+    /// <summary>Routing, signal graph evaluation, and plan compilation together, as after every edit.</summary>
     [Benchmark]
-    public PlaybackPlan Compile() => PlaybackPlanCompiler.Compile(_sequence, _bindings);
+    public PlaybackPlan Compile() => Workloads.Compile(_project);
 }
 
 /// <summary>
@@ -54,7 +54,7 @@ public class SchedulerBenchmarks
     public void Setup()
     {
         var sequence = Workloads.Dense(16, 20_000);
-        _plan = PlaybackPlanCompiler.Compile(sequence, Workloads.Bindings(sequence));
+        _plan = Workloads.Compile(Workloads.Routed(sequence));
         _clock = new VirtualClock(TimeSpan.FromSeconds(1));
         _output = new CountingOutput(Delivery);
         _engine = new PlaybackEngine(_clock, sequence.TempoMap);
