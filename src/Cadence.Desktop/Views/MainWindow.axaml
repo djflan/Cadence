@@ -319,11 +319,14 @@
                   <!-- Rows grow to show automation lanes, matching the arrangement. -->
                   <Style Selector="ListBoxItem" x:DataType="vm:TrackViewModel">
                     <Setter Property="Height" Value="{Binding RowHeight}" />
+                    <!-- The divider is drawn under the track's own row instead, where the arrangement draws it. -->
+                    <Setter Property="BorderThickness" Value="0" />
                   </Style>
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="vm:TrackViewModel">
-                    <Grid RowDefinitions="50,*">
+                    <Grid RowDefinitions="Auto,*">
+                    <Border Height="{x:Static vm:TrackViewModel.TrackRowHeight}" BorderBrush="#19191B" BorderThickness="0,0,0,1">
                     <Grid ColumnDefinitions="3,24,Auto,*,Auto" AutomationProperties.Name="{Binding Name}">
                       <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" />
                       <TextBlock Grid.Column="1" Text="{Binding Number}" Classes="muted" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -353,15 +356,15 @@
                           <PathIcon Classes="stroke" Data="{StaticResource Icon.Plus}" Width="8" Height="8" />
                           <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                              <MenuItem Header="Volume (CC 7)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Volume}" />
-                              <MenuItem Header="Pan (CC 10)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Pan}" />
-                              <MenuItem Header="Expression (CC 11)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Expression}" />
-                              <MenuItem Header="Modulation (CC 1)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Modulation}" />
-                              <MenuItem Header="Sustain (CC 64)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Sustain}" />
-                              <MenuItem Header="Brightness (CC 74)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Brightness}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Volume}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Volume}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Pan}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Pan}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Expression}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Expression}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Modulation}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Modulation}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Sustain}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Sustain}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.Brightness}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Brightness}" />
                               <Separator />
-                              <MenuItem Header="Pitch Bend" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.PitchBend}" />
-                              <MenuItem Header="Channel Pressure" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.ChannelPressure}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.PitchBend}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.PitchBend}" />
+                              <MenuItem Header="{x:Static vm:AutomationOption.ChannelPressure}" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.ChannelPressure}" />
                             </MenuFlyout>
                           </Button.Flyout>
                         </Button>
@@ -372,11 +375,12 @@
                         </ToggleButton>
                       </StackPanel>
                     </Grid>
+                    </Border>
                     <!-- Automation lane headers, one per lane row in the arrangement -->
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Lanes}" IsVisible="{Binding IsAutomationExpanded}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:AutomationLaneViewModel">
-                          <Grid Height="36" ColumnDefinitions="27,*,Auto" Background="#1D1D1F" AutomationProperties.Name="{Binding Name}">
+                          <Grid Height="{x:Static vm:TrackViewModel.AutomationLaneHeight}" ColumnDefinitions="27,*,Auto" Background="{StaticResource Cadence.AutomationLane}" AutomationProperties.Name="{Binding Name}">
                             <Border Grid.Column="1" BorderBrush="#19191B" BorderThickness="0,1,0,0" />
                             <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="muted" FontSize="10.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                             <Button Grid.Column="2" Classes="trackButton" Margin="0,0,8,0" VerticalAlignment="Center"
@@ -400,6 +404,7 @@
                         Background="#222224">
             <Panel>
               <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}" ExpandedTracks="{Binding ExpandedTracks}"
+                                     LaneHeight="{x:Static vm:TrackViewModel.TrackRowHeight}" AutomationLaneHeight="{x:Static vm:TrackViewModel.AutomationLaneHeight}"
                                      RecordingLane="{Binding RecordingLane}" RecordingPreview="{Binding RecordingPreview}"
                                      AutomationProperties.Name="Arrangement. Click a clip to select it and drag to move it; double-click to edit its notes. Click in an automation lane to add a point." />
               <controls:PlayheadOverlay x:Name="Playhead" IsRecording="{Binding IsRecording}" IsVisible="{Binding Tracks.Count}" />

@@ -32,6 +32,11 @@ public sealed record AutomationOption(string Name, AutomationParameter Parameter
         _ => AutomationTarget.ForController(channel, new ControllerNumber(Controller)),
     };
 
+    /// <summary>The option as a menu shows it, for example "Volume (CC 7)".</summary>
+    public override string ToString() => Parameter == AutomationParameter.Controller
+        ? string.Create(CultureInfo.InvariantCulture, $"{Name} (CC {Controller})")
+        : Name;
+
     internal static string NameOf(AutomationTarget target) => target.Parameter switch
     {
         AutomationParameter.PitchBend => PitchBend.Name,

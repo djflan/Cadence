@@ -36,6 +36,8 @@
     <SolidColorBrush x:Key="Cadence.Hover" Color="{StaticResource Cadence.HoverColor}" />
     <SolidColorBrush x:Key="Cadence.Pressed" Color="{StaticResource Cadence.PressedColor}" />
     <SolidColorBrush x:Key="Cadence.Divider" Color="{StaticResource Cadence.DividerColor}" />
+    <!-- Matches Palette.AutomationLane, the background of automation lanes in the arrangement. -->
+    <SolidColorBrush x:Key="Cadence.AutomationLane" Color="#1D1D1F" />
     <SolidColorBrush x:Key="Cadence.Border" Color="{StaticResource Cadence.BorderColor}" />
     <SolidColorBrush x:Key="Cadence.BorderStrong" Color="{StaticResource Cadence.BorderStrongColor}" />
     <SolidColorBrush x:Key="Cadence.Text" Color="{StaticResource Cadence.TextColor}" />

@@ -347,6 +347,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal void Execute(IProjectCommand command) => _session.Execute(command);
 
+    /// <summary>The channel a track's route sends on, when it overrides the track's own.</summary>
+    internal MidiChannel? RouteChannel(TrackId track) => Project.Routing.Find(track)?.Channel;
+
     internal void OnTrackLayoutChanged()
     {
         var expanded = Tracks.Where(t => t.IsAutomationExpanded && t.Lanes.Count > 0).Select(t => t.Id).ToHashSet();

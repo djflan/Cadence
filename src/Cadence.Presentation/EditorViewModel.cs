@@ -237,10 +237,12 @@ public sealed partial class EditorViewModel : ObservableObject
 
     /// <summary>
     /// True when a track automation lane controls what the current controller lane shows, on the track's
-    /// channel. Automation wins, so these clip events do not play (ADR 0020).
+    /// channel as its route sends it. Automation wins, so these clip events do not play (ADR 0020).
     /// </summary>
     public bool IsLaneOverridden => Track is { } track && Lane.Kind != ControllerLaneKind.Velocity && track.Automation.Any(l =>
-        !l.Points.IsEmpty && l.Target.Channel == DefaultChannel(track) && (Lane.Kind, l.Target.Parameter) switch
+        !l.Points.IsEmpty
+        && (_owner.RouteChannel(track.Id) ?? l.Target.Channel) == (_owner.RouteChannel(track.Id) ?? DefaultChannel(track))
+        && (Lane.Kind, l.Target.Parameter) switch
         {
             (ControllerLaneKind.Controller, AutomationParameter.Controller) => l.Target.Controller.Value == Lane.Controller,
             (ControllerLaneKind.PitchBend, AutomationParameter.PitchBend) => true,

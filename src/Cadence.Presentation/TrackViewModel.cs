@@ -67,8 +67,6 @@ public sealed partial class TrackViewModel : ObservableObject
     /// <summary>The track's row plus its lanes when they are shown.</summary>
     public double RowHeight => TrackRowHeight + (IsAutomationExpanded ? Lanes.Count * AutomationLaneHeight : 0);
 
-    public static IReadOnlyList<AutomationOption> AutomationOptions => AutomationOption.All;
-
     /// <summary>Adds a lane for <paramref name="option"/> on the track's channel, and shows the lanes.</summary>
     [RelayCommand]
     private void AddLane(AutomationOption option) => _owner.AddAutomationLane(this, option);

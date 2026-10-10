@@ -455,6 +455,28 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Editor_ComparesOverriddenLanesOnTheRouteChannel()
+    {
+        // The route sends everything on channel 2, so a lane on channel 2 replaces the clip's channel 1 CC 7.
+        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(Track.Id)! with { Channel = MidiChannel.FromNumber(2) }));
+        _session.Execute(AutomationCommands.AddLane(Track.Id, new AutomationLane(
+            AutomationLaneId.New(),
+            AutomationTarget.ForController(MidiChannel.FromNumber(2), ControllerNumber.ChannelVolume),
+            [new AutomationPoint(Tick.Zero, ControlValue.Max)])));
+
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Controller == 7 && l.Kind == ControllerLaneKind.Controller);
+
+        Assert.True(Editor.IsLaneOverridden);
+    }
+
+    [Fact]
+    public void AutomationOptions_ShowTheirControllerInMenus()
+    {
+        Assert.Equal("Volume (CC 7)", AutomationOption.Volume.ToString());
+        Assert.Equal("Pitch Bend", AutomationOption.PitchBend.ToString());
+    }
+
+    [Fact]
     public void Arrangement_SelectingAnotherTrack_DropsClipsFromTheSelection()
     {
         _session.Execute(ProjectCommands.AddTrack(Track.Create("Other")));

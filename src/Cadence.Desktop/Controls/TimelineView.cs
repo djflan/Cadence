@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -49,7 +50,7 @@ public sealed class TimelineView : Control
     private static readonly IBrush LaneBrush = new SolidColorBrush(Palette.Lane);
     private static readonly IBrush LaneAltBrush = new SolidColorBrush(Palette.LaneAlt);
     private static readonly IBrush LaneSelected = new SolidColorBrush(Palette.LaneSelected);
-    private static readonly IBrush AutomationBrush = new SolidColorBrush(Color.Parse("#1D1D1F"));
+    private static readonly IBrush AutomationBrush = new SolidColorBrush(Palette.AutomationLane);
     private static readonly IPen LaneDivider = new Pen(new SolidColorBrush(Palette.LaneDivider), 1);
     private static readonly IPen CenterLine = new Pen(new SolidColorBrush(Palette.GridBeat), 1, new DashStyle([3, 3], 0));
     private static readonly IBrush RecordFill = new SolidColorBrush(Palette.Record, 0.28);
@@ -69,12 +70,19 @@ public sealed class TimelineView : Control
     private bool _dragCopy;
     private bool _dragging;
 
-    // Automation point drag state: the lane's points as they will be, and which one moves.
+    // Automation point drag state: the lane's points as they will be, and which one moves. The points
+    // as they were at the press tell whether the lane changed underneath the drag (for example, undo).
+    private readonly Dictionary<(int Color, bool Muted), (IPen Line, IBrush Handle)> _curveStyles = [];
     private AutomationLaneId? _pointLane;
+    private ImmutableArray<AutomationPoint> _pointsAtPress = [];
     private List<AutomationPoint> _points = [];
     private int _pointIndex;
     private bool _pointAdded;
     private bool _pointMoved;
+    private (AutomationLaneId Lane, Tick Position)? _justAdded;
+
+    // The top of each track's row, laid out on measure and render.
+    private double[] _tops = [];
 
     private enum Grip
     {
@@ -191,23 +199,6 @@ public sealed class TimelineView : Control
 
     public long XToTick(double x) => Project is { } p ? TimeGrid.XToTick(x, p.Sequence, PixelsPerQuarter) : 0;
 
-    /// <summary>The y of each track's row, and the height of the row with its shown lanes.</summary>
-    public double RowTop(int lane)
-    {
-        if (Project is not { } project)
-        {
-            return 0;
-        }
-
-        var top = 0.0;
-        for (var i = 0; i < lane && i < project.Sequence.Tracks.Length; i++)
-        {
-            top += RowHeight(project.Sequence.Tracks[i]);
-        }
-
-        return top;
-    }
-
     protected override Size MeasureOverride(Size availableSize)
     {
         if (Project is not { } project)
@@ -218,7 +209,9 @@ public sealed class TimelineView : Control
         var sequence = project.Sequence;
         var endTick = sequence.EndPosition.Value + (32L * sequence.Ppqn.TicksPerQuarterNote);
         var width = Math.Max(TickToX(endTick), double.IsFinite(availableSize.Width) ? availableSize.Width : 0);
-        var height = Math.Max(sequence.Tracks.Sum(RowHeight), double.IsFinite(availableSize.Height) ? availableSize.Height : 0);
+        LayoutRows(sequence);
+        var rows = sequence.Tracks.IsEmpty ? 0 : _tops[^1] + RowHeight(sequence.Tracks[^1]);
+        var height = Math.Max(rows, double.IsFinite(availableSize.Height) ? availableSize.Height : 0);
         return new Size(width, height);
     }
 
@@ -233,7 +226,8 @@ public sealed class TimelineView : Control
         var left = Math.Max(0, VisibleLeft - 50);
         var right = Math.Min(Bounds.Width, VisibleLeft + (double.IsFinite(VisibleWidth) ? VisibleWidth : Bounds.Width) + 50);
         var lanes = sequence.Tracks.Length;
-        var tops = RowTops(sequence);
+        LayoutRows(sequence);
+        var tops = _tops;
 
         context.FillRectangle(LaneBrush, new Rect(left, 0, right - left, Bounds.Height));
         for (var lane = 0; lane < lanes; lane++)
@@ -298,9 +292,11 @@ public sealed class TimelineView : Control
 
         Focus();
         e.Handled = true;
+        var justAdded = _justAdded;
+        _justAdded = null;
         if (row.Automation >= 0)
         {
-            PressAutomation(project.Sequence, row, point.Position, e);
+            PressAutomation(project.Sequence, row, point.Position, e, justAdded);
             return;
         }
 
@@ -409,11 +405,14 @@ public sealed class TimelineView : Control
         {
             var (lane, points, label) = (_dragLane, _points, _pointAdded ? "Add Automation Point" : "Move Automation Point");
             var changed = _pointAdded || _pointMoved;
+            var current = Project is { } project && lane < project.Sequence.Tracks.Length && project.Sequence.Tracks[lane].FindLane(automation) is { } found && found.Points == _pointsAtPress;
+            var added = _pointAdded ? points[_pointIndex].Position : (Tick?)null;
             e.Pointer.Capture(null);
             EndPointDrag();
-            if (changed)
+            if (changed && current)
             {
                 AutomationEdited?.Invoke(this, (lane, automation, label, points));
+                _justAdded = added is { } at ? (automation, at) : null;
             }
 
             return;
@@ -441,6 +440,22 @@ public sealed class TimelineView : Control
         }
     }
 
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+
+        // The gesture was interrupted (another window, a popup): drop it rather than commit it later.
+        if (_pointLane is not null)
+        {
+            EndPointDrag();
+        }
+
+        if (_drag != Grip.None)
+        {
+            EndDrag();
+        }
+    }
+
     private void EndDrag()
     {
         (_drag, _dragClip, _dragDelta, _dragLanes, _dragging) = (Grip.None, null, 0, 0, false);
@@ -460,29 +475,29 @@ public sealed class TimelineView : Control
 
     private double RowHeight(Track track) => LaneHeight + (ShownLanes(track) * AutomationLaneHeight);
 
-    private double[] RowTops(Sequence sequence)
+    private void LayoutRows(Sequence sequence)
     {
-        var tops = new double[sequence.Tracks.Length];
-        for (var i = 1; i < tops.Length; i++)
+        if (_tops.Length != sequence.Tracks.Length)
         {
-            tops[i] = tops[i - 1] + RowHeight(sequence.Tracks[i - 1]);
+            _tops = new double[sequence.Tracks.Length];
         }
 
-        return tops;
+        for (var i = 1; i < _tops.Length; i++)
+        {
+            _tops[i] = _tops[i - 1] + RowHeight(sequence.Tracks[i - 1]);
+        }
     }
 
     private Row RowAt(Sequence sequence, double y)
     {
-        var top = 0.0;
+        LayoutRows(sequence);
         for (var lane = 0; lane < sequence.Tracks.Length; lane++)
         {
-            var height = RowHeight(sequence.Tracks[lane]);
-            if (y >= top && y < top + height)
+            var top = _tops[lane];
+            if (y >= top && y < top + RowHeight(sequence.Tracks[lane]))
             {
                 return new Row(lane, y < top + LaneHeight ? -1 : (int)((y - top - LaneHeight) / AutomationLaneHeight));
             }
-
-            top += height;
         }
 
         return new Row(-1, -1);
@@ -556,7 +571,7 @@ public sealed class TimelineView : Control
         return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
     }
 
-    private void PressAutomation(Sequence sequence, Row row, Point position, PointerPressedEventArgs e)
+    private void PressAutomation(Sequence sequence, Row row, Point position, PointerPressedEventArgs e, (AutomationLaneId Lane, Tick Position)? justAdded)
     {
         var track = sequence.Tracks[row.Lane];
         if (row.Automation >= track.Automation.Length)
@@ -565,9 +580,15 @@ public sealed class TimelineView : Control
         }
 
         var lane = track.Automation[row.Automation];
-        var area = AutomationArea(RowTop(row.Lane) + LaneHeight + (row.Automation * AutomationLaneHeight));
+        var area = AutomationArea(_tops[row.Lane] + LaneHeight + (row.Automation * AutomationLaneHeight));
+        var hit = PointAt(lane, position, area);
+        if (e.ClickCount >= 2 && (hit < 0 || justAdded == (lane.Id, lane.Points[hit].Position)))
+        {
+            // The second click of a double-click that started by adding a point, or that missed: nothing more to do.
+            return;
+        }
+
         var points = lane.Points.ToList();
-        var hit = points.FindIndex(p => Math.Abs(TickToX(p.Position.Value) - position.X) <= PointGrip && Math.Abs(ValueToY(p.Value, area) - position.Y) <= PointGrip);
         if (hit >= 0 && e.KeyModifiers.HasFlag(KeyModifiers.Alt))
         {
             points.RemoveAt(hit);
@@ -597,7 +618,7 @@ public sealed class TimelineView : Control
             hit = points.FindIndex(p => p.Position.Value == tick);
         }
 
-        (_pointLane, _points, _pointIndex, _pointMoved, _dragLane) = (lane.Id, points, hit, false, row.Lane);
+        (_pointLane, _pointsAtPress, _points, _pointIndex, _pointMoved, _dragLane) = (lane.Id, lane.Points, points, hit, false, row.Lane);
         _dragPress = position;
         e.Pointer.Capture(this);
         InvalidateVisual();
@@ -619,7 +640,8 @@ public sealed class TimelineView : Control
 
         // The point stays between its neighbours, so points keep their order and one tick each.
         var index = sequence.Tracks[_dragLane].Automation.IndexOf(lane);
-        var area = AutomationArea(RowTop(_dragLane) + LaneHeight + (index * AutomationLaneHeight));
+        LayoutRows(sequence);
+        var area = AutomationArea(_tops[_dragLane] + LaneHeight + (index * AutomationLaneHeight));
         var low = _pointIndex > 0 ? _points[_pointIndex - 1].Position.Value + 1 : 0;
         var high = _pointIndex + 1 < _points.Count ? _points[_pointIndex + 1].Position.Value - 1 : long.MaxValue;
         var tick = Math.Clamp(PointTick(sequence, position.X, modifiers), low, Math.Max(low, high));
@@ -630,8 +652,23 @@ public sealed class TimelineView : Control
 
     private void EndPointDrag()
     {
-        (_pointLane, _points, _pointAdded, _pointMoved) = (null, [], false, false);
+        (_pointLane, _pointsAtPress, _points, _pointAdded, _pointMoved) = (null, [], [], false, false);
         InvalidateVisual();
+    }
+
+    /// <summary>The index of the point under <paramref name="position"/>, or -1. Only points near it in time are looked at.</summary>
+    private int PointAt(AutomationLane lane, Point position, Rect area)
+    {
+        var points = lane.Points;
+        for (var i = FirstAtOrAfter(points, XToTick(Math.Max(0, position.X - PointGrip))); i < points.Length && TickToX(points[i].Position.Value) <= position.X + PointGrip; i++)
+        {
+            if (Math.Abs(ValueToY(points[i].Value, area) - position.Y) <= PointGrip)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private long PointTick(Sequence sequence, double x, KeyModifiers modifiers)
@@ -652,8 +689,14 @@ public sealed class TimelineView : Control
     private void DrawAutomation(DrawingContext context, Track track, AutomationLane lane, int trackLane, Rect row)
     {
         var area = new Rect(row.X, row.Y + CurveInset, row.Width, row.Height - (2 * CurveInset));
-        var color = Palette.Track(trackLane);
-        var line = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.3), track.IsMuted ? 0.4 : 0.95), 1.5);
+        if (!_curveStyles.TryGetValue((trackLane % 8, track.IsMuted), out var style))
+        {
+            var color = Palette.Track(trackLane);
+            style = (new Pen(new SolidColorBrush(Palette.Lighten(color, 0.3), track.IsMuted ? 0.4 : 0.95), 1.5), new SolidColorBrush(Palette.Lighten(color, 0.6)));
+            _curveStyles.Add((trackLane % 8, track.IsMuted), style);
+        }
+
+        var line = style.Line;
         if (lane.Target.Parameter == AutomationParameter.PitchBend)
         {
             var center = Math.Round(ValueToY(ControlValue.Center, area)) + 0.5;
@@ -667,9 +710,18 @@ public sealed class TimelineView : Control
         }
 
         Point At(AutomationPoint p) => new(TickToX(p.Position.Value), ValueToY(p.Value, area));
+
+        // Only the points around the visible part of the lane, plus one either side for the joining lines.
+        var (fromTick, toTick) = (XToTick(Math.Max(0, row.Left - PointGrip)), XToTick(row.Right + PointGrip));
+        var start = Math.Max(0, FirstAtOrAfter(points, fromTick) - 1);
+        var end = Math.Min(points.Count, FirstAtOrAfter(points, toTick + 1) + 1);
         var first = At(points[0]);
-        context.DrawLine(line, new Point(row.Left, first.Y), first);
-        for (var i = 0; i < points.Count; i++)
+        if (start == 0)
+        {
+            context.DrawLine(line, new Point(row.Left, first.Y), first);
+        }
+
+        for (var i = start; i < end; i++)
         {
             var here = At(points[i]);
             if (i + 1 == points.Count)
@@ -695,8 +747,8 @@ public sealed class TimelineView : Control
             }
         }
 
-        var handle = new SolidColorBrush(Palette.Lighten(color, 0.6));
-        for (var i = 0; i < points.Count; i++)
+        var handle = style.Handle;
+        for (var i = start; i < end; i++)
         {
             var p = At(points[i]);
             if (p.X >= row.Left - PointGrip && p.X <= row.Right + PointGrip)
@@ -706,6 +758,25 @@ public sealed class TimelineView : Control
                 context.FillRectangle(dragged ? Brushes.White : handle, new Rect(p.X - (size / 2.0), p.Y - (size / 2.0), size, size));
             }
         }
+    }
+
+    private static int FirstAtOrAfter(IReadOnlyList<AutomationPoint> points, long tick)
+    {
+        int low = 0, high = points.Count;
+        while (low < high)
+        {
+            var mid = (low + high) / 2;
+            if (points[mid].Position.Value < tick)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid;
+            }
+        }
+
+        return low;
     }
 
     private bool IsMoving => _dragging && _drag == Grip.Body && (_dragDelta != 0 || _dragLanes != 0);
