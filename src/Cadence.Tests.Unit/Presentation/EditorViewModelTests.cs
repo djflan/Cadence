@@ -340,16 +340,88 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
-    public void MoveTrackContent_ShiftsOrCopiesTheWholeRegion()
+    public void Arrangement_MovesAndCopiesTheSelectedClips()
     {
-        _vm.MoveTrackContent(_vm.Tracks[0], 3840, copy: false);
+        var clip = Track.Clips[0];
+        _vm.Arrangement.SelectClip(clip.Id);
+
+        _vm.Arrangement.MoveSelection(3840, 0, copy: false);
         Assert.Equal([3840L, 4800L, 5760L], Track.ArrangedEvents.Select(e => e.Position.Value));
         Assert.Equal("Move Clip", _session.History.UndoLabel);
 
-        _vm.MoveTrackContent(_vm.Tracks[0], -3840, copy: true);
+        _vm.Arrangement.MoveSelection(-3840, 0, copy: true);
         Assert.Equal(6, Track.ArrangedEvents.Length);
         Assert.Equal(0, Track.ArrangedEvents[0].Position.Value);
         Assert.Equal("Copy Clip", _session.History.UndoLabel);
+
+        // Nothing moves before tick 0; landing there, the clip replaces the copy it covers.
+        _vm.Arrangement.MoveSelection(-100_000, 0, copy: false);
+        Assert.Equal((clip.Id, 0L), (Assert.Single(Track.Clips).Id, Track.Clips[0].Start.Value));
+    }
+
+    [Fact]
+    public void Arrangement_MovesClipsToOtherTracks()
+    {
+        _session.Execute(ProjectCommands.AddTrack(Track.Create("Empty")));
+        var clip = Track.Clips[0];
+        _vm.Arrangement.SelectClip(clip.Id);
+
+        _vm.Arrangement.MoveSelection(0, 5, copy: false);
+
+        var tracks = _session.Project.Sequence.Tracks;
+        Assert.Empty(tracks[0].Clips);
+        Assert.Equal(clip.Id, Assert.Single(tracks[1].Clips).Id);
+        Assert.Contains(clip.Id, _vm.Arrangement.SelectedClips);
+    }
+
+    [Fact]
+    public void Arrangement_SplitsResizesDuplicatesAndDeletes()
+    {
+        var clip = Track.Clips[0];
+        _vm.SeekTo(1000);
+
+        _vm.Arrangement.SplitAtPlayhead();
+        Assert.Equal([(0L, 1000L), (1000L, 2160L)], Track.Clips.Select(c => (c.Start.Value, c.End.Value)));
+        Assert.Equal("Split Clip", _session.History.UndoLabel);
+
+        _vm.Arrangement.ResizeClip(clip.Id, 0, 500);
+        Assert.Equal([0L, 1920L], Track.ArrangedEvents.Select(e => e.Position.Value));
+        _vm.Arrangement.ResizeClip(clip.Id, 0, 5000);
+        Assert.Equal(1000, Track.Clips[0].End.Value);
+
+        _vm.Arrangement.SelectClip(clip.Id);
+        _vm.Arrangement.DuplicateSelection();
+        Assert.Equal(3, Track.Clips.Length);
+        Assert.Equal("Duplicate Clip", _session.History.UndoLabel);
+
+        _vm.Arrangement.DeleteSelection();
+        Assert.Equal(2, Track.Clips.Length);
+        Assert.False(_vm.Arrangement.HasClipSelection);
+    }
+
+    [Fact]
+    public void Arrangement_SelectingAnotherTrack_DropsClipsFromTheSelection()
+    {
+        _session.Execute(ProjectCommands.AddTrack(Track.Create("Other")));
+        _vm.Arrangement.SelectClip(Track.Clips[0].Id);
+
+        _vm.Select(_vm.Tracks[1]);
+
+        Assert.False(_vm.Arrangement.HasClipSelection);
+    }
+
+    [Fact]
+    public void Arrangement_CreatesAnEmptyBarAndUndoDropsItFromTheSelection()
+    {
+        var id = _vm.Arrangement.CreateClip(Track.Id, 5000);
+
+        var clip = Assert.IsType<NoteClip>(Track.FindClip(id!.Value));
+        Assert.Equal((3840L, 7680L), (clip.Start.Value, clip.End.Value));
+        Assert.Equal([id.Value], _vm.Arrangement.SelectedClips);
+        Assert.Null(_vm.Arrangement.CreateClip(Track.Id, 5000));
+
+        _vm.UndoCommand.Execute(null);
+        Assert.Empty(_vm.Arrangement.SelectedClips);
     }
 
     [Fact]

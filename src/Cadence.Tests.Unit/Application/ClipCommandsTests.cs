@@ -259,4 +259,70 @@ public sealed class ClipCommandsTests
         Assert.Equal("Copy Clips", ClipCommands.CopyClips(TrackOf(project).Id, [clip.Id, ClipId.New()], 1).Label);
         Assert.Same(project, ClipCommands.CopyClips(TrackOf(project).Id, [clip.Id], 0).Apply(project));
     }
+
+    [Fact]
+    public void MoveClips_ToAnotherTrack_MakesRoomThere()
+    {
+        var moving = Clip(0, 1000, Note(0));
+        var project = With(moving);
+        var other = new Track(TrackId.New(), "u", [Clip(500, 1000)]);
+        project = project with { Sequence = project.Sequence.WithTrack(other) };
+
+        var moved = ClipCommands.MoveClips(TrackOf(project).Id, [moving.Id], 0, other.Id).Apply(project);
+
+        Assert.Empty(moved.Sequence.Tracks[0].Clips);
+        Assert.Equal([(0L, 1000L), (1000L, 1500L)], moved.Sequence.Tracks[1].Clips.Select(c => (c.Start.Value, c.End.Value)));
+        Assert.Equal(moving.Id, moved.Sequence.Tracks[1].Clips[0].Id);
+    }
+
+    [Fact]
+    public void SplitClips_SplitsOnlyClipsTheTickIsInside()
+    {
+        var a = Clip(0, 1000);
+        var b = Clip(1000, 1000);
+        var project = With(a, b);
+
+        var split = ClipCommands.SplitClips(TrackOf(project).Id, [a.Id, b.Id], new Tick(500)).Apply(project);
+
+        Assert.Equal([(0L, 500L), (500L, 1000L), (1000L, 2000L)], Bounds(split));
+        Assert.Same(project, ClipCommands.SplitClips(TrackOf(project).Id, [a.Id], new Tick(1000)).Apply(project));
+    }
+
+    [Fact]
+    public void ResizeClip_StopsAtNeighboursAndKeepsATick()
+    {
+        var a = Clip(0, 1000);
+        var b = Clip(2000, 1000);
+        var project = With(a, b);
+        var id = TrackOf(project).Id;
+
+        Assert.Equal([(0L, 2000L), (2000L, 3000L)], Bounds(ClipCommands.ResizeClip(id, a.Id, Tick.Zero, new Tick(9000)).Apply(project)));
+        Assert.Equal([(0L, 1000L), (1000L, 3000L)], Bounds(ClipCommands.ResizeClip(id, b.Id, Tick.Zero, new Tick(3000)).Apply(project)));
+        Assert.Equal([(0L, 1L), (2000L, 3000L)], Bounds(ClipCommands.ResizeClip(id, a.Id, Tick.Zero, Tick.Zero).Apply(project)));
+        Assert.Same(project, ClipCommands.ResizeClip(id, a.Id, Tick.Zero, new Tick(1000)).Apply(project));
+    }
+
+    [Fact]
+    public void DuplicateClips_RepeatsTheSelectionAfterItself()
+    {
+        var a = Clip(0, 1000);
+        var b = Clip(1500, 500);
+        var project = With(a, b);
+
+        var duplicated = ClipCommands.DuplicateClips(TrackOf(project).Id, [a.Id, b.Id]).Apply(project);
+
+        Assert.Equal([(0L, 1000L), (1500L, 2000L), (2000L, 3000L), (3500L, 4000L)], Bounds(duplicated));
+    }
+
+    [Fact]
+    public void DeleteAndCreateClips()
+    {
+        var a = Clip(0, 1000);
+        var project = With(a, Clip(3000, 1000));
+        var id = TrackOf(project).Id;
+
+        Assert.Equal([(3000L, 4000L)], Bounds(ClipCommands.DeleteClips(id, [a.Id]).Apply(project)));
+        Assert.Equal([(0L, 1000L), (1000L, 3000L), (3000L, 4000L)], Bounds(ClipCommands.CreateClip(id, NoteClip.Create(new Tick(1000), new TickSpan(5000))).Apply(project)));
+        Assert.Same(project, ClipCommands.CreateClip(id, NoteClip.Create(new Tick(500), new TickSpan(100))).Apply(project));
+    }
 }

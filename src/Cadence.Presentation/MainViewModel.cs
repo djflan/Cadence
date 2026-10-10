@@ -77,12 +77,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Project = session.Project;
         Selection = new SelectionViewModel(this);
         Editor = new EditorViewModel(this);
+        Arrangement = new ArrangementViewModel(this);
         EventList = new EventListViewModel(this, Editor);
         SelectedTracks.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
             SyncEditor();
+            Arrangement.KeepOnTracks([.. SelectedTracks.Select(t => t.Id)]);
             ApplyThru();
         };
         ApplyMetronome();
@@ -129,6 +131,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The piano roll for the first selected track.</summary>
     public EditorViewModel Editor { get; }
+
+    /// <summary>The clip selection and clip edits in the arrangement.</summary>
+    public ArrangementViewModel Arrangement { get; }
 
     /// <summary>The event list for the first selected track.</summary>
     public EventListViewModel EventList { get; }
@@ -789,22 +794,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AddMessage(MessageSeverity.Info, "Panic", "Sent All Notes Off, All Sound Off, and sustain off on every channel of every output.");
     }
 
-    /// <summary>
-    /// Moves every clip on a track in time (dragging its region in the arrangement), or with
-    /// <paramref name="copy"/> repeats them shifted, as one undo step.
-    /// </summary>
-    public void MoveTrackContent(TrackViewModel track, long deltaTicks, bool copy)
-    {
-        ArgumentNullException.ThrowIfNull(track);
-        if (Project.Sequence.FindTrack(track.Id) is not { Clips.IsEmpty: false } content || deltaTicks == 0)
-        {
-            return;
-        }
-
-        var clips = content.Clips.Select(c => c.Id).ToList();
-        Execute(copy ? ClipCommands.CopyClips(track.Id, clips, deltaTicks) : ClipCommands.MoveClips(track.Id, clips, deltaTicks));
-    }
-
     /// <summary>Sets the loop (cycle) range, or turns it off with null, e.g. from the ruler.</summary>
     public void SetLoop(TickRange? loop) => Execute(ProjectCommands.SetLoop(loop));
 
@@ -975,6 +964,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsLoopEnabled = Project.Loop is not null;
         SyncTracks();
         SyncEditor();
+        Arrangement.Sync();
         await RefreshAsync();
     }
 
