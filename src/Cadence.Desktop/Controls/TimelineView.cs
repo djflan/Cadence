@@ -262,7 +262,7 @@ public sealed class TimelineView : Control
             return bar.Value + ((long)Math.Round((tick - bar.Value) / (double)beat) * beat);
         }
 
-        var next = TimeGrid.NextBar(meter, bar);
+        var next = meter.NextBarStart(bar);
         return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
     }
 
@@ -278,7 +278,7 @@ public sealed class TimelineView : Control
         var start = meter.BarStart(track.Events[0].Position);
         var last = track.EndPosition;
         var endBar = meter.BarStart(last);
-        var end = endBar == last ? last : TimeGrid.NextBar(meter, endBar);
+        var end = endBar == last ? last : meter.NextBarStart(endBar);
         return (start.Value, end.Value);
     }
 

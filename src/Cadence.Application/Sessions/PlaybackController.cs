@@ -253,7 +253,7 @@ public sealed class PlaybackController : IAsyncDisposable
     /// <summary>The channel <paramref name="track"/> plays on: its route's channel, else its first event's, else channel 1.</summary>
     public MidiChannel ChannelFor(TrackId track) =>
         Routes.FirstOrDefault(r => r.Track == track)?.Route?.Channel
-        ?? FirstChannel(_session.Project.Sequence.FindTrack(track))
+        ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel
         ?? MidiChannel.FromIndex(0);
 
     /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a piano key.</summary>
@@ -266,7 +266,7 @@ public sealed class PlaybackController : IAsyncDisposable
             return;
         }
 
-        var channel = route.Route!.Channel ?? FirstChannel(_session.Project.Sequence.FindTrack(track)) ?? MidiChannel.FromIndex(0);
+        var channel = route.Route!.Channel ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel ?? MidiChannel.FromIndex(0);
         if (!note.TryTranspose(route.Route.Transpose, out var sounding))
         {
             return;
@@ -425,8 +425,6 @@ public sealed class PlaybackController : IAsyncDisposable
 
         Recorder.SetThru(target);
     }
-
-    private static MidiChannel? FirstChannel(Track? track) => track?.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel;
 
     private async Task<IMidiOutput?> GetOrOpenAsync(EndpointId id, ImmutableArray<string>.Builder problems, CancellationToken cancellationToken)
     {

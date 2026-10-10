@@ -59,6 +59,16 @@ public sealed class MeterMapTests
     }
 
     [Fact]
+    public void NextBarStart_StopsAtAMidBarChange()
+    {
+        var map = new MeterMap(Resolution, [new MeterChange(new Tick(960), new TimeSignature(3, 4))]);
+
+        Assert.Equal(new Tick(960), map.NextBarStart(Tick.Zero));
+        Assert.Equal(new Tick(960), map.NextBarStart(new Tick(959)));
+        Assert.Equal(new Tick(960 + 1440), map.NextBarStart(new Tick(960)));
+    }
+
+    [Fact]
     public void Constructor_RejectsMetersWithFractionalBeats() =>
         Assert.Throws<ArgumentException>(() => MeterMap.Constant(new Ppqn(1), new TimeSignature(3, 8)));
 
@@ -74,4 +84,10 @@ public sealed class MeterMapTests
     public void BarBeatTick_RoundTrips() =>
         Gen.Select(GenMap, Gen.Long[0, 100_000]).Sample((map, tick) =>
             map.TryGetTick(map.ToBarBeatTick(new Tick(tick)), out var back) && back == new Tick(tick));
+
+    [Fact]
+    public void NextBarStart_IsTheStartOfTheNextBarNumber() =>
+        Gen.Select(GenMap, Gen.Long[0, 100_000]).Sample((map, tick) =>
+            map.TryGetTick(new BarBeatTick(map.ToBarBeatTick(new Tick(tick)).Bar + 1, 1, 0), out var next)
+            && map.NextBarStart(new Tick(tick)) == next);
 }
