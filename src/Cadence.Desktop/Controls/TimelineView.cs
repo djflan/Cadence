@@ -23,7 +23,8 @@ namespace Cadence.Desktop.Controls;
 /// <remarks>
 /// Click a clip to select it (Shift adds, Cmd/Ctrl toggles) and drag to move the selection, also to
 /// other tracks; hold Alt (Option) to copy. Drag a clip's edge to trim or extend it. Double-click a
-/// clip to edit it, or empty space to create a one-bar clip. Click empty space to select the track.
+/// clip to edit it, or its name strip to rename it, or empty space to create a clip filling that bar.
+/// Click empty space to select the track.
 /// In an automation lane, click to add a point and drag to move it; Alt-click deletes a point and
 /// double-click switches it between holding and ramping. Shift turns snapping off.
 /// </remarks>
@@ -44,6 +45,7 @@ public sealed class TimelineView : Control
     private const double EdgeGrip = 5;
     private const double PointGrip = 5;
     private const double CurveInset = 4;
+    private const double ClipHeaderHeight = 13;
 
     private static readonly Cursor ResizeCursor = new(StandardCursorType.SizeWestEast);
     private static readonly Cursor MoveCursor = new(StandardCursorType.DragMove);
@@ -189,6 +191,9 @@ public sealed class TimelineView : Control
 
     public event EventHandler<(int Lane, ClipId Clip)>? ClipDoubleClicked;
 
+    /// <summary>Raised when a clip's name strip is double-clicked, to rename it.</summary>
+    public event EventHandler<ClipId>? ClipNameDoubleClicked;
+
     /// <summary>Raised with the lane and tick when empty space in a lane is double-clicked.</summary>
     public event EventHandler<(int Lane, long Tick)>? EmptyDoubleClicked;
 
@@ -200,6 +205,28 @@ public sealed class TimelineView : Control
 
     /// <summary>Raised when an automation lane's points are edited: the lane's track, the lane, an undo label, and the new points.</summary>
     public event EventHandler<(int Lane, AutomationLaneId Automation, string Label, IReadOnlyList<AutomationPoint> Points)>? AutomationEdited;
+
+    /// <summary>Where a clip's name strip is drawn, in this control's coordinates, or null if the clip is not shown.</summary>
+    public Rect? ClipHeaderBounds(ClipId clip)
+    {
+        if (Project is not { } project)
+        {
+            return null;
+        }
+
+        LayoutRows(project.Sequence);
+        for (var lane = 0; lane < project.Sequence.Tracks.Length; lane++)
+        {
+            if (project.Sequence.Tracks[lane].FindClip(clip) is { } found)
+            {
+                var x0 = Math.Round(TickToX(found.Start.Value)) + 1;
+                var x1 = Math.Round(TickToX(found.End.Value));
+                return new Rect(x0, _tops[lane] + 2, Math.Max(3, x1 - x0 - 1), ClipHeaderHeight + 1);
+            }
+        }
+
+        return null;
+    }
 
     public double TickToX(long tick) => Project is { } p ? TimeGrid.TickToX(tick, p.Sequence, PixelsPerQuarter) : 0;
 
@@ -324,7 +351,15 @@ public sealed class TimelineView : Control
 
         if (e.ClickCount >= 2)
         {
-            ClipDoubleClicked?.Invoke(this, (lane, clip.Id));
+            if (point.Position.Y - _tops[lane] < ClipHeaderHeight + 2)
+            {
+                ClipNameDoubleClicked?.Invoke(this, clip.Id);
+            }
+            else
+            {
+                ClipDoubleClicked?.Invoke(this, (lane, clip.Id));
+            }
+
             return;
         }
 
@@ -861,7 +896,7 @@ public sealed class TimelineView : Control
         var edge = selected ? new Pen(Brushes.White, 1.5) : new Pen(new SolidColorBrush(Palette.Darken(color, 0.25)), 1);
 
         context.DrawRectangle(new SolidColorBrush(fill), edge, body, 2, 2);
-        context.DrawRectangle(new SolidColorBrush(header), null, new Rect(body.X + 0.5, body.Y + 0.5, body.Width - 1, 13), 1.5, 1.5);
+        context.DrawRectangle(new SolidColorBrush(header), null, new Rect(body.X + 0.5, body.Y + 0.5, body.Width - 1, ClipHeaderHeight), 1.5, 1.5);
 
         // The name stays readable at the left edge of the view while the clip scrolls past.
         var labelX = Math.Max(body.X + 4, VisibleLeft + 4);

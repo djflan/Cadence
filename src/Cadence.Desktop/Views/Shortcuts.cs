@@ -32,6 +32,7 @@ internal static class Shortcuts
         ("Arrangement", "Trim or extend a clip", "Drag its edge"),
         ("Arrangement", "Open a clip in the piano roll", "Double-click it"),
         ("Arrangement", "New clip", "Double-click empty space"),
+        ("Arrangement", "Rename a clip", "Double-click its name, or Return"),
         ("Arrangement", "Split clips at the playhead", "B"),
         ("Arrangement", "Duplicate / delete the selected clips", "⌘ D  /  ⌫"),
         ("Arrangement", "Add / move / delete an automation point", "Click  /  drag  /  ⌥-click"),

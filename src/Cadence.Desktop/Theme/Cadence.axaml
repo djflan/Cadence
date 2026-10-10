@@ -666,6 +666,15 @@
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="FontSize" Value="12" />
   </Style>
+  <Style Selector="TextBox.clipName">
+    <Setter Property="Padding" Value="3,0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="CornerRadius" Value="1.5" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
   <Style Selector="TextBox.inline:focus /template/ Border#PART_BorderElement">
     <Setter Property="Background" Value="{StaticResource Cadence.Base}" />
   </Style>

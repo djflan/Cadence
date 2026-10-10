@@ -60,6 +60,19 @@ public static class ClipCommands
             return from == target.Start && to == target.End ? t : t.WithClip(target.WithBounds(from, to));
         });
 
+    /// <summary>
+    /// Names a clip, trimmed and cut to <see cref="Clip.MaxNameLength"/> characters. An empty name makes the
+    /// clip show its track's name again.
+    /// </summary>
+    public static IProjectCommand RenameClip(TrackId track, ClipId clip, string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var trimmed = name.Trim();
+        trimmed = trimmed.Length <= Clip.MaxNameLength ? trimmed : trimmed[..Clip.MaxNameLength];
+        return ProjectCommands.EditTrack("Rename Clip", track, t =>
+            t.FindClip(clip) is { } found && found.Name != trimmed ? t.WithClip(found with { Name = trimmed }) : t);
+    }
+
     /// <summary>Adds an empty note clip, within the free space around its start.</summary>
     public static IProjectCommand CreateClip(TrackId track, NoteClip clip) =>
         ProjectCommands.EditTrack("Create Clip", track, t =>

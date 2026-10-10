@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromSeconds(60) };
     private MainViewModel? _viewModel;
     private bool _keyboardToggleHeld;
+    private ClipId? _renamingClip;
     private bool _closeConfirmed;
     private bool _syncingScroll;
     private double _editorHeight = 330;
@@ -43,6 +44,8 @@ public partial class MainWindow : Window
         };
         Timeline.ClipPressed += (_, press) => OnClipPressed(press.Lane, press.Clip, press.Modifiers);
         Timeline.ClipDoubleClicked += (_, open) => OpenInPianoRoll(open.Lane, open.Clip);
+        Timeline.ClipNameDoubleClicked += (_, clip) => BeginClipRename(clip);
+        ClipNameBox.LostFocus += (_, _) => EndClipRename(commit: true);
         Timeline.EmptyDoubleClicked += (_, at) =>
         {
             if (at.Lane < viewModel.Tracks.Count && viewModel.Arrangement.CreateClip(viewModel.Tracks[at.Lane].Id, at.Tick) is { } clip)
@@ -553,9 +556,15 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Starts editing the first selected track's name.</summary>
+    /// <summary>Starts renaming: the selected clip when the arrangement has focus, otherwise the first selected track.</summary>
     internal void BeginRename()
     {
+        if (Timeline.IsFocused && _viewModel?.Arrangement.SelectedClips is { Count: 1 } clips)
+        {
+            BeginClipRename(clips.First());
+            return;
+        }
+
         if (_viewModel?.SelectedTrack is not { } track
             || TrackList.ContainerFromItem(track) is not { } container
             || container.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is not { } name)
@@ -569,6 +578,47 @@ public partial class MainWindow : Window
             name.Focus();
             name.SelectAll();
         }, DispatcherPriority.Background);
+    }
+
+    /// <summary>Opens a text field over a clip's name strip, holding the name it shows.</summary>
+    internal void BeginClipRename(ClipId clip)
+    {
+        if (_viewModel?.Arrangement.DisplayName(clip) is not { } name || Timeline.ClipHeaderBounds(clip) is not { } bounds)
+        {
+            return;
+        }
+
+        _renamingClip = clip;
+        Canvas.SetLeft(ClipNameBox, bounds.X);
+        Canvas.SetTop(ClipNameBox, bounds.Y);
+        ClipNameBox.Width = Math.Max(120, bounds.Width);
+        ClipNameBox.Height = bounds.Height + 2;
+        ClipNameBox.Text = name;
+        ClipNameBox.IsVisible = true;
+
+        // Deferred so the key or click that started the rename cannot also reach the field.
+        Dispatcher.UIThread.Post(() =>
+        {
+            ClipNameBox.Focus();
+            ClipNameBox.SelectAll();
+        }, DispatcherPriority.Background);
+    }
+
+    private void EndClipRename(bool commit)
+    {
+        if (_renamingClip is not { } clip)
+        {
+            return;
+        }
+
+        _renamingClip = null;
+        ClipNameBox.IsVisible = false;
+        if (commit)
+        {
+            _viewModel?.Arrangement.RenameClip(clip, ClipNameBox.Text ?? string.Empty);
+        }
+
+        Timeline.Focus();
     }
 
     internal void ShowPane(LowerPane pane)
@@ -829,6 +879,13 @@ public partial class MainWindow : Window
     {
         if (e.Key is not (Key.Return or Key.Enter or Key.Escape))
         {
+            return;
+        }
+
+        if (editing == ClipNameBox)
+        {
+            EndClipRename(commit: e.Key != Key.Escape);
+            e.Handled = true;
             return;
         }
 
