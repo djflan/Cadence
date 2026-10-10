@@ -1,6 +1,7 @@
 # DAW architecture modernization: implementation plan
 
-Status: in progress. This page is the working plan for the epic that moves Cadence from "a MIDI
+Status: implemented (see `docs/daw-epic-handoff.md` for what is left). The architecture pages and ADRs 0021 to
+0027 now describe the result; this plan is kept as the record of the assessment. This page is the working plan for the epic that moves Cadence from "a MIDI
 sequencer with one output per track" to a device-chain and routing architecture that can host
 instruments, effects, and out-of-process plugins. When the work is finished it is replaced by the
 architecture pages and ADRs it points to; until then it records what was found and what was decided.

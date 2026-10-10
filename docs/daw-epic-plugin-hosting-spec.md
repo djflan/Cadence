@@ -5,10 +5,9 @@ to 13 and 15). It was handed to a background agent working in a separate git wor
 missing or unfinished, use this to continue or restart it. The agent's own report, if one exists, is not
 evidence: review its diff and run its tests.
 
-Status when this was saved: the agent had written about 1,100 lines of the protocol control plane
-(`Cadence.Plugins.Protocol`: frame codec, wire reader/writer, messages, handshake, limits, exchange layout)
-in its worktree, uncommitted. No data-plane exchange, no host, no worker, no scanner, no tests, no docs.
-Nothing had been compiled by me.
+Status: **implemented and merged** (commits `4fc7ee9` to `0172644`, merged in `0676a8d`), reviewed and re-tested on
+the main branch, then connected to the project by `PluginDeviceHost`. The result is described in
+`docs/plugin-hosting.md` and ADR 0025; this spec is kept as the record of what was asked for.
 
 ## Rules that apply to everything below
 

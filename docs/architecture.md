@@ -370,6 +370,23 @@ be written by hand for legacy instruments or filled in from MIDI-CI later. Contr
 then snap drawing to the steps and show values in the device's own units. Nothing supplies this
 data yet, so it waits.
 
+## Deferred
+
+Built as boundaries and tested where cheap, but not finished:
+
+- **Audio engine**: playing audio clips and software instruments, the mixer's gain and pan, plugin audio driven
+  by playback, and plugin delay compensation across the graph. Feeds, parameter feeds, and audio connections are
+  produced and validated so the engine has a defined input.
+- **Third-party plugin formats** (VST3 loading, parameter enumeration) and **plugin editors** (windows, focus,
+  DPI, a worker dying with its editor open). The worker hosts Cadence's reference plugins today.
+- **Rack and mixer UI**: racks and mixer channels can be created and edited through commands and connected from
+  the routing inspector, but the device strip edits track chains only and there is no mixer view.
+- **MIDI 2.0** transport and UMP, **MPE**, and per-note controllers.
+- **Visual node-graph editing** and **feedback routing** (loops are refused).
+- **Operating-system sandboxing** of plugin workers.
+- **Group track processing** and folding in the arrangement.
+- **Translating device automation to CC, RPN, NRPN, or SysEx** for external instruments.
+
 ## Decisions at a glance
 
 | Decision | Recorded in |
