@@ -169,6 +169,9 @@ public sealed class AutomationLane
         new(Id, Target, Sort(Points.Where(p => p.Position < from || p.Position > to).Concat(points)));
 
 
+    /// <exception cref="ArgumentException">Two points share a position.</exception>
+    public AutomationLane WithPoints(IEnumerable<AutomationPoint> points) => new(Id, Target, Sort(points));
+
     internal static ControlValue Interpolate(AutomationPoint from, AutomationPoint to, long position)
     {
         var span = to.Position.Value - from.Position.Value;

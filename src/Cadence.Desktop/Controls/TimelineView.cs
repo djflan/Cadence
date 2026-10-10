@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Cadence.Application.Recording;
 using Cadence.Desktop.Theme;
+using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
@@ -12,20 +13,25 @@ using Cadence.Domain.Time;
 namespace Cadence.Desktop.Controls;
 
 /// <summary>
-/// The arrangement: one lane per track, with each of the track's clips drawn as a coloured block
-/// (named on a header strip) containing its notes. Drawn directly with the GPU-backed renderer and
-/// culled to the visible region, so dense projects stay smooth.
+/// The arrangement: one row per track, with each of the track's clips drawn as a coloured block
+/// (named on a header strip) containing its notes, and, for expanded tracks, one row per automation
+/// lane below. Drawn directly with the GPU-backed renderer and culled to the visible region, so dense
+/// projects stay smooth.
 /// </summary>
 /// <remarks>
 /// Click a clip to select it (Shift adds, Cmd/Ctrl toggles) and drag to move the selection, also to
 /// other tracks; hold Alt (Option) to copy. Drag a clip's edge to trim or extend it. Double-click a
 /// clip to edit it, or empty space to create a one-bar clip. Click empty space to select the track.
+/// In an automation lane, click to add a point and drag to move it; Alt-click deletes a point and
+/// double-click switches it between holding and ramping. Shift turns snapping off.
 /// </remarks>
 public sealed class TimelineView : Control
 {
     public static readonly StyledProperty<Project?> ProjectProperty = AvaloniaProperty.Register<TimelineView, Project?>(nameof(Project));
     public static readonly StyledProperty<double> PixelsPerQuarterProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(PixelsPerQuarter), 40);
     public static readonly StyledProperty<double> LaneHeightProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(LaneHeight), 50);
+    public static readonly StyledProperty<double> AutomationLaneHeightProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(AutomationLaneHeight), 36);
+    public static readonly StyledProperty<IReadOnlySet<TrackId>> ExpandedTracksProperty = AvaloniaProperty.Register<TimelineView, IReadOnlySet<TrackId>>(nameof(ExpandedTracks), new HashSet<TrackId>());
     public static readonly StyledProperty<IReadOnlySet<int>> SelectedLanesProperty = AvaloniaProperty.Register<TimelineView, IReadOnlySet<int>>(nameof(SelectedLanes), new HashSet<int>());
     public static readonly StyledProperty<double> VisibleLeftProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(VisibleLeft));
     public static readonly StyledProperty<double> VisibleWidthProperty = AvaloniaProperty.Register<TimelineView, double>(nameof(VisibleWidth), double.PositiveInfinity);
@@ -34,15 +40,18 @@ public sealed class TimelineView : Control
     public static readonly StyledProperty<IReadOnlySet<ClipId>> SelectedClipsProperty = AvaloniaProperty.Register<TimelineView, IReadOnlySet<ClipId>>(nameof(SelectedClips), new HashSet<ClipId>());
 
     private const double EdgeGrip = 5;
+    private const double PointGrip = 5;
+    private const double CurveInset = 4;
 
     private static readonly Cursor ResizeCursor = new(StandardCursorType.SizeWestEast);
     private static readonly Cursor MoveCursor = new(StandardCursorType.DragMove);
     private static readonly Cursor CopyCursor = new(StandardCursorType.DragCopy);
-
     private static readonly IBrush LaneBrush = new SolidColorBrush(Palette.Lane);
     private static readonly IBrush LaneAltBrush = new SolidColorBrush(Palette.LaneAlt);
     private static readonly IBrush LaneSelected = new SolidColorBrush(Palette.LaneSelected);
+    private static readonly IBrush AutomationBrush = new SolidColorBrush(Color.Parse("#1D1D1F"));
     private static readonly IPen LaneDivider = new Pen(new SolidColorBrush(Palette.LaneDivider), 1);
+    private static readonly IPen CenterLine = new Pen(new SolidColorBrush(Palette.GridBeat), 1, new DashStyle([3, 3], 0));
     private static readonly IBrush RecordFill = new SolidColorBrush(Palette.Record, 0.28);
     private static readonly IPen RecordEdge = new Pen(new SolidColorBrush(Palette.Record, 0.9), 1);
     private static readonly IBrush RecordNote = new SolidColorBrush(Palette.Lighten(Palette.Record, 0.35));
@@ -60,6 +69,13 @@ public sealed class TimelineView : Control
     private bool _dragCopy;
     private bool _dragging;
 
+    // Automation point drag state: the lane's points as they will be, and which one moves.
+    private AutomationLaneId? _pointLane;
+    private List<AutomationPoint> _points = [];
+    private int _pointIndex;
+    private bool _pointAdded;
+    private bool _pointMoved;
+
     private enum Grip
     {
         None,
@@ -68,10 +84,13 @@ public sealed class TimelineView : Control
         EndEdge,
     }
 
+    /// <summary>What is under the pointer: a track, and the automation lane in its row (or -1 for its clips).</summary>
+    private readonly record struct Row(int Lane, int Automation);
+
     static TimelineView()
     {
-        AffectsRender<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty, SelectedLanesProperty, VisibleLeftProperty, VisibleWidthProperty, RecordingLaneProperty, RecordingPreviewProperty, SelectedClipsProperty);
-        AffectsMeasure<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty);
+        AffectsRender<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty, AutomationLaneHeightProperty, ExpandedTracksProperty, SelectedLanesProperty, VisibleLeftProperty, VisibleWidthProperty, RecordingLaneProperty, RecordingPreviewProperty, SelectedClipsProperty);
+        AffectsMeasure<TimelineView>(ProjectProperty, PixelsPerQuarterProperty, LaneHeightProperty, AutomationLaneHeightProperty, ExpandedTracksProperty);
         FocusableProperty.OverrideDefaultValue<TimelineView>(true);
     }
 
@@ -87,10 +106,24 @@ public sealed class TimelineView : Control
         set => SetValue(PixelsPerQuarterProperty, value);
     }
 
+    /// <summary>The height of a track's clip row.</summary>
     public double LaneHeight
     {
         get => GetValue(LaneHeightProperty);
         set => SetValue(LaneHeightProperty, value);
+    }
+
+    public double AutomationLaneHeight
+    {
+        get => GetValue(AutomationLaneHeightProperty);
+        set => SetValue(AutomationLaneHeightProperty, value);
+    }
+
+    /// <summary>The tracks whose automation lanes are shown below their clips.</summary>
+    public IReadOnlySet<TrackId> ExpandedTracks
+    {
+        get => GetValue(ExpandedTracksProperty);
+        set => SetValue(ExpandedTracksProperty, value);
     }
 
     /// <summary>Indices of the lanes to highlight as selected.</summary>
@@ -151,9 +184,29 @@ public sealed class TimelineView : Control
     /// <summary>Raised when a clip's edge is dragged, with its new bounds in ticks.</summary>
     public event EventHandler<(ClipId Clip, long Start, long End)>? ClipResized;
 
+    /// <summary>Raised when an automation lane's points are edited: the lane's track, the lane, an undo label, and the new points.</summary>
+    public event EventHandler<(int Lane, AutomationLaneId Automation, string Label, IReadOnlyList<AutomationPoint> Points)>? AutomationEdited;
+
     public double TickToX(long tick) => Project is { } p ? TimeGrid.TickToX(tick, p.Sequence, PixelsPerQuarter) : 0;
 
     public long XToTick(double x) => Project is { } p ? TimeGrid.XToTick(x, p.Sequence, PixelsPerQuarter) : 0;
+
+    /// <summary>The y of each track's row, and the height of the row with its shown lanes.</summary>
+    public double RowTop(int lane)
+    {
+        if (Project is not { } project)
+        {
+            return 0;
+        }
+
+        var top = 0.0;
+        for (var i = 0; i < lane && i < project.Sequence.Tracks.Length; i++)
+        {
+            top += RowHeight(project.Sequence.Tracks[i]);
+        }
+
+        return top;
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -165,7 +218,7 @@ public sealed class TimelineView : Control
         var sequence = project.Sequence;
         var endTick = sequence.EndPosition.Value + (32L * sequence.Ppqn.TicksPerQuarterNote);
         var width = Math.Max(TickToX(endTick), double.IsFinite(availableSize.Width) ? availableSize.Width : 0);
-        var height = Math.Max(sequence.Tracks.Length * LaneHeight, double.IsFinite(availableSize.Height) ? availableSize.Height : 0);
+        var height = Math.Max(sequence.Tracks.Sum(RowHeight), double.IsFinite(availableSize.Height) ? availableSize.Height : 0);
         return new Size(width, height);
     }
 
@@ -180,15 +233,21 @@ public sealed class TimelineView : Control
         var left = Math.Max(0, VisibleLeft - 50);
         var right = Math.Min(Bounds.Width, VisibleLeft + (double.IsFinite(VisibleWidth) ? VisibleWidth : Bounds.Width) + 50);
         var lanes = sequence.Tracks.Length;
+        var tops = RowTops(sequence);
 
         context.FillRectangle(LaneBrush, new Rect(left, 0, right - left, Bounds.Height));
         for (var lane = 0; lane < lanes; lane++)
         {
-            var top = lane * LaneHeight;
             var brush = SelectedLanes.Contains(lane) ? LaneSelected : lane % 2 == 1 ? LaneAltBrush : null;
             if (brush is not null)
             {
-                context.FillRectangle(brush, new Rect(left, top, right - left, LaneHeight));
+                context.FillRectangle(brush, new Rect(left, tops[lane], right - left, LaneHeight));
+            }
+
+            var shown = ShownLanes(sequence.Tracks[lane]);
+            if (shown > 0)
+            {
+                context.FillRectangle(AutomationBrush, new Rect(left, tops[lane] + LaneHeight, right - left, shown * AutomationLaneHeight));
             }
         }
 
@@ -198,20 +257,27 @@ public sealed class TimelineView : Control
         _moving.Clear();
         for (var lane = 0; lane < lanes; lane++)
         {
-            var bottom = Math.Round((lane + 1) * LaneHeight) - 0.5;
-            context.DrawLine(LaneDivider, new Point(left, bottom), new Point(right, bottom));
-            DrawClips(context, sequence.Tracks[lane], lane, left, right);
+            var track = sequence.Tracks[lane];
+            var top = tops[lane];
+            HLine(context, Math.Round(top + LaneHeight) - 0.5, left, right);
+            DrawClips(context, track, lane, top, left, right);
+            for (var a = 0; a < ShownLanes(track); a++)
+            {
+                var laneTop = top + LaneHeight + (a * AutomationLaneHeight);
+                HLine(context, Math.Round(laneTop + AutomationLaneHeight) - 0.5, left, right);
+                DrawAutomation(context, track, track.Automation[a], lane, new Rect(left, laneTop, right - left, AutomationLaneHeight - 1));
+            }
         }
 
         // Dragged clips go on top of every lane, where they would land.
         foreach (var (track, clip, notes, slice, range, lane) in _moving)
         {
-            DrawClip(context, track, clip, notes, slice, range, lane, Math.Clamp(lane + _dragLanes, 0, lanes - 1), left, right, _dragDelta);
+            DrawClip(context, track, clip, notes, slice, range, lane, tops[Math.Clamp(lane + _dragLanes, 0, lanes - 1)], left, right, _dragDelta);
         }
 
         if (RecordingLane >= 0 && RecordingLane < lanes && RecordingPreview.Count > 0)
         {
-            DrawTake(context, RecordingLane);
+            DrawTake(context, tops[RecordingLane]);
         }
     }
 
@@ -224,14 +290,22 @@ public sealed class TimelineView : Control
             return;
         }
 
-        var (lane, clip, grip) = HitTest(project.Sequence, point.Position);
-        if (lane < 0)
+        var row = RowAt(project.Sequence, point.Position.Y);
+        if (row.Lane < 0)
         {
             return;
         }
 
         Focus();
         e.Handled = true;
+        if (row.Automation >= 0)
+        {
+            PressAutomation(project.Sequence, row, point.Position, e);
+            return;
+        }
+
+        var (clip, grip) = HitClip(project.Sequence.Tracks[row.Lane], point.Position.X);
+        var lane = row.Lane;
         if (clip is null)
         {
             if (e.ClickCount >= 2)
@@ -273,10 +347,18 @@ public sealed class TimelineView : Control
         }
 
         var position = e.GetPosition(this);
+        if (_pointLane is not null && ReferenceEquals(e.Pointer.Captured, this))
+        {
+            MovePoint(project.Sequence, position, e.KeyModifiers);
+            return;
+        }
+
         if (_drag == Grip.None || !ReferenceEquals(e.Pointer.Captured, this))
         {
             // Show where an edge can be grabbed.
-            SetCursor(HitTest(project.Sequence, position).Grip is Grip.StartEdge or Grip.EndEdge ? ResizeCursor : Cursor.Default);
+            var row = RowAt(project.Sequence, position.Y);
+            var edge = row.Lane >= 0 && row.Automation < 0 && HitClip(project.Sequence.Tracks[row.Lane], position.X).Grip is Grip.StartEdge or Grip.EndEdge;
+            SetCursor(edge ? ResizeCursor : Cursor.Default);
             return;
         }
 
@@ -299,10 +381,11 @@ public sealed class TimelineView : Control
         switch (_drag)
         {
             case Grip.Body:
-                // The selection moves as one: no clip before tick 0, none past the first or last lane.
+                // The selection moves as one: no clip before tick 0, none past the first or last track.
                 var (earliest, firstLane, lastLane) = SelectionExtent(sequence);
+                var over = RowAt(sequence, position.Y).Lane is var hovered and >= 0 ? hovered : position.Y < 0 ? 0 : sequence.Tracks.Length - 1;
                 _dragDelta = Math.Max(SnapClip(sequence, clip.Start.Value + raw) - clip.Start.Value, -earliest);
-                _dragLanes = Math.Clamp((int)Math.Floor(position.Y / LaneHeight) - _dragLane, -firstLane, sequence.Tracks.Length - 1 - lastLane);
+                _dragLanes = Math.Clamp(over - _dragLane, -firstLane, sequence.Tracks.Length - 1 - lastLane);
                 SetCursor(_dragCopy ? CopyCursor : MoveCursor);
                 break;
             case Grip.StartEdge:
@@ -322,6 +405,20 @@ public sealed class TimelineView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (_pointLane is { } automation)
+        {
+            var (lane, points, label) = (_dragLane, _points, _pointAdded ? "Add Automation Point" : "Move Automation Point");
+            var changed = _pointAdded || _pointMoved;
+            e.Pointer.Capture(null);
+            EndPointDrag();
+            if (changed)
+            {
+                AutomationEdited?.Invoke(this, (lane, automation, label, points));
+            }
+
+            return;
+        }
+
         var (grip, clip, delta, lanes, copy, dragged) = (_drag, _dragClip, _dragDelta, _dragLanes, _dragCopy, _dragging);
         e.Pointer.Capture(null);
         EndDrag();
@@ -359,6 +456,41 @@ public sealed class TimelineView : Control
         }
     }
 
+    private int ShownLanes(Track track) => ExpandedTracks.Contains(track.Id) ? track.Automation.Length : 0;
+
+    private double RowHeight(Track track) => LaneHeight + (ShownLanes(track) * AutomationLaneHeight);
+
+    private double[] RowTops(Sequence sequence)
+    {
+        var tops = new double[sequence.Tracks.Length];
+        for (var i = 1; i < tops.Length; i++)
+        {
+            tops[i] = tops[i - 1] + RowHeight(sequence.Tracks[i - 1]);
+        }
+
+        return tops;
+    }
+
+    private Row RowAt(Sequence sequence, double y)
+    {
+        var top = 0.0;
+        for (var lane = 0; lane < sequence.Tracks.Length; lane++)
+        {
+            var height = RowHeight(sequence.Tracks[lane]);
+            if (y >= top && y < top + height)
+            {
+                return new Row(lane, y < top + LaneHeight ? -1 : (int)((y - top - LaneHeight) / AutomationLaneHeight));
+            }
+
+            top += height;
+        }
+
+        return new Row(-1, -1);
+    }
+
+    private static void HLine(DrawingContext context, double y, double left, double right) =>
+        context.DrawLine(LaneDivider, new Point(left, y), new Point(right, y));
+
     /// <summary>The earliest start among the selected clips, and the first and last lanes holding any.</summary>
     private (long Earliest, int FirstLane, int LastLane) SelectionExtent(Sequence sequence)
     {
@@ -377,43 +509,36 @@ public sealed class TimelineView : Control
         return last < 0 ? (0, 0, sequence.Tracks.Length - 1) : (earliest, first, last);
     }
 
-    /// <summary>The lane and clip under <paramref name="point"/>, and which part of the clip: its body or an edge.</summary>
+    /// <summary>The clip at <paramref name="x"/> in a track's clip row, and which part of it: its body or an edge.</summary>
     /// <remarks>
     /// Edges can be grabbed a few pixels either side. Where two clips touch, the side of the line the
     /// pointer is on decides which clip's edge it is.
     /// </remarks>
-    private (int Lane, Clip? Clip, Grip Grip) HitTest(Sequence sequence, Point point)
+    private (Clip? Clip, Grip Grip) HitClip(Track track, double x)
     {
-        var lane = (int)Math.Floor(point.Y / LaneHeight);
-        if (lane < 0 || lane >= sequence.Tracks.Length)
-        {
-            return (-1, null, Grip.None);
-        }
-
-        var track = sequence.Tracks[lane];
-        var tick = new Tick(Math.Max(0, XToTick(point.X)));
+        var tick = new Tick(Math.Max(0, XToTick(x)));
         if (track.ClipAt(tick) is { } clip)
         {
             var (x0, x1) = (TickToX(clip.Start.Value), TickToX(clip.End.Value));
 
             // Edges of clips too narrow to hold both are not offered, so the clip can still be dragged.
             var roomy = x1 - x0 > 4 * EdgeGrip;
-            var grip = !roomy ? Grip.Body : point.X - x0 <= EdgeGrip ? Grip.StartEdge : x1 - point.X <= EdgeGrip ? Grip.EndEdge : Grip.Body;
-            return (lane, clip, grip);
+            var grip = !roomy ? Grip.Body : x - x0 <= EdgeGrip ? Grip.StartEdge : x1 - x <= EdgeGrip ? Grip.EndEdge : Grip.Body;
+            return (clip, grip);
         }
 
         var (from, until) = track.GapAt(tick);
-        if (from > Tick.Zero && point.X - TickToX(from.Value) <= EdgeGrip && track.ClipAt(new Tick(from.Value - 1)) is { } before)
+        if (from > Tick.Zero && x - TickToX(from.Value) <= EdgeGrip && track.ClipAt(new Tick(from.Value - 1)) is { } before)
         {
-            return (lane, before, Grip.EndEdge);
+            return (before, Grip.EndEdge);
         }
 
-        if (until is { } next && TickToX(next.Value) - point.X <= EdgeGrip && track.ClipAt(next) is { } after)
+        if (until is { } next && TickToX(next.Value) - x <= EdgeGrip && track.ClipAt(next) is { } after)
         {
-            return (lane, after, Grip.StartEdge);
+            return (after, Grip.StartEdge);
         }
 
-        return (lane, null, Grip.None);
+        return (null, Grip.None);
     }
 
     /// <summary>Clips snap to beats when beats are wide enough to aim at, otherwise to bars.</summary>
@@ -431,9 +556,161 @@ public sealed class TimelineView : Control
         return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
     }
 
+    private void PressAutomation(Sequence sequence, Row row, Point position, PointerPressedEventArgs e)
+    {
+        var track = sequence.Tracks[row.Lane];
+        if (row.Automation >= track.Automation.Length)
+        {
+            return;
+        }
+
+        var lane = track.Automation[row.Automation];
+        var area = AutomationArea(RowTop(row.Lane) + LaneHeight + (row.Automation * AutomationLaneHeight));
+        var points = lane.Points.ToList();
+        var hit = points.FindIndex(p => Math.Abs(TickToX(p.Position.Value) - position.X) <= PointGrip && Math.Abs(ValueToY(p.Value, area) - position.Y) <= PointGrip);
+        if (hit >= 0 && e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            points.RemoveAt(hit);
+            AutomationEdited?.Invoke(this, (row.Lane, lane.Id, "Delete Automation Point", points));
+            return;
+        }
+
+        if (hit >= 0 && e.ClickCount >= 2)
+        {
+            var point = points[hit];
+            points[hit] = point with { Curve = point.Curve == AutomationCurve.Hold ? AutomationCurve.Linear : AutomationCurve.Hold };
+            AutomationEdited?.Invoke(this, (row.Lane, lane.Id, "Change Automation Curve", points));
+            return;
+        }
+
+        _pointAdded = hit < 0;
+        if (_pointAdded)
+        {
+            var tick = PointTick(sequence, position.X, e.KeyModifiers);
+            if (points.Any(p => p.Position.Value == tick))
+            {
+                return;
+            }
+
+            points.Add(new AutomationPoint(new Tick(tick), YToValue(position.Y, area)));
+            points.Sort((a, b) => a.Position.CompareTo(b.Position));
+            hit = points.FindIndex(p => p.Position.Value == tick);
+        }
+
+        (_pointLane, _points, _pointIndex, _pointMoved, _dragLane) = (lane.Id, points, hit, false, row.Lane);
+        _dragPress = position;
+        e.Pointer.Capture(this);
+        InvalidateVisual();
+    }
+
+    private void MovePoint(Sequence sequence, Point position, KeyModifiers modifiers)
+    {
+        if (_dragLane >= sequence.Tracks.Length || sequence.Tracks[_dragLane].FindLane(_pointLane!.Value) is not { } lane)
+        {
+            // The lane went away mid-drag (for example, undo).
+            EndPointDrag();
+            return;
+        }
+
+        if (!_pointMoved && Math.Abs(position.X - _dragPress.X) < 3 && Math.Abs(position.Y - _dragPress.Y) < 3)
+        {
+            return;
+        }
+
+        // The point stays between its neighbours, so points keep their order and one tick each.
+        var index = sequence.Tracks[_dragLane].Automation.IndexOf(lane);
+        var area = AutomationArea(RowTop(_dragLane) + LaneHeight + (index * AutomationLaneHeight));
+        var low = _pointIndex > 0 ? _points[_pointIndex - 1].Position.Value + 1 : 0;
+        var high = _pointIndex + 1 < _points.Count ? _points[_pointIndex + 1].Position.Value - 1 : long.MaxValue;
+        var tick = Math.Clamp(PointTick(sequence, position.X, modifiers), low, Math.Max(low, high));
+        _points[_pointIndex] = _points[_pointIndex] with { Position = new Tick(tick), Value = YToValue(position.Y, area) };
+        _pointMoved = true;
+        InvalidateVisual();
+    }
+
+    private void EndPointDrag()
+    {
+        (_pointLane, _points, _pointAdded, _pointMoved) = (null, [], false, false);
+        InvalidateVisual();
+    }
+
+    private long PointTick(Sequence sequence, double x, KeyModifiers modifiers)
+    {
+        var tick = Math.Max(0, XToTick(x));
+        return modifiers.HasFlag(KeyModifiers.Shift) ? tick : Math.Max(0, SnapClip(sequence, tick));
+    }
+
+    private Rect AutomationArea(double laneTop) =>
+        new(0, laneTop + CurveInset, Bounds.Width, AutomationLaneHeight - 1 - (2 * CurveInset));
+
+    private static double ValueToY(ControlValue value, Rect area) => area.Bottom - (area.Height * value.Value / uint.MaxValue);
+
+    private static ControlValue YToValue(double y, Rect area) =>
+        new((uint)Math.Round(Math.Clamp((area.Bottom - y) / area.Height, 0, 1) * uint.MaxValue));
+
+    /// <summary>A lane's curve: a step at hold points, a ramp after linear ones, flat before the first and after the last.</summary>
+    private void DrawAutomation(DrawingContext context, Track track, AutomationLane lane, int trackLane, Rect row)
+    {
+        var area = new Rect(row.X, row.Y + CurveInset, row.Width, row.Height - (2 * CurveInset));
+        var color = Palette.Track(trackLane);
+        var line = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.3), track.IsMuted ? 0.4 : 0.95), 1.5);
+        if (lane.Target.Parameter == AutomationParameter.PitchBend)
+        {
+            var center = Math.Round(ValueToY(ControlValue.Center, area)) + 0.5;
+            context.DrawLine(CenterLine, new Point(row.Left, center), new Point(row.Right, center));
+        }
+
+        var points = _pointLane == lane.Id ? (IReadOnlyList<AutomationPoint>)_points : lane.Points;
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        Point At(AutomationPoint p) => new(TickToX(p.Position.Value), ValueToY(p.Value, area));
+        var first = At(points[0]);
+        context.DrawLine(line, new Point(row.Left, first.Y), first);
+        for (var i = 0; i < points.Count; i++)
+        {
+            var here = At(points[i]);
+            if (i + 1 == points.Count)
+            {
+                context.DrawLine(line, here, new Point(row.Right, here.Y));
+                break;
+            }
+
+            var next = At(points[i + 1]);
+            if (next.X < row.Left || here.X > row.Right)
+            {
+                continue;
+            }
+
+            if (points[i].Curve == AutomationCurve.Linear)
+            {
+                context.DrawLine(line, here, next);
+            }
+            else
+            {
+                context.DrawLine(line, here, new Point(next.X, here.Y));
+                context.DrawLine(line, new Point(next.X, here.Y), next);
+            }
+        }
+
+        var handle = new SolidColorBrush(Palette.Lighten(color, 0.6));
+        for (var i = 0; i < points.Count; i++)
+        {
+            var p = At(points[i]);
+            if (p.X >= row.Left - PointGrip && p.X <= row.Right + PointGrip)
+            {
+                var dragged = _pointLane == lane.Id && i == _pointIndex;
+                var size = dragged ? 7 : 5;
+                context.FillRectangle(dragged ? Brushes.White : handle, new Rect(p.X - (size / 2.0), p.Y - (size / 2.0), size, size));
+            }
+        }
+    }
+
     private bool IsMoving => _dragging && _drag == Grip.Body && (_dragDelta != 0 || _dragLanes != 0);
 
-    private void DrawClips(DrawingContext context, Track track, int lane, double left, double right)
+    private void DrawClips(DrawingContext context, Track track, int lane, double top, double left, double right)
     {
         // One pitch range for the whole track, so a note sits at the same height in every clip.
         var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
@@ -462,7 +739,7 @@ public sealed class TimelineView : Control
                 var (start, until) = _drag == Grip.StartEdge ? (clip.Start.Value + _dragDelta, clip.End.Value) : (clip.Start.Value, clip.End.Value + _dragDelta);
                 var resized = clip.WithBounds(new Tick(start), new Tick(until));
                 var shown = resized is NoteClip noteClip ? noteClip.Arrange().OfType<NoteEvent>().ToList() : [];
-                DrawClip(context, track, resized, shown, (0, shown.Count), range, lane, lane, left, right, 0);
+                DrawClip(context, track, resized, shown, (0, shown.Count), range, lane, top, left, right, 0);
                 continue;
             }
 
@@ -472,19 +749,19 @@ public sealed class TimelineView : Control
                 _moving.Add((track, clip, notes, slice, range, lane));
                 using (context.PushOpacity(_dragCopy ? 1 : 0.35))
                 {
-                    DrawClip(context, track, clip, notes, slice, range, lane, lane, left, right, 0);
+                    DrawClip(context, track, clip, notes, slice, range, lane, top, left, right, 0);
                 }
 
                 continue;
             }
 
-            DrawClip(context, track, clip, notes, slice, range, lane, lane, left, right, 0);
+            DrawClip(context, track, clip, notes, slice, range, lane, top, left, right, 0);
         }
     }
 
     // notes[slice] are this clip's notes, in timeline order. The clip has its track's colour
-    // (colorLane) wherever it is drawn (drawLane).
-    private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Start, int End) slice, (int Low, int High) range, int colorLane, int drawLane, double left, double right, long offset)
+    // (colorLane) wherever it is drawn (rowTop).
+    private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Start, int End) slice, (int Low, int High) range, int colorLane, double rowTop, double left, double right, long offset)
     {
         var shift = TickToX(offset);
         var x0 = Math.Round(TickToX(clip.Start.Value) + shift) + 1;
@@ -497,7 +774,7 @@ public sealed class TimelineView : Control
         var color = Palette.Track(colorLane);
         var selected = SelectedClips.Contains(clip.Id);
         var muted = track.IsMuted;
-        var top = (drawLane * LaneHeight) + 2;
+        var top = rowTop + 2;
         var height = LaneHeight - 5;
         var body = new Rect(x0, top, Math.Max(3, x1 - x0 - 1), height);
         var fill = Palette.Mix(Palette.Lane, color, muted ? 0.16 : selected ? 0.5 : 0.32);
@@ -557,12 +834,12 @@ public sealed class TimelineView : Control
         }
     }
 
-    private void DrawTake(DrawingContext context, int lane)
+    private void DrawTake(DrawingContext context, double rowTop)
     {
         var preview = RecordingPreview;
         var start = preview.Min(n => n.Start);
         var end = preview.Max(n => n.End);
-        var top = (lane * LaneHeight) + 2;
+        var top = rowTop + 2;
         var body = new Rect(TickToX(start), top, Math.Max(3, TickToX(end) - TickToX(start)), LaneHeight - 5);
         context.DrawRectangle(RecordFill, RecordEdge, body, 2, 2);
 

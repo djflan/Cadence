@@ -315,8 +315,15 @@
             <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,0">
               <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItems="{Binding SelectedTracks}" SelectionMode="Multiple"
                        ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Tracks">
+                <ListBox.Styles>
+                  <!-- Rows grow to show automation lanes, matching the arrangement. -->
+                  <Style Selector="ListBoxItem" x:DataType="vm:TrackViewModel">
+                    <Setter Property="Height" Value="{Binding RowHeight}" />
+                  </Style>
+                </ListBox.Styles>
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="vm:TrackViewModel">
+                    <Grid RowDefinitions="50,*">
                     <Grid ColumnDefinitions="3,24,Auto,*,Auto" AutomationProperties.Name="{Binding Name}">
                       <Border Background="{Binding ColorIndex, Converter={x:Static theme:TrackBrushConverter.Instance}}" />
                       <TextBlock Grid.Column="1" Text="{Binding Number}" Classes="muted" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -335,12 +342,52 @@
                         </StackPanel>
                       </StackPanel>
                       <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <ToggleButton Classes="trackButton" IsChecked="{Binding IsAutomationExpanded}" IsVisible="{Binding Lanes.Count}"
+                                      ToolTip.Tip="Show or hide automation lanes" AutomationProperties.Name="Show automation">
+                          <Panel>
+                            <PathIcon Classes="stroke" Data="{StaticResource Icon.ChevronRight}" Width="8" Height="8" IsVisible="{Binding !IsAutomationExpanded}" />
+                            <PathIcon Classes="stroke" Data="{StaticResource Icon.ChevronDown}" Width="8" Height="8" IsVisible="{Binding IsAutomationExpanded}" />
+                          </Panel>
+                        </ToggleButton>
+                        <Button Classes="trackButton" ToolTip.Tip="Add an automation lane" AutomationProperties.Name="Add automation lane">
+                          <PathIcon Classes="stroke" Data="{StaticResource Icon.Plus}" Width="8" Height="8" />
+                          <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                              <MenuItem Header="Volume (CC 7)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Volume}" />
+                              <MenuItem Header="Pan (CC 10)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Pan}" />
+                              <MenuItem Header="Expression (CC 11)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Expression}" />
+                              <MenuItem Header="Modulation (CC 1)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Modulation}" />
+                              <MenuItem Header="Sustain (CC 64)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Sustain}" />
+                              <MenuItem Header="Brightness (CC 74)" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.Brightness}" />
+                              <Separator />
+                              <MenuItem Header="Pitch Bend" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.PitchBend}" />
+                              <MenuItem Header="Channel Pressure" Command="{Binding AddLaneCommand}" CommandParameter="{x:Static vm:AutomationOption.ChannelPressure}" />
+                            </MenuFlyout>
+                          </Button.Flyout>
+                        </Button>
                         <ToggleButton Classes="trackButton mute" Content="M" IsChecked="{Binding IsMuted}" ToolTip.Tip="Mute (M)" AutomationProperties.Name="Mute" />
                         <ToggleButton Classes="trackButton solo" Content="S" IsChecked="{Binding IsSoloed}" ToolTip.Tip="Solo (S)" AutomationProperties.Name="Solo" />
                         <ToggleButton Classes="trackButton arm" IsChecked="{Binding IsArmed}" ToolTip.Tip="Arm for recording" AutomationProperties.Name="Record arm">
                           <PathIcon Data="{StaticResource Icon.Record}" Width="8" Height="8" />
                         </ToggleButton>
                       </StackPanel>
+                    </Grid>
+                    <!-- Automation lane headers, one per lane row in the arrangement -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Lanes}" IsVisible="{Binding IsAutomationExpanded}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AutomationLaneViewModel">
+                          <Grid Height="36" ColumnDefinitions="27,*,Auto" Background="#1D1D1F" AutomationProperties.Name="{Binding Name}">
+                            <Border Grid.Column="1" BorderBrush="#19191B" BorderThickness="0,1,0,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="muted" FontSize="10.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <Button Grid.Column="2" Classes="trackButton" Margin="0,0,8,0" VerticalAlignment="Center"
+                                    Command="{Binding Track.RemoveLaneCommand}" CommandParameter="{Binding}"
+                                    ToolTip.Tip="Delete this automation lane" AutomationProperties.Name="Delete automation lane">
+                              <PathIcon Classes="stroke" Data="{StaticResource Icon.Trash}" Width="9" Height="9" />
+                            </Button>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     </Grid>
                   </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -352,9 +399,9 @@
           <ScrollViewer x:Name="TimelineScroller" Grid.Row="2" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                         Background="#222224">
             <Panel>
-              <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}"
+              <controls:TimelineView x:Name="Timeline" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}" ExpandedTracks="{Binding ExpandedTracks}"
                                      RecordingLane="{Binding RecordingLane}" RecordingPreview="{Binding RecordingPreview}"
-                                     AutomationProperties.Name="Arrangement. Click a track's lane to select it; double-click to edit its notes." />
+                                     AutomationProperties.Name="Arrangement. Click a clip to select it and drag to move it; double-click to edit its notes. Click in an automation lane to add a point." />
               <controls:PlayheadOverlay x:Name="Playhead" IsRecording="{Binding IsRecording}" IsVisible="{Binding Tracks.Count}" />
             </Panel>
           </ScrollViewer>
@@ -438,6 +485,12 @@
                              ToolTip.Tip="Swing: 50 is straight, 66 is a triplet feel" AutomationProperties.Name="Swing" />
               <Border Classes="separator" Height="16" />
               <ComboBox ItemsSource="{x:Static vm:ControllerLane.Standard}" SelectedItem="{Binding Lane}" Width="150" AutomationProperties.Name="Controller lane" ToolTip.Tip="What the lower lane shows and edits" />
+              <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsLaneOverridden}"
+                          ToolTip.Tip="A track automation lane controls this, so these events do not play"
+                          AutomationProperties.Name="Overridden by track automation">
+                <PathIcon Data="{StaticResource Icon.Warning}" Width="9" Height="9" Foreground="{StaticResource Cadence.Warning}" />
+                <TextBlock Text="Overridden by automation" Classes="muted" FontSize="10.5" VerticalAlignment="Center" />
+              </StackPanel>
               <ToggleButton Classes="tool" IsChecked="{Binding FollowPlayhead}" ToolTip.Tip="Follow the playhead" AutomationProperties.Name="Follow playhead">
                 <PathIcon Classes="stroke" Data="{StaticResource Icon.Follow}" Width="14" Height="14" />
               </ToggleButton>

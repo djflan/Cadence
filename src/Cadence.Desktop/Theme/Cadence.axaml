@@ -488,8 +488,8 @@
     <Setter Property="Height" Value="14" />
   </Style>
 
-  <!-- Track header buttons: Mute, Solo, Record arm. Letters plus colour; names for screen readers. -->
-  <Style Selector="ToggleButton.trackButton">
+  <!-- Track header buttons: automation, Mute, Solo, Record arm. Letters or icons plus colour; names for screen readers. -->
+  <Style Selector="ToggleButton.trackButton, Button.trackButton">
     <Setter Property="Width" Value="20" />
     <Setter Property="Height" Value="17" />
     <Setter Property="MinHeight" Value="0" />
@@ -504,7 +504,7 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="#9A9AA0" />
   </Style>
-  <Style Selector="ToggleButton.trackButton:pointerover /template/ ContentPresenter">
+  <Style Selector="ToggleButton.trackButton:pointerover /template/ ContentPresenter, Button.trackButton:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="#47474C" />
   </Style>
   <Style Selector="ToggleButton.trackButton.mute:checked /template/ ContentPresenter">
