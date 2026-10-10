@@ -200,6 +200,44 @@ public sealed class PlaybackEngineTests
     }
 
     [Fact]
+    public void Loop_WrapChase_ResetsWhatTheLoopFirstSetsWhereThereIsAResetValue()
+    {
+        // Modulation first appears inside the loop and resets to 0; volume has no reset value.
+        var plan = Plan(Cc(100, 1, 64), Cc(100, 7, 90));
+
+        var wrap = ChaseState.AtWrap(plan, new LoopRegion(new Tick(50), new Tick(150)));
+
+        Assert.Equal(["B00100"], wrap.Select(m => $"{m.Message.Status:X2}{m.Message.Data1:X2}{m.Message.Data2:X2}"));
+    }
+
+    [Fact]
+    public void Loop_WrapChase_LeavesEventsAtTheLoopStartToTheCursor()
+    {
+        var plan = Plan(Program(0, 5), Program(50, 6), Program(100, 7), Cc(50, 7, 1), Cc(100, 7, 2));
+
+        Assert.Empty(ChaseState.AtWrap(plan, new LoopRegion(new Tick(50), new Tick(150))));
+    }
+
+    [Fact]
+    public void Loop_SustainPutDownAtTheWrap_IsLiftedOnStop()
+    {
+        using var f = new PlaybackFixture(null, Immediate);
+        f.Load(Cc(0, 64, 127), Cc(100, 64, 0));
+        f.Engine.SetLoop(new LoopRegion(new Tick(50), new Tick(150)));
+        f.Engine.Play(new Tick(50));
+        foreach (var ms in new[] { 0, 50, 100, 120 })
+        {
+            f.PumpAt(ms);
+        }
+
+        f.Engine.Stop();
+        f.PumpAt(121);
+
+        // Lifted at 100 in the loop, put back down by the wrap, lifted again by Stop.
+        Assert.Equal(["B04000@50", "B0407F@100", "B04000@121"], f.Sent().Where(m => m.StartsWith("B040", StringComparison.Ordinal) && !m.EndsWith("@0", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void Loop_DoesNotEngageWhenStartingPastItsEnd()
     {
         using var f = new PlaybackFixture(null, Immediate);
