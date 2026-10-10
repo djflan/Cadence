@@ -29,6 +29,7 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Acceptance scenarios 1–15 | All have tests: table in `docs/architecture.md` and `docs/plugin-hosting.md` |
 | Docs: ADRs 0021–0028, architecture, project format, MIDI files, plugin hosting, README | Done |
 | Rust | Not introduced: nothing measured needs it yet (ADR 0026 sets the bar) |
+| CI on Ubuntu, macOS, Windows | Green on this branch at 84564bb (run 38094496608, dispatched; no PR) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
 `dotnet test src/Cadence.slnx`: 1137 total, 1124 passed, 12 skipped (other platforms' adapters), 1 failed: the
@@ -133,7 +134,10 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
 
 ## 6. Not verified
 
-- Windows and Linux (no CI run on this branch; WinMM/ALSA paths, worker copying, and timing there are untested).
+- Real MIDI hardware and the platform MIDI services on Windows and Linux beyond what CI exercises. CI was run on this
+  branch (workflow_dispatch, run 38094496608, commit 84564bb): Ubuntu, macOS, and Windows all built and passed,
+  1132 tests each with 0 failures (CI leaves out the CoreMIDI tests). ALSA tests skip on the hosted runner, so the
+  ALSA adapter is still checked only where an ALSA sequencer exists.
 - Real-time behaviour of out-of-process audio under a real audio device (there is no audio engine); plugin latency
   and deadline handling are tested only with the reference plugins and a test clock.
 - Any third-party plugin: no VST3 or other format is loaded; claims are limited to the reference plugins.
@@ -152,9 +156,8 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
    decides whether the callback is C# or Rust.
 2. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
    parameter enumeration, editors.
-3. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
-4. **More headless UI tests** in `Cadence.Tests.Ui` (Track, Routing, Connections, the arrangement, the piano roll).
+3. **More headless UI tests** in `Cadence.Tests.Ui` (Track, Routing, Connections, the arrangement, the piano roll).
    `Avalonia.Headless.XUnit` 12.1 targets xUnit v3 3.x while the repository uses 4.x, so the tests use
    `HeadlessUnitTestSession` directly (`HeadlessApp.RunAsync`).
-5. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
+4. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
    track processing; a dedicated mixer view (the inspector section is a list, not a console with meters).
