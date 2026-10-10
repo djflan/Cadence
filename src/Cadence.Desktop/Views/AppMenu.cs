@@ -58,6 +58,8 @@ internal static class AppMenu
                 Item("Paste", window.Paste, Cmd(Key.V)),
                 Item("Duplicate", window.Duplicate, Cmd(Key.D)),
                 Item("Delete    ⌫", window.Delete),
+                Item("Split Clips at Playhead    B", vm.Arrangement.SplitAtPlayhead),
+                Item("Rename Clip    Return", () => window.RenameSelectedClip()),
                 Item("Select All", window.SelectAll, Cmd(Key.A)),
                 Item("Deselect All    Esc", editor.SelectNone)),
             // Single-key shortcuts are shown in the titles but handled by the window, so they never

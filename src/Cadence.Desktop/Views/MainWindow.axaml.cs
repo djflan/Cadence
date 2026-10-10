@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Cadence.Domain.Sequencing;
 using Cadence.Presentation;
 
 namespace Cadence.Desktop.Views;
@@ -17,6 +18,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromSeconds(60) };
     private MainViewModel? _viewModel;
     private bool _keyboardToggleHeld;
+    private ClipId? _renamingClip;
     private bool _closeConfirmed;
     private bool _syncingScroll;
     private double _editorHeight = 330;
@@ -35,15 +37,42 @@ public partial class MainWindow : Window
 
         Ruler.SeekRequested += (_, tick) => viewModel.SeekTo(tick);
         Ruler.LoopRequested += (_, loop) => viewModel.SetLoop(loop);
-        Timeline.LaneClicked += (_, click) => OnLaneClicked(click.Lane, click.Modifiers);
-        Timeline.LaneDoubleClicked += (_, lane) => OpenInPianoRoll(lane);
-        Timeline.RegionDragged += (_, drag) =>
+        Timeline.LaneClicked += (_, click) =>
         {
-            if (drag.Lane < viewModel.Tracks.Count)
+            viewModel.Arrangement.ClearSelection();
+            OnLaneClicked(click.Lane, click.Modifiers);
+        };
+        Timeline.ClipPressed += (_, press) => OnClipPressed(press.Lane, press.Clip, press.Modifiers);
+        Timeline.ClipDoubleClicked += (_, open) => OpenInPianoRoll(open.Lane, open.Clip);
+        Timeline.ClipNameDoubleClicked += (_, clip) => BeginClipRename(clip);
+        // Clicking elsewhere commits, and leaves focus where the user clicked.
+        ClipNameBox.LostFocus += (_, _) => EndClipRename(commit: true, refocus: false);
+        Timeline.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Controls.TimelineView.ProjectProperty || e.Property == Controls.TimelineView.PixelsPerQuarterProperty
+                || e.Property == Controls.TimelineView.ExpandedTracksProperty || e.Property == Controls.TimelineView.VisibleLeftProperty
+                || e.Property == Controls.TimelineView.VisibleWidthProperty)
             {
-                viewModel.MoveTrackContent(viewModel.Tracks[drag.Lane], drag.DeltaTicks, drag.Copy);
+                PlaceClipNameBox();
             }
         };
+        Timeline.EmptyDoubleClicked += (_, at) =>
+        {
+            if (at.Lane < viewModel.Tracks.Count && viewModel.Arrangement.CreateClip(viewModel.Tracks[at.Lane].Id, at.Tick) is { } clip)
+            {
+                OpenInPianoRoll(at.Lane, clip);
+            }
+        };
+        Timeline.ClipsDragged += (_, drag) => viewModel.Arrangement.MoveSelection(drag.DeltaTicks, drag.LaneDelta, drag.Copy);
+        Timeline.ClipResized += (_, resize) => viewModel.Arrangement.ResizeClip(resize.Clip, resize.Start, resize.End);
+        Timeline.AutomationEdited += (_, edit) =>
+        {
+            if (edit.Lane < viewModel.Tracks.Count)
+            {
+                viewModel.SetAutomationPoints(viewModel.Tracks[edit.Lane].Id, edit.Automation, edit.Label, edit.Points);
+            }
+        };
+        viewModel.Arrangement.Changed += (_, _) => Timeline.SelectedClips = viewModel.Arrangement.SelectedClips.ToHashSet();
         TimelineScroller.ScrollChanged += (_, _) => SyncTimelineViewport();
         TimelineScroller.SizeChanged += (_, _) => SyncTimelineViewport();
         TrackHeaderScroller.AddHandler(PointerWheelChangedEvent, OnTrackHeaderWheel, RoutingStrategies.Tunnel);
@@ -80,7 +109,7 @@ public partial class MainWindow : Window
         TempoBox.LostFocus += (_, _) => viewModel.CommitTempo(TempoBox.Text ?? string.Empty);
         MeterBox.LostFocus += (_, _) => viewModel.CommitMeter(MeterBox.Text ?? string.Empty);
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         var nativeMenuBar = OperatingSystem.IsMacOS();
         if (nativeMenuBar)
         {
@@ -190,6 +219,10 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The platform's command key: Cmd on macOS, Ctrl elsewhere.</summary>
+    private static KeyModifiers CommandModifier =>
+        Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+
     /// <summary>Selects a track from its lane, with the same modifiers as the track list.</summary>
     private void OnLaneClicked(int lane, KeyModifiers modifiers)
     {
@@ -198,9 +231,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
         var track = vm.Tracks[lane];
-        if (modifiers.HasFlag(command))
+        if (modifiers.HasFlag(CommandModifier))
         {
             if (!vm.SelectedTracks.Remove(track))
             {
@@ -221,7 +253,52 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OpenInPianoRoll(int lane)
+    /// <summary>Selects a clip from the arrangement, with the same modifiers as the track list, and its track.</summary>
+    private void OnClipPressed(int lane, ClipId clip, KeyModifiers modifiers)
+    {
+        if (_viewModel is not { } vm || lane >= vm.Tracks.Count)
+        {
+            return;
+        }
+
+        // The track first: changing the track selection drops selected clips on other tracks. Pressing
+        // a clip that is already selected keeps the selection, so clips on several tracks move together.
+        var track = vm.Tracks[lane];
+        var arrangement = vm.Arrangement;
+        var plain = modifiers is KeyModifiers.None or KeyModifiers.Alt;
+        if (plain && !arrangement.SelectedClips.Contains(clip))
+        {
+            if (vm.SelectedTracks.Count != 1 || vm.SelectedTrack != track)
+            {
+                vm.Select(track);
+            }
+        }
+        else if (!vm.SelectedTracks.Contains(track))
+        {
+            vm.SelectedTracks.Add(track);
+        }
+
+        if (modifiers.HasFlag(CommandModifier))
+        {
+            arrangement.SelectClip(clip, Presentation.SelectionMode.Toggle);
+        }
+        else if (modifiers.HasFlag(KeyModifiers.Shift))
+        {
+            arrangement.SelectClip(clip, Presentation.SelectionMode.Add);
+        }
+        else if (!arrangement.SelectedClips.Contains(clip))
+        {
+            // Pressing a selected clip keeps the selection, so several clips can be dragged together.
+            arrangement.SelectClip(clip);
+        }
+
+        if (arrangement.SelectedClips.Contains(clip))
+        {
+            vm.Editor.EditClip(clip);
+        }
+    }
+
+    private void OpenInPianoRoll(int lane, ClipId? clip = null)
     {
         if (_viewModel is not { } vm || lane >= vm.Tracks.Count)
         {
@@ -229,6 +306,11 @@ public partial class MainWindow : Window
         }
 
         vm.Select(vm.Tracks[lane]);
+        if (clip is { } id)
+        {
+            vm.Editor.EditClip(id);
+        }
+
         vm.LowerPane = LowerPane.PianoRoll;
         vm.IsEditorVisible = true;
         Dispatcher.UIThread.Post(() => PianoRoll.Focus(), DispatcherPriority.Background);
@@ -269,7 +351,7 @@ public partial class MainWindow : Window
     /// <summary>⌘/Ctrl + scroll zooms the arrangement around the pointer.</summary>
     private void OnTimelineWheel(object? sender, PointerWheelEventArgs e)
     {
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         if (!e.KeyModifiers.HasFlag(command) || e.Delta.Y == 0)
         {
             return;
@@ -457,6 +539,10 @@ public partial class MainWindow : Window
         {
             _viewModel.Editor.Duplicate();
         }
+        else if (Timeline.IsFocused && _viewModel?.Arrangement.HasClipSelection == true)
+        {
+            _viewModel.Arrangement.DuplicateSelection();
+        }
         else
         {
             _viewModel?.DuplicateTracksCommand.Execute(null);
@@ -470,15 +556,24 @@ public partial class MainWindow : Window
         {
             _viewModel?.Editor.DeleteSelection();
         }
+        else if (Timeline.IsFocused && _viewModel?.Arrangement.HasClipSelection == true)
+        {
+            _viewModel.Arrangement.DeleteSelection();
+        }
         else
         {
             _viewModel?.DeleteTracksCommand.Execute(null);
         }
     }
 
-    /// <summary>Starts editing the first selected track's name.</summary>
+    /// <summary>Starts renaming: the selected clip when the arrangement has focus, otherwise the first selected track.</summary>
     internal void BeginRename()
     {
+        if (Timeline.IsFocused && RenameSelectedClip())
+        {
+            return;
+        }
+
         if (_viewModel?.SelectedTrack is not { } track
             || TrackList.ContainerFromItem(track) is not { } container
             || container.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is not { } name)
@@ -492,6 +587,82 @@ public partial class MainWindow : Window
             name.Focus();
             name.SelectAll();
         }, DispatcherPriority.Background);
+    }
+
+    /// <summary>Renames the one selected clip (Edit ▸ Rename Clip). Returns false when not exactly one clip is selected.</summary>
+    internal bool RenameSelectedClip()
+    {
+        if (_viewModel?.Arrangement.SelectedClips is not { Count: 1 } clips)
+        {
+            return false;
+        }
+
+        BeginClipRename(clips.First());
+        return true;
+    }
+
+    /// <summary>Opens a text field over a clip's name strip, holding the name it shows.</summary>
+    internal void BeginClipRename(ClipId clip)
+    {
+        if (_viewModel?.Arrangement.DisplayName(clip) is not { } name || Timeline.ClipHeaderBounds(clip) is null)
+        {
+            return;
+        }
+
+        _renamingClip = clip;
+        ClipNameBox.Text = name;
+        PlaceClipNameBox();
+
+        // Deferred so the key or click that started the rename cannot also reach the field.
+        Dispatcher.UIThread.Post(() =>
+        {
+            ClipNameBox.Focus();
+            ClipNameBox.SelectAll();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Keeps the rename field over the visible part of its clip's name strip. When the clip scrolls out of
+    /// view the rename is committed; when the clip is gone (undo), committing does nothing.
+    /// </summary>
+    private void PlaceClipNameBox()
+    {
+        if (_renamingClip is not { } clip)
+        {
+            return;
+        }
+
+        if (Timeline.ClipHeaderBounds(clip) is not { } bounds)
+        {
+            EndClipRename(commit: true, refocus: false);
+            return;
+        }
+
+        Canvas.SetLeft(ClipNameBox, bounds.X);
+        Canvas.SetTop(ClipNameBox, bounds.Y - 1);
+        ClipNameBox.Width = Math.Clamp(bounds.Width, 120, 320);
+        ClipNameBox.Height = bounds.Height + 2;
+        ClipNameBox.IsVisible = true;
+    }
+
+    private void EndClipRename(bool commit, bool refocus)
+    {
+        if (_renamingClip is not { } clip)
+        {
+            return;
+        }
+
+        _renamingClip = null;
+        ClipNameBox.IsVisible = false;
+        if (commit)
+        {
+            _viewModel?.Arrangement.RenameClip(clip, ClipNameBox.Text ?? string.Empty);
+        }
+
+        if (refocus)
+        {
+            Timeline.Focus();
+        }
     }
 
     internal void ShowPane(LowerPane pane)
@@ -540,7 +711,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         var modifiers = e.KeyModifiers;
         if (FocusedTextBox() is { } editing)
         {
@@ -609,6 +780,10 @@ public partial class MainWindow : Window
         {
             case Key.P when modifiers == KeyModifiers.None:
                 ShowPane(LowerPane.PianoRoll);
+                e.Handled = true;
+                break;
+            case Key.B when modifiers == KeyModifiers.None:
+                vm.Arrangement.SplitAtPlayhead();
                 e.Handled = true;
                 break;
             case Key.D when modifiers == KeyModifiers.None:
@@ -748,6 +923,13 @@ public partial class MainWindow : Window
     {
         if (e.Key is not (Key.Return or Key.Enter or Key.Escape))
         {
+            return;
+        }
+
+        if (editing == ClipNameBox)
+        {
+            EndClipRename(commit: e.Key != Key.Escape, refocus: true);
+            e.Handled = true;
             return;
         }
 

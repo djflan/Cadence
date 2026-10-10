@@ -123,7 +123,7 @@ public sealed class CoreMidiProviderTests
         using var output = await cadence.OpenOutputAsync(outputId, Ct);
 
         var channel = MidiChannel.FromIndex(0);
-        var track = new Track(TrackId.New(), "t", Enumerable.Range(0, 16)
+        var track = Track.FromEvents(TrackId.New(), "t", Enumerable.Range(0, 16)
             .Select(i => (TrackEvent)new NoteEvent(new Tick(i * 10), new TickSpan(5), channel, new NoteNumber(48 + i), Velocity.Max)));
         var sequence = Sequence.CreateEmpty(new Ppqn(500)).WithTrack(track);
         var binding = new PlanTrackBinding(0) { InitialEvents = [new ProgramEvent(Tick.Zero, channel, new ProgramSelection(new ProgramNumber(5), BankMsb: SevenBitValue.Min))] };

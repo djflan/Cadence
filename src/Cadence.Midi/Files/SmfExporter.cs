@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Text;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
+using Cadence.Domain.Time;
 using Cadence.Midi.Wire;
 
 namespace Cadence.Midi.Files;
@@ -27,7 +29,7 @@ public static class SmfExporter
 
         for (var i = 0; i < sequence.Tracks.Length; i++)
         {
-            chunks.Add(BuildTrack(sequence.Tracks[i], i + 1, diagnostics));
+            chunks.Add(BuildTrack(sequence.Tracks[i], sequence.Ppqn, i + 1, diagnostics));
         }
 
         var file = new SmfFile(SmfFormat.MultiTrack, SmfDivision.Metrical(sequence.Ppqn.TicksPerQuarterNote), [.. chunks]);
@@ -63,7 +65,7 @@ public static class SmfExporter
         return new SmfTrack(ordered, ordered.Count == 0 ? 0 : ordered[^1].Tick);
     }
 
-    private static SmfTrack BuildTrack(Track track, int fileTrackIndex, DiagnosticBag diagnostics)
+    private static SmfTrack BuildTrack(Track track, Ppqn ppqn, int fileTrackIndex, DiagnosticBag diagnostics)
     {
         var scheduled = new List<(long Tick, EventPhase Phase, int Sequence, SmfEvent Event)>();
         if (track.Name.Length > 0)
@@ -71,9 +73,17 @@ public static class SmfExporter
             scheduled.Add((0, EventPhase.Meta, -1, Text(0, SmfMetaType.TrackName, track.Name, fileTrackIndex, diagnostics)));
         }
 
-        for (var i = 0; i < track.Events.Length; i++)
+        // Automation is written as the controller events it plays.
+        var rendered = TrackRendering.Render(track, ppqn);
+        if (rendered.SuppressedEvents > 0)
         {
-            var e = track.Events[i];
+            diagnostics.Info(SmfDiagnosticCodes.AutomationReplacedEvents, $"{rendered.SuppressedEvents} events in clips were left out because the track's automation replaces them.", fileTrackIndex);
+        }
+
+        var events = rendered.Events;
+        for (var i = 0; i < events.Length; i++)
+        {
+            var e = events[i];
             var tick = e.Position.Value;
             switch (e)
             {
@@ -105,7 +115,7 @@ public static class SmfExporter
             }
         }
 
-        if (HasOverlappingNotes(track))
+        if (HasOverlappingNotes(events))
         {
             diagnostics.Warn(
                 SmfDiagnosticCodes.OverlappingNotes,
@@ -114,13 +124,14 @@ public static class SmfExporter
         }
 
         var ordered = scheduled.OrderBy(s => s.Tick).ThenBy(s => s.Phase).ThenBy(s => s.Sequence).Select(s => s.Event);
-        return new SmfTrack(ordered, track.EndPosition.Value);
+        // The track ends where its last event does, not at the end of its last clip.
+        return new SmfTrack(ordered, events.IsEmpty ? 0 : events.Max(e => e.EndPosition.Value));
     }
 
-    private static bool HasOverlappingNotes(Track track)
+    private static bool HasOverlappingNotes(ImmutableArray<TrackEvent> events)
     {
         var lastEnd = new Dictionary<(byte Channel, byte Note), long>();
-        foreach (var note in track.Events.OfType<NoteEvent>())
+        foreach (var note in events.OfType<NoteEvent>())
         {
             var key = (note.Channel.Index, note.Note.Value);
             if (lastEnd.TryGetValue(key, out var end) && note.Position.Value < end)

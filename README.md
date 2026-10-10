@@ -13,7 +13,7 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 ## Status
 
-Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
+Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); arrange tracks as clips that can be moved, copied, trimmed, and split; draw automation lanes for controllers, pitch bend, and pressure; edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
 
 ### Platform support
 
@@ -152,9 +152,19 @@ onto the window to open it. Hardware checks are listed in
 
 ### Editing notes
 
-Double-click a track's lane (or press P) to open it in the piano roll, below the arrangement. In
-the arrangement, drag a track's region sideways to move its material (snapped to bars, or beats
-when zoomed in); Alt/Option-drag copies it.
+Double-click a clip (or press P) to open it in the piano roll, below the arrangement. A track's
+music lives in clips; the piano roll edits one clip at a time and darkens the time outside it.
+
+| In the arrangement | How |
+| ------------------ | --- |
+| Select clips | Click; Shift-click to add; Ctrl/Cmd-click to add or remove |
+| Move / copy | Drag, also to another track (snapped to bars, or beats when zoomed in); Alt/Option-drag copies |
+| Trim or extend | Drag a clip's left or right edge; trimmed notes are kept, just not played |
+| New clip | Double-click empty space for a clip filling that bar (up to any neighbouring clip), or add notes in the piano roll on a track with no clips |
+| Rename a clip | Double-click its name strip, or select it and press Return; clear the name to show the track's again |
+| Split at the playhead / duplicate / delete | B / Ctrl/Cmd + D / Delete, with the arrangement focused (otherwise these act on tracks) |
+| Automation lanes | The + on a track adds a lane (volume, pan, expression, modulation, sustain, brightness, pitch bend, pressure); the arrow shows or hides them |
+| Automation points | Click to add, drag to move (Shift: no snapping), Alt/Option-click to delete, double-click to switch between hold and ramp |
 
 | In the piano roll | How |
 | ----------------- | --- |
@@ -168,7 +178,7 @@ when zoomed in); Alt/Option-drag copies it.
 | Quantize | Q (Shift + Q also quantizes note ends), with grid, strength, and swing in the header |
 | Copy, cut, paste at the playhead, duplicate, delete | Ctrl/Cmd + C, X, V, D; Delete |
 | Exact values | Type a position, length, pitch, velocity, or channel in the strip above the notes |
-| Hear a key | Click the keyboard |
+| Hear a key | Click the keyboard; while recording, clicked keys play on the recording track and are recorded |
 
 The event list (D) shows every event on the track with editable position, channel, data, and
 length, filtered by kind, and shares its selection with the piano roll. Every edit is one undo step.

@@ -40,7 +40,7 @@ public sealed class ProjectSessionTests : IDisposable
     [Fact]
     public async Task ImportMidi_CreatesAnUnsavedProjectAndNeverTouchesTheSource()
     {
-        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(Track.Create("Piano").Add(new NoteEvent(Tick.Zero, new TickSpan(96), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max)));
+        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(Track.FromEvents(TrackId.New(), "Piano", [new NoteEvent(Tick.Zero, new TickSpan(96), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max)]));
         var midiPath = PathOf("tune.mid");
         await File.WriteAllBytesAsync(midiPath, SmfWriter.Write(SmfExporter.Export(sequence).File), Ct);
         var before = await File.ReadAllBytesAsync(midiPath, Ct);

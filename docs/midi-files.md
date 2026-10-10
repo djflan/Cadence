@@ -29,6 +29,8 @@ that track only; the events read before the damage are kept, and a diagnostic sa
   sequence data, and the original track name becomes the title. No unused channel tracks or
   empty setup track are added. Files without channel events retain a single track.
   Formats 1 and 2 retain their authored track structure.
+- **Clips**: each imported track's events go into one clip, from the bar of its first event to the
+  bar line after its last event ends, so nothing is cut short.
 - **Notes** are paired first-in, first-out per channel and note number. Note-on with velocity 0
   counts as a release with release velocity 0.
 - **Bank and program**: bank select MSB (CC 0) and LSB (CC 32) on the same channel and tick as a
@@ -53,6 +55,13 @@ Export always writes format 1 with running status: a conductor track (title, tim
 tempo changes, markers) followed by one track per sequence track. Simultaneous events are written in
 Cadence's canonical order (ADR 0003), so a release always precedes a retrigger on the same tick.
 Text is written as UTF-8.
+
+Each file track holds what its sequence track plays: the events its clips show (notes cut at clip
+ends, trimmed content left out) and its automation lanes, rendered as controller, pitch bend, and
+pressure events (ADR 0020). Clip events a lane replaces are left out (SMF203). Export has no routes,
+so it compares lanes and clip events on their own channels; with a route's channel override,
+playback can replace more. A MIDI file has no clips or lanes, so importing an exported file brings
+automation back as clip events.
 
 ## Diagnostics
 
@@ -87,6 +96,7 @@ with a count.
 | SMF200 | Info | Mute/solo state cannot be stored in a MIDI file |
 | SMF201 | Info | Non-ASCII names were written as UTF-8 |
 | SMF202 | Warning | Same-pitch notes overlap on one channel; their lengths may change when read back |
+| SMF203 | Info | Clip events were left out because the track's automation replaces them |
 
 ## Known limitations
 

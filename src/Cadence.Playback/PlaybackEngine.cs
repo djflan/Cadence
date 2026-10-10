@@ -50,6 +50,15 @@ public sealed class PlaybackEngine : IDisposable
     private bool[] _slotScheduled = [];
     private bool[] _sustain = [];
     private LoopRegion? _loop;
+
+    // What to send at each loop wrap so held controllers match the loop start (ChaseState.AtWrap). Load
+    // and SetLoop compute it under this lock from the latest plan and loop together, and enqueue in the
+    // same order, so the playback thread always ends with the chase for its own plan and loop. The memo
+    // saves recomputing it when only one of the two calls changes anything.
+    private readonly Lock _wrapLock = new();
+    private LoopRegion? _latestLoop;
+    private (PlaybackPlan Plan, LoopRegion? Loop, ChaseMessage[] Chase)? _wrapMemo;
+    private ChaseMessage[] _wrapChase = [];
     private bool _playing;
     private Cursor _immediate;
     private Cursor _scheduled;
@@ -97,8 +106,11 @@ public sealed class PlaybackEngine : IDisposable
     public void Load(PlaybackPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        Volatile.Write(ref _latestPlan, plan);
-        Enqueue(new LoadCommand(plan));
+        lock (_wrapLock)
+        {
+            Volatile.Write(ref _latestPlan, plan);
+            Enqueue(new LoadCommand(plan, WrapChase(plan, _latestLoop)));
+        }
     }
 
     /// <summary>Sets the output for each slot used by plan bindings. Sounding notes are released first.</summary>
@@ -213,7 +225,27 @@ public sealed class PlaybackEngine : IDisposable
     public void Stop() => Enqueue(new StopCommand());
 
     /// <summary>Sets or clears the loop. A loop engages when the playhead is before its end.</summary>
-    public void SetLoop(LoopRegion? loop) => Enqueue(new LoopCommand(loop));
+    public void SetLoop(LoopRegion? loop)
+    {
+        lock (_wrapLock)
+        {
+            _latestLoop = loop;
+            Enqueue(new LoopCommand(loop, WrapChase(_latestPlan, loop)));
+        }
+    }
+
+    // Computed by the caller under _wrapLock, not on the playback thread.
+    private ChaseMessage[] WrapChase(PlaybackPlan plan, LoopRegion? loop)
+    {
+        if (_wrapMemo is { } memo && ReferenceEquals(memo.Plan, plan) && Equals(memo.Loop, loop))
+        {
+            return memo.Chase;
+        }
+
+        var chase = loop is { } l ? ChaseState.AtWrap(plan, l) : [];
+        _wrapMemo = (plan, loop, chase);
+        return chase;
+    }
 
     /// <summary>
     /// Releases every sounding note, then sends sustain off, All Notes Off, and All Sound Off on all
@@ -284,6 +316,7 @@ public sealed class PlaybackEngine : IDisposable
                 }
 
                 _plan = load.Plan;
+                _wrapChase = load.WrapChase;
                 if (_playing)
                 {
                     PublishAnchor(playing: true);
@@ -349,6 +382,7 @@ public sealed class PlaybackEngine : IDisposable
                 break;
             case LoopCommand loop:
                 _loop = loop.Loop;
+                _wrapChase = loop.WrapChase;
                 if (_playing)
                 {
                     PublishAnchor(playing: true);
@@ -484,6 +518,16 @@ public sealed class PlaybackEngine : IDisposable
             if (wrapTime <= horizon && wrapTime <= eventTime && wrapTime <= clickTime)
             {
                 ReleaseClass(scheduledClass, wrapTime, now);
+                foreach (var message in _wrapChase)
+                {
+                    if (InClass(message.Slot, scheduledClass))
+                    {
+                        // Tracked like any dispatched pedal, so stopping lifts a sustain the wrap put down.
+                        SendChannel(message.Slot, message.Message, scheduledClass ? MidiTimestamp.At(wrapTime) : MidiTimestamp.Immediate);
+                        TrackSustain(message.Slot, message.Message);
+                    }
+                }
+
                 cursor = Cursor.At(_plan, loop!.Start.Value, wrapTime);
                 if (!scheduledClass)
                 {
@@ -769,7 +813,7 @@ public sealed class PlaybackEngine : IDisposable
 
     private abstract record Command;
 
-    private sealed record LoadCommand(PlaybackPlan Plan) : Command;
+    private sealed record LoadCommand(PlaybackPlan Plan, ChaseMessage[] WrapChase) : Command;
 
     private sealed record OutputsCommand(IMidiOutput?[] Outputs) : Command;
 
@@ -781,7 +825,7 @@ public sealed class PlaybackEngine : IDisposable
 
     private sealed record StopCommand : Command;
 
-    private sealed record LoopCommand(LoopRegion? Loop) : Command;
+    private sealed record LoopCommand(LoopRegion? Loop, ChaseMessage[] WrapChase) : Command;
 
     private sealed record PanicCommand : Command;
 }

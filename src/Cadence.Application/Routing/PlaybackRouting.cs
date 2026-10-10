@@ -110,7 +110,7 @@ public static class PlaybackRouting
             return [];
         }
 
-        var channel = resolved.Route.Channel ?? track?.Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel ?? MidiChannel.FromIndex(0);
+        var channel = resolved.Route.Channel ?? track?.FirstChannel ?? MidiChannel.FromIndex(0);
         return [new ProgramEvent(Tick.Zero, channel, bank.Select(voice.Program))];
     }
 }

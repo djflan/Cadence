@@ -54,7 +54,7 @@ public sealed class SequenceTests
     public void EndPosition_IncludesNoteReleases()
     {
         var note = new NoteEvent(new Tick(100), new TickSpan(50), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max);
-        var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(Track.Create("a").Add(note));
+        var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(Track.FromEvents(TrackId.New(), "a", [note]));
 
         Assert.Equal(new Tick(150), sequence.EndPosition);
     }

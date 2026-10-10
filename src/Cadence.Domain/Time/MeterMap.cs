@@ -133,6 +133,19 @@ public sealed class MeterMap
         return new Tick(start + (offset - (offset % _ticksPerBar[segment])));
     }
 
+    /// <summary>
+    /// The tick at which the bar after the one containing <paramref name="position"/> starts. A meter
+    /// change that lands mid-bar starts that next bar early.
+    /// </summary>
+    public Tick NextBarStart(Tick position)
+    {
+        var segment = SegmentContaining(position);
+        var next = BarStart(position).Value + _ticksPerBar[segment];
+        return segment + 1 < Changes.Length && Changes[segment + 1].Position.Value < next
+            ? Changes[segment + 1].Position
+            : new Tick(next);
+    }
+
     private int SegmentContaining(Tick position)
     {
         int low = 0, high = Changes.Length - 1;

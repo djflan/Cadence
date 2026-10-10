@@ -40,6 +40,7 @@ public sealed class PianoRollView : Control
 
     private static readonly IBrush WhiteRow = new SolidColorBrush(Palette.WhiteKeyRow);
     private static readonly IBrush BlackRow = new SolidColorBrush(Palette.BlackKeyRow);
+    private static readonly IBrush OutsideClip = new SolidColorBrush(Colors.Black, 0.28);
     private static readonly IPen OctavePen = new Pen(new SolidColorBrush(Palette.OctaveLine), 1);
     private static readonly IPen RowPen = new Pen(new SolidColorBrush(Color.Parse("#202023")), 1);
     private static readonly IBrush WhiteKey = new SolidColorBrush(Palette.WhiteKey);
@@ -184,7 +185,7 @@ public sealed class PianoRollView : Control
     public double GridHeight => Math.Max(0, Bounds.Height - RulerHeight - LaneHeight);
 
     public double ExtentWidth => Project is { } p && _editor is { } e
-        ? TimeGrid.TickToX(Math.Max(p.Sequence.EndPosition.Value, _editor.Track?.EndPosition.Value ?? 0) + (32L * p.Sequence.Ppqn.TicksPerQuarterNote), p.Sequence, e.Zoom)
+        ? TimeGrid.TickToX(Math.Max(p.Sequence.EndPosition.Value, _editor.Clip is { } clip ? clip.Origin + clip.Content.EndPosition.Value : 0) + (32L * p.Sequence.Ppqn.TicksPerQuarterNote), p.Sequence, e.Zoom)
         : 0;
 
     public double ExtentHeight => 128 * KeyHeight;
@@ -260,6 +261,7 @@ public sealed class PianoRollView : Control
                 var local = new Rect(0, grid.Top, grid.Width, grid.Height);
                 TimeGrid.DrawLines(context, sequence, Zoom, _scrollX, local, _editor.Snap.Division);
                 TimeGrid.ShadeCycle(context, sequence, project.Loop, Zoom, _scrollX, local);
+                ShadeOutsideClip(context, sequence, local);
                 DrawNotes(context, sequence, track, color, local);
                 DrawRecording(context, sequence, local);
                 if (_gesture == Gesture.Marquee)
@@ -384,7 +386,7 @@ public sealed class PianoRollView : Control
         if (x < KeyboardWidth)
         {
             _gesture = Gesture.Keyboard;
-            Audition(PitchAt(y));
+            Audition(PitchAt(y), key: true);
             return;
         }
 
@@ -472,7 +474,7 @@ public sealed class PianoRollView : Control
             case Gesture.Keyboard:
                 if (PitchAt(position.Y) != _auditionPitch)
                 {
-                    Audition(PitchAt(position.Y));
+                    Audition(PitchAt(position.Y), key: true);
                 }
 
                 break;
@@ -701,7 +703,7 @@ public sealed class PianoRollView : Control
             (t0, v0, t1, v1) = (t1, v1, t0, v0);
         }
 
-        foreach (var note in track.Events.OfType<NoteEvent>())
+        foreach (var note in _editor!.Events.OfType<NoteEvent>())
         {
             var start = note.Position.Value;
             if (start >= t0 - 2 && start <= t1 + 2)
@@ -764,6 +766,27 @@ public sealed class PianoRollView : Control
         }
     }
 
+    /// <summary>Darkens the time outside the edited clip, where notes are kept but do not play.</summary>
+    private void ShadeOutsideClip(DrawingContext context, Sequence sequence, Rect area)
+    {
+        if (_editor?.Clip is not { } clip)
+        {
+            return;
+        }
+
+        var start = TimeGrid.TickToX(clip.Start.Value, sequence, Zoom) - _scrollX;
+        var end = TimeGrid.TickToX(clip.End.Value, sequence, Zoom) - _scrollX;
+        if (start > area.Left)
+        {
+            context.FillRectangle(OutsideClip, new Rect(area.Left, area.Top, Math.Min(start, area.Right) - area.Left, area.Height));
+        }
+
+        if (end < area.Right)
+        {
+            context.FillRectangle(OutsideClip, new Rect(Math.Max(end, area.Left), area.Top, area.Right - Math.Max(end, area.Left), area.Height));
+        }
+    }
+
     private void DrawNotes(DrawingContext context, Sequence sequence, Track track, Color color, Rect area)
     {
         var editor = _editor!;
@@ -776,7 +799,7 @@ public sealed class PianoRollView : Control
         var border = new Pen(new SolidColorBrush(Palette.Darken(color, 0.5)), 1);
         var selectedBorder = new Pen(Brushes.White, 1);
 
-        foreach (var e in track.Events)
+        foreach (var e in _editor!.Events)
         {
             if (e is not NoteEvent original || original.EndPosition.Value < firstTick || original.Position.Value > lastTick)
             {
@@ -794,7 +817,8 @@ public sealed class PianoRollView : Control
 
             var velocity = _velocityPreview.TryGetValue(original.Id, out var v) ? v : original.Velocity.Value;
             var fill = isSelected ? Palette.Lighten(color, 0.55) : Palette.Mix(Palette.Darken(color, 0.35), color, 0.35 + (0.65 * velocity / 127.0));
-            DrawNote(context, sequence, original, fill, isSelected ? selectedBorder : border, erased ? 0.25 : 1, showNames, area);
+            var hidden = editor.Clip is { } clip && !clip.Contains(original.Position);
+            DrawNote(context, sequence, original, fill, isSelected ? selectedBorder : border, erased || hidden ? 0.3 : 1, showNames, area);
         }
 
         if (preview is not null)
@@ -874,7 +898,7 @@ public sealed class PianoRollView : Control
         {
             var stem = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.1)), 1.5);
             var selectedStem = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.7)), 1.5);
-            foreach (var note in track.Events.OfType<NoteEvent>())
+            foreach (var note in _editor!.Events.OfType<NoteEvent>())
             {
                 if (note.Position.Value < firstTick || note.Position.Value > lastTick)
                 {
@@ -896,7 +920,7 @@ public sealed class PianoRollView : Control
         var line = new Pen(new SolidColorBrush(Palette.Lighten(color, 0.2)), 1.25);
         var dot = new SolidColorBrush(Palette.Lighten(color, 0.5));
         var fill = new SolidColorBrush(color, 0.22);
-        var points = editor.LaneEvents(track).Select(e => (Tick: e.Position.Value, Value: ControllerLane.ValueOf(e))).ToList();
+        var points = editor.LaneEvents().Select(e => (Tick: e.Position.Value, Value: ControllerLane.ValueOf(e))).ToList();
         if (_gesture is Gesture.ControllerLine or Gesture.ControllerErase)
         {
             var (t0, t1) = (Math.Min(_lineStart.Tick, _lineEnd.Tick), Math.Max(_lineStart.Tick, _lineEnd.Tick));
@@ -969,7 +993,7 @@ public sealed class PianoRollView : Control
         var tick = TickAt(x);
         var sequence = project.Sequence;
         NoteEvent? best = null;
-        foreach (var e in track.Events)
+        foreach (var e in _editor!.Events)
         {
             if (e is NoteEvent note && note.Note.Value == pitch)
             {
@@ -1001,7 +1025,7 @@ public sealed class PianoRollView : Control
         }
 
         var sequence = project.Sequence;
-        var notes = track.Events.OfType<NoteEvent>()
+        var notes = _editor!.Events.OfType<NoteEvent>()
             .Select(n => (Note: n, Distance: Math.Abs(KeyboardWidth + TimeGrid.TickToX(n.Position.Value, sequence, Zoom) - _scrollX - x)))
             .Where(p => p.Distance <= 5)
             .OrderBy(p => _editor!.SelectedEvents.Contains(p.Note.Id) ? 0 : 1)
@@ -1035,7 +1059,8 @@ public sealed class PianoRollView : Control
         };
     }
 
-    private void Audition(int pitch, int velocity = 100)
+    // A key on the keyboard is played (and recorded while recording); a note being edited is only heard.
+    private void Audition(int pitch, int velocity = 100, bool key = false)
     {
         if (_auditionPitch == pitch)
         {
@@ -1043,7 +1068,15 @@ public sealed class PianoRollView : Control
         }
 
         _auditionPitch = pitch;
-        _editor?.Audition(pitch, velocity);
+        if (key)
+        {
+            _editor?.PlayKey(pitch, velocity);
+        }
+        else
+        {
+            _editor?.Audition(pitch, velocity);
+        }
+
         InvalidateVisual();
     }
 
@@ -1065,7 +1098,7 @@ public sealed class PianoRollView : Control
         }
 
         _centeredFor = track.Id;
-        var notes = track.Events.OfType<NoteEvent>().ToList();
+        var notes = _editor!.Events.OfType<NoteEvent>().ToList();
         var center = notes.Count > 0 ? (notes.Min(n => n.Note.Value) + notes.Max(n => n.Note.Value)) / 2.0 : 60;
 
         // Called while rendering, so the scroll is set without invalidating; scroll bars catch up after the frame.

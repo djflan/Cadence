@@ -85,17 +85,18 @@ public sealed class EditHistoryTests
         history.Execute(ProjectCommands.RenameTrack(track.Id, "Lead"));
         history.Execute(ProjectCommands.SetMuted(track.Id, true));
         history.Execute(ProjectCommands.SetSoloed(track.Id, true));
-        history.Execute(ProjectCommands.AddEvent(track.Id, note));
-        history.Execute(ProjectCommands.ReplaceEvent(track.Id, note with { Position = new Tick(5) }));
+        var clip = ClipId.New();
+        history.Execute(ProjectCommands.AddEvent(track.Id, clip, note));
+        history.Execute(ProjectCommands.ReplaceEvent(track.Id, clip, note with { Position = new Tick(5) }));
         history.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Channel = MidiChannel.FromNumber(4) }));
 
         var edited = history.Current.Sequence.FindTrack(track.Id)!;
         Assert.Equal(("Lead", true, true), (edited.Name, edited.IsMuted, edited.IsSoloed));
-        Assert.Equal(new Tick(5), Assert.Single(edited.Events).Position);
+        Assert.Equal(new Tick(5), Assert.Single(edited.ArrangedEvents).Position);
         Assert.NotNull(history.Current.Routing.Find(track.Id));
 
         history.Execute(ProjectCommands.RemoveEvent(track.Id, note.Id));
-        Assert.Empty(history.Current.Sequence.FindTrack(track.Id)!.Events);
+        Assert.Empty(history.Current.Sequence.FindTrack(track.Id)!.ArrangedEvents);
 
         history.Execute(ProjectCommands.RemoveTrack(track.Id));
         Assert.Empty(history.Current.Sequence.Tracks);
@@ -124,7 +125,8 @@ public sealed class EditHistoryTests
     public void DuplicateTracks_CopiesBelowWithFreshIdsAndRoutes()
     {
         var note = new NoteEvent(Tick.Zero, new TickSpan(10), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max);
-        var a = Track.Create("Bass").Add(note);
+        var lane = AutomationLane.Create(AutomationTarget.ForPitchBend(MidiChannel.FromIndex(0)));
+        var a = Track.FromEvents(TrackId.New(), "Bass", [note]).WithLane(lane);
         var b = Track.Create("Drums");
         var history = new EditHistory(Project.CreateNew());
         history.Execute(ProjectCommands.AddTrack(a));
@@ -136,7 +138,9 @@ public sealed class EditHistoryTests
         var tracks = history.Current.Sequence.Tracks;
         Assert.Equal(["Bass", "Bass copy", "Drums"], tracks.Select(t => t.Name));
         Assert.NotEqual(a.Id, tracks[1].Id);
-        Assert.NotEqual(note.Id, tracks[1].Events.Single().Id);
+        Assert.NotEqual(note.Id, tracks[1].ArrangedEvents.Single().Id);
+        Assert.NotEqual(lane.Id, Assert.Single(tracks[1].Automation).Id);
+        Assert.Equal(lane.Target, tracks[1].Automation[0].Target);
         Assert.Equal(MidiChannel.FromNumber(2), history.Current.Routing.Find(tracks[1].Id)!.Channel);
     }
 

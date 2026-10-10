@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
 using Cadence.Application.Routing;
@@ -6,15 +7,22 @@ using Cadence.Domain.Sequencing;
 using Cadence.Midi.Endpoints;
 using Cadence.Profiles;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Cadence.Presentation;
 
 /// <summary>
-/// One row in the track list: name, mute/solo, and routing status. Routing is edited for the whole
-/// selection through <see cref="SelectionViewModel"/>.
+/// One row in the track list: name, mute/solo, routing status, and automation lanes. Routing is edited
+/// for the whole selection through <see cref="SelectionViewModel"/>.
 /// </summary>
 public sealed partial class TrackViewModel : ObservableObject
 {
+    /// <summary>The height of a track's own row, in device-independent pixels.</summary>
+    public const double TrackRowHeight = 50;
+
+    /// <summary>The height of each automation lane shown under a track.</summary>
+    public const double AutomationLaneHeight = 36;
+
     private readonly MainViewModel _owner;
     private bool _syncing;
 
@@ -46,6 +54,25 @@ public sealed partial class TrackViewModel : ObservableObject
             _owner.ToggleArm(this);
         }
     }
+
+    /// <summary>Whether the track's automation lanes are shown. View state only: not saved or undoable.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RowHeight))]
+    public partial bool IsAutomationExpanded { get; set; }
+
+    partial void OnIsAutomationExpandedChanged(bool value) => _owner.OnTrackLayoutChanged();
+
+    public ObservableCollection<AutomationLaneViewModel> Lanes { get; } = [];
+
+    /// <summary>The track's row plus its lanes when they are shown.</summary>
+    public double RowHeight => TrackRowHeight + (IsAutomationExpanded ? Lanes.Count * AutomationLaneHeight : 0);
+
+    /// <summary>Adds a lane for <paramref name="option"/> on the track's channel, and shows the lanes.</summary>
+    [RelayCommand]
+    private void AddLane(AutomationOption option) => _owner.AddAutomationLane(this, option);
+
+    [RelayCommand]
+    private void RemoveLane(AutomationLaneViewModel lane) => _owner.Execute(AutomationCommands.RemoveLane(Id, lane.Id));
 
     /// <summary>One-based position in the track list.</summary>
     [ObservableProperty]
@@ -112,6 +139,7 @@ public sealed partial class TrackViewModel : ObservableObject
             IsMuted = track.IsMuted;
             IsSoloed = track.IsSoloed;
             Summary = Summarize(track);
+            SyncLanes(track);
             Route = resolved?.Route;
             ResolvedProfile = resolved?.Profile.Profile;
             Output = ResolveOutput(outputs, resolved);
@@ -166,6 +194,23 @@ public sealed partial class TrackViewModel : ObservableObject
         }
     }
 
+    private void SyncLanes(Track track)
+    {
+        if (Lanes.Select(l => (l.Id, l.Target)).SequenceEqual(track.Automation.Select(l => (l.Id, l.Target))))
+        {
+            return;
+        }
+
+        Lanes.Clear();
+        foreach (var lane in track.Automation)
+        {
+            Lanes.Add(new AutomationLaneViewModel(this, lane.Id, lane.Target));
+        }
+
+        OnPropertyChanged(nameof(RowHeight));
+        _owner.OnTrackLayoutChanged();
+    }
+
     private OutputOption ResolveOutput(IReadOnlyList<OutputOption> outputs, ResolvedRoute? resolved)
     {
         if (Route?.Endpoint is not { } reference)
@@ -183,8 +228,8 @@ public sealed partial class TrackViewModel : ObservableObject
 
     private static string Summarize(Track track)
     {
-        var notes = track.Events.OfType<NoteEvent>().ToList();
-        var channels = track.Events.OfType<ChannelEvent>().Select(c => c.Channel.Number)
+        var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
+        var channels = track.ArrangedEvents.OfType<ChannelEvent>().Select(c => c.Channel.Number)
             .Distinct()
             .Order()
             .ToList();
@@ -194,6 +239,7 @@ public sealed partial class TrackViewModel : ObservableObject
             1 => string.Create(CultureInfo.InvariantCulture, $"ch {channels[0]}"),
             _ => string.Create(CultureInfo.InvariantCulture, $"ch {string.Join(", ", channels.Take(4))}{(channels.Count > 4 ? "…" : string.Empty)}"),
         };
-        return string.Create(CultureInfo.InvariantCulture, $"{notes.Count} notes · {channelText}");
+        var clips = track.Clips.Length <= 1 ? string.Empty : string.Create(CultureInfo.InvariantCulture, $" · {track.Clips.Length} clips");
+        return string.Create(CultureInfo.InvariantCulture, $"{notes.Count} notes · {channelText}{clips}");
     }
 }

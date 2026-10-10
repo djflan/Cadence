@@ -7,7 +7,7 @@ indices, only stable identifiers and identity hints.
 ```json
 {
   "format": "cadence-project",
-  "formatVersion": 2,
+  "formatVersion": 3,
   "project": {
     "id": "0199b0f2-…",
     "name": "Demo",
@@ -19,11 +19,19 @@ indices, only stable identifiers and identity hints.
       "markers": [ { "tick": 3840, "name": "Verse" } ],
       "tracks": [
         { "id": "…", "name": "Bass", "muted": false, "soloed": false,
-          "events": [
-            { "id": "…", "tick": 0, "type": "program", "channel": 2, "program": 34, "bankMsb": 0, "bankLsb": 0 },
-            { "id": "…", "tick": 0, "type": "controller", "channel": 2, "controller": 7, "value": 3355443200 },
-            { "id": "…", "tick": 0, "type": "note", "length": 480, "channel": 2, "note": 40, "velocity": 100, "release": 64 },
-            { "id": "…", "tick": 0, "type": "sysex", "bytes": "F0 43 10 4C 00 00 7E 00 F7" }
+          "clips": [
+            { "id": "…", "type": "note", "start": 3840, "length": 7680, "offset": 0, "name": "Verse",
+              "events": [
+                { "id": "…", "tick": 0, "type": "program", "channel": 2, "program": 34, "bankMsb": 0, "bankLsb": 0 },
+                { "id": "…", "tick": 0, "type": "controller", "channel": 2, "controller": 7, "value": 3355443200 },
+                { "id": "…", "tick": 0, "type": "note", "length": 480, "channel": 2, "note": 40, "velocity": 100, "release": 64 },
+                { "id": "…", "tick": 0, "type": "sysex", "bytes": "F0 43 10 4C 00 00 7E 00 F7" }
+              ] }
+          ],
+          "automation": [
+            { "id": "…", "target": { "type": "controller", "channel": 2, "controller": 7 },
+              "points": [ { "tick": 0, "value": 0, "curve": "linear" },
+                          { "tick": 7680, "value": 3355443200, "curve": "hold" } ] }
           ] }
       ]
     },
@@ -41,7 +49,19 @@ indices, only stable identifiers and identity hints.
 
 ## Rules
 
-- Channels and program numbers are one-based (1–16, 1–128), as musicians see them. Ticks are absolute.
+- Channels and program numbers are one-based (1–16, 1–128), as musicians see them.
+- A track holds clips (ADR 0020), in any order on disk but never overlapping. A clip's `start` and
+  `length` are timeline ticks. Its events' `tick`s are relative to the clip's content, and the clip
+  shows content ticks from `offset` to `offset + length`. Content outside that window is kept but not
+  played, so trimming a clip loses nothing. `name` is optional; without it the clip shows the
+  track's name.
+- The only clip `type` is `note`, holding the events below. `audio` is reserved.
+- Event IDs are unique across all clips of a track.
+- `automation` (optional; omitted when empty) holds a track's automation lanes, in display order. A
+  lane's `target` is a `controller` (with a `controller` number, not bank select, 32–63, data entry or
+  increment/decrement, RPN/NRPN selectors, or channel mode), `pitchBend`, or `channelPressure`, on a
+  `channel`; no two lanes on a track share a target. Its `points` have timeline `tick`s, at most one
+  per tick, 32-bit `value`s, and a `curve` (`hold` or `linear`) for the way to the next point.
 - Channel events describe what is played, not MIDI 1.0 bytes:
   - `note`: a note with its length, attack velocity, and release velocity.
   - `noteOff`: a release with no matching note, kept from an import.
@@ -62,6 +82,10 @@ indices, only stable identifiers and identity hints.
 `formatVersion` increases whenever the structure changes. Older files are upgraded in memory by a
 chain of migrations before they are read; saving always writes the current version. A file from a
 newer Cadence is refused with an explanation and never overwritten.
+
+Format 3 put each track's events in clips. A format 2 track's events move into one note clip, with
+the track's ID, from the bar of its first event to the bar line after its latest end, so it plays
+exactly as before; a track with no events gets no clip.
 
 Format 2 replaced format 1's `channel` events (raw MIDI 1.0 bytes) with the channel event types
 above. Format 1 files are not migrated; import the original MIDI file again instead.

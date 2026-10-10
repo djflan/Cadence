@@ -161,7 +161,7 @@ public sealed class RulerView : Control
             return bar.Value + ((long)Math.Round((tick - bar.Value) / (double)beat) * beat);
         }
 
-        var next = TimeGrid.NextBar(meter, bar);
+        var next = meter.NextBarStart(bar);
         return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
     }
 }

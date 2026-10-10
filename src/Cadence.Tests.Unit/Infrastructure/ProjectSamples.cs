@@ -13,7 +13,7 @@ internal static class ProjectSamples
     {
         var ppqn = new Ppqn(480);
         var channel = MidiChannel.FromNumber(2);
-        var bass = new Track(TrackId.New(), "Bass", [
+        var bass = Track.FromEvents(TrackId.New(), "Bass", [
             new NoteEvent(EventId.New(), new Tick(0), new TickSpan(240), channel, new NoteNumber(40), new Velocity(100), new Velocity(30)),
             new ProgramEvent(new Tick(0), channel, new ProgramSelection(new ProgramNumber(33), new SevenBitValue(0), new SevenBitValue(64))),
             new PitchBendEvent(new Tick(10), channel, ControlValue.FromFourteenBit(9000)),
@@ -25,11 +25,29 @@ internal static class ProjectSamples
             new RawMidiEvent(EventId.New(), new Tick(20), ByteBlock.Copy([0xF0, 0x43])),
             new MetaEvent(EventId.New(), new Tick(30), 0x05, ByteBlock.Copy("la"u8)),
         ], isMuted: true);
-        var drums = new Track(TrackId.New(), "Drüms ♪", [], isSoloed: true);
+        var drums = Track.FromEvents(TrackId.New(), "Drüms ♪", [], isSoloed: true);
+        // Two clips, one trimmed and named, with content hidden on both sides.
+        var lead = new Track(TrackId.New(), "Lead", [
+            new NoteClip(ClipId.New(), new Tick(1920), new TickSpan(960), new TickSpan(240), new EventList([
+                new NoteEvent(new Tick(0), new TickSpan(120), channel, new NoteNumber(72), new Velocity(90)),
+                new NoteEvent(new Tick(480), new TickSpan(2000), channel, new NoteNumber(74), new Velocity(91)),
+                new ControllerEvent(new Tick(1300), channel, ControllerNumber.ModulationWheel, ControlValue.Max),
+            ]), "Hook"),
+            new NoteClip(ClipId.New(), new Tick(3840), new TickSpan(480), TickSpan.Zero, new EventList([
+                new NoteEvent(new Tick(0), new TickSpan(240), channel, new NoteNumber(76), new Velocity(92)),
+            ])),
+        ], automation: [
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForController(channel, ControllerNumber.ChannelVolume), [
+                new AutomationPoint(new Tick(0), ControlValue.FromSevenBit(10)),
+                new AutomationPoint(new Tick(1920), new ControlValue(0xDEAD_BEEF), AutomationCurve.Hold),
+            ]),
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForPitchBend(channel), []),
+            new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForChannelPressure(MidiChannel.FromNumber(16)), [new AutomationPoint(new Tick(5), ControlValue.Max)]),
+        ]);
         var sequence = new Sequence(
             new TempoMap(ppqn, [new TempoChange(new Tick(960), new Tempo(400_000))]),
             new MeterMap(ppqn, [new MeterChange(new Tick(1920), new TimeSignature(7, 8))]),
-            [bass, drums],
+            [bass, drums, lead],
             [new Marker(new Tick(480), "Verse \"A\"")]);
 
         return new Project
@@ -66,13 +84,18 @@ internal static class ProjectSamples
         foreach (var track in s.Tracks)
         {
             lines.Add($"track {track.Id} {track.Name} m={track.IsMuted} s={track.IsSoloed}");
-            lines.AddRange(track.Events.Select(e => e switch
+            lines.AddRange(track.Automation.Select(l => $"  lane {l.Id} {l.Target} {string.Join(",", l.Points)}"));
+            foreach (var clip in track.Clips.Cast<NoteClip>())
             {
-                SysExEvent x => $"  {x.Id} {x.Position} sysex {Convert.ToHexString(x.Message.Bytes.Span)}",
-                RawMidiEvent x => $"  {x.Id} {x.Position} raw {Convert.ToHexString(x.Bytes.Span)}",
-                MetaEvent x => $"  {x.Id} {x.Position} meta {x.Type} {Convert.ToHexString(x.Data.Span)}",
-                _ => "  " + e,
-            }));
+                lines.Add($"  clip {clip.Id} {clip.Start}+{clip.Length} offset={clip.ContentOffset} \"{clip.Name}\"");
+                lines.AddRange(clip.Content.Items.Select(e => e switch
+                {
+                    SysExEvent x => $"    {x.Id} {x.Position} sysex {Convert.ToHexString(x.Message.Bytes.Span)}",
+                    RawMidiEvent x => $"    {x.Id} {x.Position} raw {Convert.ToHexString(x.Bytes.Span)}",
+                    MetaEvent x => $"    {x.Id} {x.Position} meta {x.Type} {Convert.ToHexString(x.Data.Span)}",
+                    _ => "    " + e,
+                }));
+            }
         }
 
         lines.AddRange(project.Routing.Routes.Values.OrderBy(r => r.Track.Value).Select(r => $"route {r}"));

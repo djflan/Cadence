@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
 using Cadence.Application.Sessions;
+using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
@@ -77,12 +78,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Project = session.Project;
         Selection = new SelectionViewModel(this);
         Editor = new EditorViewModel(this);
+        Arrangement = new ArrangementViewModel(this);
         EventList = new EventListViewModel(this, Editor);
         SelectedTracks.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
             SyncEditor();
+            Arrangement.KeepOnTracks([.. SelectedTracks.Select(t => t.Id)]);
             ApplyThru();
         };
         ApplyMetronome();
@@ -129,6 +132,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The piano roll for the first selected track.</summary>
     public EditorViewModel Editor { get; }
+
+    /// <summary>The clip selection and clip edits in the arrangement.</summary>
+    public ArrangementViewModel Arrangement { get; }
+
+    /// <summary>The tracks whose automation lanes are shown, so the arrangement can lay out its rows.</summary>
+    [ObservableProperty]
+    public partial IReadOnlySet<TrackId> ExpandedTracks { get; private set; } = new HashSet<TrackId>();
 
     /// <summary>The event list for the first selected track.</summary>
     public EventListViewModel EventList { get; }
@@ -337,6 +347,31 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal void Execute(IProjectCommand command) => _session.Execute(command);
 
+    /// <summary>The channel a track's route sends on, when it overrides the track's own.</summary>
+    internal MidiChannel? RouteChannel(TrackId track) => Project.Routing.Find(track)?.Channel;
+
+    internal void OnTrackLayoutChanged()
+    {
+        var expanded = Tracks.Where(t => t.IsAutomationExpanded && t.Lanes.Count > 0).Select(t => t.Id).ToHashSet();
+        if (!expanded.SetEquals(ExpandedTracks))
+        {
+            ExpandedTracks = expanded;
+        }
+    }
+
+    /// <summary>Replaces an automation lane's points as one undo step, e.g. after a point is dragged in the arrangement.</summary>
+    public void SetAutomationPoints(TrackId track, AutomationLaneId lane, string label, IReadOnlyCollection<AutomationPoint> points) =>
+        Execute(AutomationCommands.SetPoints(track, lane, label, points));
+
+    /// <summary>Adds an automation lane to a track, on its route's channel or else its first channel, and shows its lanes.</summary>
+    internal void AddAutomationLane(TrackViewModel track, AutomationOption option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+        var channel = track.Route?.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
+        Execute(AutomationCommands.AddLane(track.Id, AutomationLane.Create(option.On(channel))));
+        track.IsAutomationExpanded = true;
+    }
+
     internal EndpointDescriptor? FindEndpoint(EndpointId id) => _outputDescriptors.FirstOrDefault(e => e.Id == id);
 
     internal DeviceProfile? FindProfile(string id) => _playback.Profiles.Find(id);
@@ -451,7 +486,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal static UInt128 NotesAt(Track track, long tick)
     {
         UInt128 notes = 0;
-        foreach (var e in track.Events)
+        foreach (var e in track.ArrangedEvents)
         {
             if (e.Position.Value > tick)
             {
@@ -731,6 +766,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal void Audition(TrackId track, Domain.Midi.NoteNumber note, Domain.Midi.Velocity velocity) => _playback.Audition(track, note, velocity);
 
+    internal void PlayKey(TrackId track, Domain.Midi.NoteNumber note, Domain.Midi.Velocity velocity) => _playback.PlayKey(track, note, velocity);
+
     internal void EndAudition() => _playback.EndAudition();
 
     private void StopTransport()
@@ -759,6 +796,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AddMessage(MessageSeverity.Info, "Record", take.Events.IsEmpty
             ? "Nothing was played, so the take was discarded."
             : string.Create(CultureInfo.InvariantCulture, $"Recorded {notes} note{(notes == 1 ? string.Empty : "s")}{(others > 0 ? $" and {others} other event{(others == 1 ? string.Empty : "s")}" : string.Empty)} on {name}."));
+
+        // Recorded controllers on a target an automation lane controls are kept but do not play.
+        if (Project.Sequence.FindTrack(take.Track) is { } track)
+        {
+            var replaced = take.Events.OfType<ChannelEvent>().Count(e => TrackRendering.Replaces(track, e, RouteChannel(track.Id)));
+            if (replaced > 0)
+            {
+                AddMessage(MessageSeverity.Warning, "Record", string.Create(CultureInfo.InvariantCulture, $"{replaced} recorded event{(replaced == 1 ? " is" : "s are")} replaced by {name}'s automation lanes and will not play. Delete or clear the lane to hear them."));
+            }
+        }
     }
 
     private void ApplyMetronome()
@@ -787,28 +834,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         _playback.Panic();
         AddMessage(MessageSeverity.Info, "Panic", "Sent All Notes Off, All Sound Off, and sustain off on every channel of every output.");
-    }
-
-    /// <summary>
-    /// Moves everything on a track in time (dragging its region in the arrangement), or with
-    /// <paramref name="copy"/> repeats it shifted, as one undo step.
-    /// </summary>
-    public void MoveTrackContent(TrackViewModel track, long deltaTicks, bool copy)
-    {
-        ArgumentNullException.ThrowIfNull(track);
-        if (Project.Sequence.FindTrack(track.Id) is not { Events.IsEmpty: false } content || deltaTicks == 0)
-        {
-            return;
-        }
-
-        if (copy)
-        {
-            Execute(ProjectCommands.AddEvents(track.Id, "Copy Region", EventEdits.Copy(content.Events, deltaTicks)));
-        }
-        else
-        {
-            Execute(ProjectCommands.ReplaceEvents(track.Id, "Move Region", EventEdits.Move(content.Events, deltaTicks, 0)));
-        }
     }
 
     /// <summary>Sets the loop (cycle) range, or turns it off with null, e.g. from the ruler.</summary>
@@ -912,11 +937,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var events = tracks.Sum(t => t.Events.Length);
+        var events = tracks.Sum(t => t.Clips.OfType<NoteClip>().Sum(c => c.Content.Items.Length));
+        var points = tracks.Sum(t => t.Automation.Sum(l => l.Points.Length));
         var subject = tracks.Count == 1 ? $"\"{tracks[0].Name}\"" : $"{tracks.Count} tracks";
-        if (events > 0 && !await _ui.ConfirmAsync(
+        var contents = points == 0 ? $"{events} events" : events == 0 ? $"{points} automation points" : $"{events} events and {points} automation points";
+        if (events + points > 0 && !await _ui.ConfirmAsync(
                 tracks.Count == 1 ? "Delete track?" : "Delete tracks?",
-                $"{subject} {(tracks.Count == 1 ? "has" : "have")} {events} events. You can undo this.",
+                $"{subject} {(tracks.Count == 1 ? "has" : "have")} {contents}. You can undo this.",
                 "Delete",
                 destructive: true))
         {
@@ -981,6 +1008,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsLoopEnabled = Project.Loop is not null;
         SyncTracks();
         SyncEditor();
+        Arrangement.Sync();
         await RefreshAsync();
     }
 

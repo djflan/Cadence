@@ -49,7 +49,7 @@ public sealed class RecordingTests : IAsyncDisposable
 
     private Track AddTrack(LoopbackPort output, params TrackEvent[] events)
     {
-        var track = new Track(TrackId.New(), "Keys", events);
+        var track = Track.FromEvents(TrackId.New(), "Keys", events);
         _session.Execute(ProjectCommands.AddTrack(track));
         _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, output.OutputId.Value, output.Name) }));
         return track;
@@ -89,11 +89,82 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         var take = _controller.Stop();
 
-        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
         Assert.Equal((960L, 480L), (note.Position.Value, note.Duration.Value));
         Assert.Equal(100, note.Velocity.Value);
         Assert.Equal(new TickRange(Tick.Zero, new Tick(1920)), take!.Range);
         Assert.Equal("Record", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public async Task PianoKeys_WhileRecordingWithoutThru_SoundOnTheTrackAndAreRecorded()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+
+        // Thru is off here, so the key sounds on the track's output directly, and is still recorded.
+        _controller.PlayKey(track.Id, new NoteNumber(64), new Velocity(80));
+        RunTo(750);
+        _controller.EndAudition();
+        RunTo(800);
+        _controller.Stop();
+
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x90, 64, 80]);
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x80, 64, _]);
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
+        Assert.Equal((960L, 480L, 64), (note.Position.Value, note.Duration.Value, (int)note.Note.Value));
+    }
+
+    [Fact]
+    public async Task WhileRecording_OnlyKeysOnTheRecordedTrackAreRecorded()
+    {
+        var other = _provider.CreatePort("Other", "other");
+        var track = AddTrack(_synth);
+        var elsewhere = AddTrack(other);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        var received = _controller.Recorder.MessagesReceived;
+
+        // Hearing a note being edited, and a key of another track's piano roll, are not playing into the take.
+        _controller.Audition(track.Id, new NoteNumber(60), new Velocity(80));
+        RunTo(550);
+        _controller.PlayKey(elsewhere.Id, new NoteNumber(62), new Velocity(80));
+        RunTo(600);
+        _controller.EndAudition();
+        RunTo(650);
+        _controller.Stop();
+
+        Assert.Empty(Recorded(track).ArrangedEvents);
+        Assert.Contains(other.Sent, m => m.Bytes is [0x90, 62, 80]);
+        Assert.Equal(received, _controller.Recorder.MessagesReceived);
+    }
+
+    [Fact]
+    public async Task OnScreenAndKeyboardNotes_OfTheSamePitch_KeepTheirOwnReleases()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+
+        Play(60);
+        RunTo(750);
+        _controller.PlayKey(track.Id, new NoteNumber(60), new Velocity(90));
+        RunTo(1000);
+        _controller.EndAudition();
+        RunTo(1500);
+        Release(60);
+        RunTo(1600);
+        _controller.Stop();
+
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (n.Position.Value, n.Duration.Value, (int)n.Velocity.Value)).ToList();
+        Assert.Equal([(960L, 1920L, 100), (1440L, 480L, 90)], notes);
     }
 
     [Fact]
@@ -179,7 +250,7 @@ public sealed class RecordingTests : IAsyncDisposable
         _controller.FinishRecording();
 
         Assert.Equal(TransportState.Playing, _controller.Engine.State);
-        Assert.Equal([40, 64], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+        Assert.Equal([40, 64], Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
     }
 
     [Fact]
@@ -193,7 +264,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(1000);
         _controller.Stop();
 
-        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
         Assert.Equal((480L, 1920L), (note.Position.Value, note.EndPosition.Value));
     }
 
@@ -216,7 +287,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         _controller.Stop();
 
-        var notes = Recorded(track).Events.Cast<NoteEvent>().ToList();
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().ToList();
         Assert.Equal([(960L, 1440L, 62), (3648L, 3840L, 60)], notes.Select(n => (n.Position.Value, n.EndPosition.Value, (int)n.Note.Value)));
     }
 
@@ -240,7 +311,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         _controller.Stop();
 
-        var notes = Recorded(track).Events.Cast<NoteEvent>().Select(n => (n.Position.Value, n.EndPosition.Value)).ToList();
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (n.Position.Value, n.EndPosition.Value)).ToList();
         Assert.Equal([(384L, 768L), (3648L, 3840L)], notes);
     }
 
@@ -260,7 +331,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(1000);
         _controller.Stop();
 
-        Assert.Equal([64, 41], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+        Assert.Equal([64, 41], Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
     }
 
     [Fact]
@@ -276,7 +347,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(2500);
         _controller.Stop();
 
-        Assert.Empty(Recorded(track).Events);
+        Assert.Empty(Recorded(track).ArrangedEvents);
     }
 
     [Fact]
@@ -306,7 +377,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(600);
         _controller.Stop();
 
-        var events = Recorded(track).Events;
+        var events = Recorded(track).ArrangedEvents;
         Assert.Equal([typeof(ControllerEvent), typeof(PitchBendEvent)], events.Select(e => e.GetType()));
         Assert.Equal(0x50 << 7, Assert.IsType<PitchBendEvent>(events[1]).Value.ToFourteenBit());
         Assert.All(events, e => Assert.Equal(960, e.Position.Value));
@@ -339,6 +410,6 @@ public sealed class RecordingTests : IAsyncDisposable
         _controller.Stop();
 
         Assert.Equal(label, _session.History.UndoLabel);
-        Assert.Empty(Recorded(track).Events);
+        Assert.Empty(Recorded(track).ArrangedEvents);
     }
 }
