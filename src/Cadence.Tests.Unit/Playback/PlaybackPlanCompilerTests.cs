@@ -16,9 +16,9 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void MutedTracksAreSkipped_SoloOverridesMute()
     {
-        var muted = new Track(TrackId.New(), "m", [Note(0, 10)], isMuted: true);
-        var plain = new Track(TrackId.New(), "p", [Note(0, 10)]);
-        var soloMuted = new Track(TrackId.New(), "s", [Note(0, 10)], isMuted: true, isSoloed: true);
+        var muted = Track.FromEvents(TrackId.New(), "m", [Note(0, 10)], isMuted: true);
+        var plain = Track.FromEvents(TrackId.New(), "p", [Note(0, 10)]);
+        var soloMuted = Track.FromEvents(TrackId.New(), "s", [Note(0, 10)], isMuted: true, isSoloed: true);
 
         Assert.Equal(1, Compile(With(muted, plain), (muted, new(0)), (plain, new(0))).EventCount);
         Assert.Equal(1, Compile(With(muted, plain, soloMuted), (muted, new(0)), (plain, new(0)), (soloMuted, new(0))).EventCount);
@@ -27,7 +27,7 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void UnboundTracks_AreReported()
     {
-        var track = new Track(TrackId.New(), "t", [Note(0, 10)]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0, 10)]);
 
         var plan = Compile(With(track));
 
@@ -38,7 +38,7 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void ChannelOverride_ReaddressesEveryChannelMessage()
     {
-        var track = new Track(TrackId.New(), "t", [Note(0, 10), Cc(0, 7, 1, channel: 3)]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0, 10), Cc(0, 7, 1, channel: 3)]);
 
         var plan = Compile(With(track), (track, new(0, MidiChannel.FromNumber(10))));
 
@@ -48,8 +48,8 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void Events_AreOrderedByTickPhaseTrackThenPosition()
     {
-        var a = new Track(TrackId.New(), "a", [Note(0, 10), Cc(0, 7, 1)]);
-        var b = new Track(TrackId.New(), "b", [Cc(0, 7, 2), Program(0, 1)]);
+        var a = Track.FromEvents(TrackId.New(), "a", [Note(0, 10), Cc(0, 7, 1)]);
+        var b = Track.FromEvents(TrackId.New(), "b", [Cc(0, 7, 2), Program(0, 1)]);
 
         var plan = Compile(With(a, b), (a, new(0)), (b, new(1)));
 
@@ -59,7 +59,7 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void RawEvents_AreSentWhenCompleteOrJoinedWhenSplit()
     {
-        var track = new Track(TrackId.New(), "t", [
+        var track = Track.FromEvents(TrackId.New(), "t", [
             Raw(0, 0xF8),
             Raw(10, 0xF0, 0x43, 0x10),
             Raw(12, 0x4C, 0x00, 0xF7),
@@ -76,7 +76,7 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void UnterminatedSplitSysEx_IsReportedNotSent()
     {
-        var track = new Track(TrackId.New(), "t", [Raw(0, 0xF0, 0x43), Raw(1, 0x10)]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Raw(0, 0xF0, 0x43), Raw(1, 0x10)]);
 
         var plan = Compile(With(track), (track, new(0)));
 
@@ -87,7 +87,7 @@ public sealed class PlaybackPlanCompilerTests
     [Fact]
     public void MetaEvents_AreNotTransmitted()
     {
-        var track = new Track(TrackId.New(), "t", [new MetaEvent(EventId.New(), Tick.Zero, 1, ByteBlock.Copy("x"u8))]);
+        var track = Track.FromEvents(TrackId.New(), "t", [new MetaEvent(EventId.New(), Tick.Zero, 1, ByteBlock.Copy("x"u8))]);
 
         Assert.Equal(0, Compile(With(track), (track, new(0))).EventCount);
     }

@@ -46,24 +46,24 @@ public sealed class SmfImportExportTests
         Assert.Equal("Song", result.Title);
         Assert.Equal(["MIDI Setup", "Channel 1", "Channel 10"], result.Sequence.Tracks.Select(t => t.Name));
         var setup = result.Sequence.Tracks[0];
-        Assert.Equal(2, setup.Events.Length);
-        Assert.Equal<byte>([0xF0, 0x43, 0x10, 0x4C, 0, 0, 0x7E, 0, 0xF7], Assert.Single(setup.Events.OfType<SysExEvent>()).Message.Bytes.ToArray());
-        Assert.Equal(10, Assert.Single(setup.Events.OfType<MetaEvent>()).Position.Value);
+        Assert.Equal(2, setup.ArrangedEvents.Length);
+        Assert.Equal<byte>([0xF0, 0x43, 0x10, 0x4C, 0, 0, 0x7E, 0, 0xF7], Assert.Single(setup.ArrangedEvents.OfType<SysExEvent>()).Message.Bytes.ToArray());
+        Assert.Equal(10, Assert.Single(setup.ArrangedEvents.OfType<MetaEvent>()).Position.Value);
         Assert.Equal([new Marker(new Tick(10), "A")], result.Sequence.Markers);
         Assert.Equal(new Tempo(500_000), Assert.Single(result.Sequence.TempoMap.Changes).Tempo);
         Assert.Equal(TimeSignature.CommonTime, Assert.Single(result.Sequence.MeterMap.Changes).Signature);
 
         var part = result.Sequence.Tracks[1];
         var drum = result.Sequence.Tracks[2];
-        var melodicNote = Assert.Single(part.Events.OfType<NoteEvent>());
+        var melodicNote = Assert.Single(part.ArrangedEvents.OfType<NoteEvent>());
         Assert.Equal((0L, 30L, (byte)64), (melodicNote.Position.Value, melodicNote.Duration.Value, melodicNote.ReleaseVelocity.Value));
-        var drumNote = Assert.Single(drum.Events.OfType<NoteEvent>());
+        var drumNote = Assert.Single(drum.ArrangedEvents.OfType<NoteEvent>());
         Assert.Equal((0L, 20L, (byte)0), (drumNote.Position.Value, drumNote.Duration.Value, drumNote.ReleaseVelocity.Value));
-        Assert.Equal([101, 100, 6], part.Events.OfType<ControllerEvent>().Select(e => (int)e.Controller.Value));
-        Assert.Equal(new ProgramSelection(new ProgramNumber(0x28), new SevenBitValue(0), new SevenBitValue(1)), Assert.Single(part.Events.OfType<ProgramEvent>()).Selection);
-        Assert.Equal(new ProgramSelection(new ProgramNumber(0), new SevenBitValue(0x7F), new SevenBitValue(0)), Assert.Single(drum.Events.OfType<ProgramEvent>()).Selection);
-        Assert.All(part.Events.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Channel));
-        Assert.All(drum.Events.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Channel.Number));
+        Assert.Equal([101, 100, 6], part.ArrangedEvents.OfType<ControllerEvent>().Select(e => (int)e.Controller.Value));
+        Assert.Equal(new ProgramSelection(new ProgramNumber(0x28), new SevenBitValue(0), new SevenBitValue(1)), Assert.Single(part.ArrangedEvents.OfType<ProgramEvent>()).Selection);
+        Assert.Equal(new ProgramSelection(new ProgramNumber(0), new SevenBitValue(0x7F), new SevenBitValue(0)), Assert.Single(drum.ArrangedEvents.OfType<ProgramEvent>()).Selection);
+        Assert.All(part.ArrangedEvents.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Channel));
+        Assert.All(drum.ArrangedEvents.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Channel.Number));
 
         var bindings = result.Sequence.Tracks.ToDictionary(t => t.Id, _ => new PlanTrackBinding(0));
         var plan = PlaybackPlanCompiler.Compile(result.Sequence, bindings);
@@ -89,14 +89,14 @@ public sealed class SmfImportExportTests
             0x00, 0xFF, 0x58, 0x04, 0x03, 0x03, 0x18, 0x08)));
 
         Assert.Equal(["MIDI Setup", "Channel 16"], result.Sequence.Tracks.Select(t => t.Name));
-        var setup = result.Sequence.Tracks[0].Events;
+        var setup = result.Sequence.Tracks[0].ArrangedEvents;
         Assert.Equal([0L, 5L], setup.OfType<RawMidiEvent>().Select(e => e.Position.Value));
         Assert.Equal<byte>([0xF0, 0x43, 0x10], setup.OfType<RawMidiEvent>().First().Bytes.ToArray());
         Assert.Equal<byte>([0x4C, 0xF7], setup.OfType<RawMidiEvent>().Last().Bytes.ToArray());
         Assert.Equal(SmfMetaType.TimeSignature, Assert.Single(setup.OfType<MetaEvent>()).Type);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTimeSignature);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.SysExKeptRaw, SmfDiagnosticSeverity.Info);
-        Assert.Equal(16, Assert.IsType<ControllerEvent>(Assert.Single(result.Sequence.Tracks[1].Events)).Channel.Number);
+        Assert.Equal(16, Assert.IsType<ControllerEvent>(Assert.Single(result.Sequence.Tracks[1].ArrangedEvents)).Channel.Number);
     }
 
     [Fact]
@@ -109,9 +109,9 @@ public sealed class SmfImportExportTests
             0x05, 0x80, 0x3D, 0x40)));
 
         Assert.Equal(["Channel 1", "Channel 2"], result.Sequence.Tracks.Select(t => t.Name));
-        Assert.Equal(10, Assert.Single(result.Sequence.Tracks[0].Events.OfType<NoteEvent>()).Duration.Value);
-        Assert.Equal(15, Assert.Single(result.Sequence.Tracks[1].Events.OfType<NoteEvent>()).Duration.Value);
-        Assert.Single(result.Sequence.Tracks[0].Events.OfType<NoteOffEvent>());
+        Assert.Equal(10, Assert.Single(result.Sequence.Tracks[0].ArrangedEvents.OfType<NoteEvent>()).Duration.Value);
+        Assert.Equal(15, Assert.Single(result.Sequence.Tracks[1].ArrangedEvents.OfType<NoteEvent>()).Duration.Value);
+        Assert.Single(result.Sequence.Tracks[0].ArrangedEvents.OfType<NoteOffEvent>());
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnpairedNoteOff, SmfDiagnosticSeverity.Info);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnterminatedNote);
         Assert.All(result.Diagnostics, d => Assert.Equal(0, d.TrackIndex));
@@ -126,7 +126,7 @@ public sealed class SmfImportExportTests
             0x00, 0xB0, 0x07, 0x64,
             0x00, 0xB9, 0x07, 0x50)));
 
-        Assert.Equal(2, Assert.Single(result.Sequence.Tracks).Events.Length);
+        Assert.Equal(2, Assert.Single(result.Sequence.Tracks).ArrangedEvents.Length);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class SmfImportExportTests
             0x0A, 0x80, 0x3C, 0x20,   // off @20 → A
             0x0A, 0x90, 0x3C, 0x00))); // off (vel 0) @30 → B
 
-        var notes = result.Sequence.Tracks.Single().Events.Cast<NoteEvent>().ToList();
+        var notes = result.Sequence.Tracks.Single().ArrangedEvents.Cast<NoteEvent>().ToList();
         Assert.Equal([(0L, 20L, 100, 0x20), (10L, 20L, 80, 0)], notes.Select(n => (n.Position.Value, n.Duration.Value, (int)n.Velocity.Value, (int)n.ReleaseVelocity.Value)));
         Assert.Empty(result.Diagnostics);
     }
@@ -148,7 +148,7 @@ public sealed class SmfImportExportTests
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0x80, 0x3C, 0x40)));
 
-        var release = Assert.IsType<NoteOffEvent>(result.Sequence.Tracks.Single().Events.Single());
+        var release = Assert.IsType<NoteOffEvent>(result.Sequence.Tracks.Single().ArrangedEvents.Single());
         Assert.Equal((NoteNumber.MiddleC, new Velocity(0x40)), (release.Note, release.ReleaseVelocity));
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnpairedNoteOff, SmfDiagnosticSeverity.Info);
     }
@@ -159,7 +159,7 @@ public sealed class SmfImportExportTests
         byte[] body = [0x00, 0x90, 0x3C, 0x64, 0x83, 0x00, 0xFF, 0x2F, 0x00]; // end of track at 384
         var result = ImportBytes(File(0, 96, body));
 
-        var note = Assert.IsType<NoteEvent>(result.Sequence.Tracks.Single().Events.Single());
+        var note = Assert.IsType<NoteEvent>(result.Sequence.Tracks.Single().ArrangedEvents.Single());
         Assert.Equal(new TickSpan(384), note.Duration);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.UnterminatedNote);
     }
@@ -169,7 +169,7 @@ public sealed class SmfImportExportTests
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0x90, 0x3C, 0x64, 0x00, 0x80, 0x3C, 0x40)));
 
-        Assert.Equal(new TickSpan(1), Assert.IsType<NoteEvent>(result.Sequence.Tracks.Single().Events.Single()).Duration);
+        Assert.Equal(new TickSpan(1), Assert.IsType<NoteEvent>(result.Sequence.Tracks.Single().ArrangedEvents.Single()).Duration);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.ZeroLengthNote);
     }
 
@@ -209,7 +209,7 @@ public sealed class SmfImportExportTests
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0xFF, 0x51, 0x02, 0x07, 0xA1, 0x00, 0xFF, 0x58, 0x02, 0x04, 0x02)));
 
-        Assert.Equal(2, result.Sequence.Tracks.Single().Events.OfType<MetaEvent>().Count());
+        Assert.Equal(2, result.Sequence.Tracks.Single().ArrangedEvents.OfType<MetaEvent>().Count());
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTempo);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTimeSignature);
     }
@@ -220,7 +220,7 @@ public sealed class SmfImportExportTests
         var result = ImportBytes(File(0, 1, MTrk(0x00, 0xFF, 0x58, 0x04, 0x03, 0x03, 0x18, 0x08)));
 
         Assert.Equal(TimeSignature.CommonTime, result.Sequence.MeterMap.SignatureAt(Tick.Zero));
-        Assert.Equal(SmfMetaType.TimeSignature, Assert.IsType<MetaEvent>(result.Sequence.Tracks.Single().Events.Single()).Type);
+        Assert.Equal(SmfMetaType.TimeSignature, Assert.IsType<MetaEvent>(result.Sequence.Tracks.Single().ArrangedEvents.Single()).Type);
         AssertCode(result.Diagnostics, SmfDiagnosticCodes.InvalidTimeSignature);
     }
 
@@ -247,7 +247,7 @@ public sealed class SmfImportExportTests
             0x00, 0xF0, 0x02, 0x43, 0x10,
             0x05, 0xF7, 0x02, 0x4C, 0xF7)));
 
-        var events = result.Sequence.Tracks.Single().Events;
+        var events = result.Sequence.Tracks.Single().ArrangedEvents;
         Assert.IsType<SysExEvent>(events[0]);
         Assert.Equal([0xF0, 0x43, 0x10], Assert.IsType<RawMidiEvent>(events[1]).Bytes.ToArray());
         Assert.Equal([0x4C, 0xF7], Assert.IsType<RawMidiEvent>(events[2]).Bytes.ToArray());
@@ -259,7 +259,7 @@ public sealed class SmfImportExportTests
     {
         var result = ImportBytes(File(0, 96, MTrk(0x00, 0xB0, 0x65, 0x00, 0x00, 0x64, 0x00, 0x00, 0x06, 0x0C)));
 
-        Assert.Equal([101, 100, 6], result.Sequence.Tracks.Single().Events.Cast<ControllerEvent>().Select(e => (int)e.Controller.Value));
+        Assert.Equal([101, 100, 6], result.Sequence.Tracks.Single().ArrangedEvents.Cast<ControllerEvent>().Select(e => (int)e.Controller.Value));
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public sealed class SmfImportExportTests
     {
         var first = new NoteEvent(Tick.Zero, new TickSpan(96), One, NoteNumber.MiddleC, Velocity.Max);
         var second = new NoteEvent(new Tick(96), new TickSpan(96), One, NoteNumber.MiddleC, Velocity.Max);
-        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(new Track(TrackId.New(), "", [second, first]));
+        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(Track.FromEvents(TrackId.New(), "", [second, first]));
 
         var track = SmfExporter.Export(sequence).File.Tracks.Skip(1).Single();
 
@@ -354,7 +354,7 @@ public sealed class SmfImportExportTests
                 return new Sequence(
                     new TempoMap(ppqn, tempos.Select(t => new TempoChange(new Tick(t.Item1), new Tempo(t.Item2)))),
                     new MeterMap(ppqn, meters.Select(m => new MeterChange(new Tick(m.Item1), TimeSignature.FromExponent(m.Item2, m.Item3)))),
-                    tracks.Select(t => new Track(TrackId.New(), t.Item1, WithoutAmbiguousEvents(t.Item2))),
+                    tracks.Select(t => Track.FromEvents(TrackId.New(), t.Item1, WithoutAmbiguousEvents(t.Item2))),
                     []);
             });
 
@@ -405,7 +405,7 @@ public sealed class SmfImportExportTests
     [Fact]
     public void Export_WarnsThatOverlappingSamePitchNotesAreAmbiguous()
     {
-        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(new Track(TrackId.New(), "", [
+        var sequence = Sequence.CreateEmpty(new Ppqn(96)).WithTrack(Track.FromEvents(TrackId.New(), "", [
             new NoteEvent(Tick.Zero, new TickSpan(100), One, NoteNumber.MiddleC, Velocity.Max),
             new NoteEvent(new Tick(10), new TickSpan(20), One, NoteNumber.MiddleC, Velocity.Max),
             new NoteEvent(new Tick(10), new TickSpan(20), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max),
@@ -415,7 +415,7 @@ public sealed class SmfImportExportTests
     }
 
     private static string Describe(Track track) =>
-        track.Name + ":" + string.Join(";", track.Events.Select(e => e switch
+        track.Name + ":" + string.Join(";", track.ArrangedEvents.Select(e => e switch
         {
             NoteEvent n => $"N{n.Position}/{n.Duration}/{n.Channel}/{n.Note}/{n.Velocity}/{n.ReleaseVelocity}",
             ChannelEvent c => $"C{c with { Id = default }}",

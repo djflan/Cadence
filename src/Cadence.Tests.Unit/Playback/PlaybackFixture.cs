@@ -65,7 +65,7 @@ internal sealed class PlaybackFixture : IDisposable
 
     public static PlaybackPlan Plan(TempoMap tempo, params TrackEvent[] events)
     {
-        var track = new Track(TrackId.New(), "t", events);
+        var track = Track.FromEvents(TrackId.New(), "t", events);
         var sequence = new Sequence(tempo, MeterMap.Constant(tempo.Ppqn, TimeSignature.CommonTime), [track], []);
         return PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = new(0) });
     }

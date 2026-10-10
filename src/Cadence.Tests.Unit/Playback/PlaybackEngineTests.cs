@@ -269,8 +269,8 @@ public sealed class PlaybackEngineTests
     public void MixedOutputs_UseTheirOwnDeliveryStrategy()
     {
         using var f = new PlaybackFixture(null, EndpointCapabilities.ScheduledDelivery, Immediate);
-        var a = new Track(TrackId.New(), "a", [Note(10, 5)]);
-        var b = new Track(TrackId.New(), "b", [Note(10, 5)]);
+        var a = Track.FromEvents(TrackId.New(), "a", [Note(10, 5)]);
+        var b = Track.FromEvents(TrackId.New(), "b", [Note(10, 5)]);
         var sequence = Sequence.CreateEmpty(Resolution).WithTrack(a).WithTrack(b);
         f.Engine.Load(PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [a.Id] = new(0), [b.Id] = new(1) }));
         f.Engine.Play(Tick.Zero);

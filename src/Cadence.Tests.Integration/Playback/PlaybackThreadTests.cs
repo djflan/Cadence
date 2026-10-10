@@ -24,7 +24,7 @@ public sealed class PlaybackThreadTests
         const int noteCount = 40;
         var notes = Enumerable.Range(0, noteCount)
             .Select(i => (TrackEvent)new NoteEvent(new Tick(i * 5), new TickSpan(3), MidiChannel.FromIndex(0), new NoteNumber(40 + i), Velocity.Max));
-        var track = new Track(TrackId.New(), "t", notes);
+        var track = Track.FromEvents(TrackId.New(), "t", notes);
         var sequence = Sequence.CreateEmpty(Resolution).WithTrack(track);
 
         using var engine = new PlaybackEngine(clock, sequence.TempoMap);

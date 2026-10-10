@@ -25,7 +25,7 @@ public sealed class PlaybackControllerShutdownTests
         var port = provider.CreatePort("Synth", "s");
         using var directory = new EndpointDirectory([provider]);
         var session = new ProjectSession();
-        var track = Track.Create("t").Add(new NoteEvent(Tick.Zero, new TickSpan(100_000), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max));
+        var track = Track.FromEvents(TrackId.New(), "t", [new NoteEvent(Tick.Zero, new TickSpan(100_000), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max)]);
         session.Execute(ProjectCommands.AddTrack(track));
         session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value) }));
 

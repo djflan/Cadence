@@ -37,7 +37,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
 
     private Track AddRoutedTrack(LoopbackPort port, params TrackEvent[] events)
     {
-        var track = new Track(TrackId.New(), "t", events);
+        var track = Track.FromEvents(TrackId.New(), "t", events);
         _session.Execute(ProjectCommands.AddTrack(track));
         _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value, port.Name) }));
         return track;
@@ -67,7 +67,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
         _controller.Engine.Pump();
 
         // 1000 ticks at 960 PPQN and 120 BPM is about 521 ms in.
-        _session.Execute(ProjectCommands.AddEvent(track.Id, Note(1000, 64)));
+        _session.Execute(ProjectCommands.AddEvent(track.Id, ClipId.New(), Note(1000, 64)));
         await _controller.RefreshAsync(Ct);
         _clock.Advance(TimeSpan.FromMilliseconds(530));
         _controller.Engine.Pump();

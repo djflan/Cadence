@@ -43,7 +43,7 @@ public sealed class PlaybackRoutingTests
     [Fact]
     public void Prepare_RendersVoiceSelectionFromTheProfile()
     {
-        var track = Track.Create("t").Add(Note(0, 60));
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0, 60)]);
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(track);
         var synth = Output("loopback", "s", "Synth");
         var route = new TrackRoute(track.Id)
@@ -64,7 +64,7 @@ public sealed class PlaybackRoutingTests
     public void Compile_PlacesVoiceSelectionBeforeTheTracksOwnEvents()
     {
         var program = new ProgramEvent(Tick.Zero, One, new ProgramSelection(new ProgramNumber(9)));
-        var track = new Track(TrackId.New(), "t", [Note(0, 60), program]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0, 60), program]);
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(track);
         var binding = new PlanTrackBinding(0) { InitialEvents = [new ProgramEvent(Tick.Zero, One, new ProgramSelection(new ProgramNumber(2), BankMsb: new SevenBitValue(1)))] };
 
@@ -77,7 +77,7 @@ public sealed class PlaybackRoutingTests
     public void Compile_TransposesNotesAndDropsThoseOutOfRange()
     {
         var rawOff = new NoteOffEvent(EventId.New(), new Tick(5), One, new NoteNumber(100), Velocity.DefaultRelease);
-        var track = new Track(TrackId.New(), "t", [Note(0, 60), Note(1, 120), rawOff]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0, 60), Note(1, 120), rawOff]);
         var sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(track);
 
         var plan = PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = new(0, null, 12) });
@@ -94,7 +94,7 @@ public sealed class PlaybackRoutingTests
         var port = provider.CreatePort("Module", "m");
         using var directory = new EndpointDirectory([provider]);
 
-        var track = Track.Create("Bass").Add(Note(0, 40));
+        var track = Track.FromEvents(TrackId.New(), "Bass", [Note(0, 40)]);
         var sequence = Sequence.CreateEmpty(new Ppqn(500)).WithTrack(track);
         var route = new TrackRoute(track.Id)
         {

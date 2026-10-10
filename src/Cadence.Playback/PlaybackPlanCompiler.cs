@@ -46,9 +46,10 @@ public static class PlaybackPlanCompiler
                 AddChannel(0, Prepare(binding.InitialEvents[i], transpose: false)!, i - binding.InitialEvents.Length);
             }
 
-            for (var i = 0; i < track.Events.Length; i++)
+            var events = track.ArrangedEvents;
+            for (var i = 0; i < events.Length; i++)
             {
-                var e = track.Events[i];
+                var e = events[i];
                 var tick = e.Position.Value;
                 switch (e)
                 {

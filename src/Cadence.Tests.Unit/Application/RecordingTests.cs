@@ -49,7 +49,7 @@ public sealed class RecordingTests : IAsyncDisposable
 
     private Track AddTrack(LoopbackPort output, params TrackEvent[] events)
     {
-        var track = new Track(TrackId.New(), "Keys", events);
+        var track = Track.FromEvents(TrackId.New(), "Keys", events);
         _session.Execute(ProjectCommands.AddTrack(track));
         _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, output.OutputId.Value, output.Name) }));
         return track;
@@ -89,7 +89,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         var take = _controller.Stop();
 
-        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
         Assert.Equal((960L, 480L), (note.Position.Value, note.Duration.Value));
         Assert.Equal(100, note.Velocity.Value);
         Assert.Equal(new TickRange(Tick.Zero, new Tick(1920)), take!.Range);
@@ -179,7 +179,7 @@ public sealed class RecordingTests : IAsyncDisposable
         _controller.FinishRecording();
 
         Assert.Equal(TransportState.Playing, _controller.Engine.State);
-        Assert.Equal([40, 64], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+        Assert.Equal([40, 64], Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(1000);
         _controller.Stop();
 
-        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).Events));
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
         Assert.Equal((480L, 1920L), (note.Position.Value, note.EndPosition.Value));
     }
 
@@ -216,7 +216,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         _controller.Stop();
 
-        var notes = Recorded(track).Events.Cast<NoteEvent>().ToList();
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().ToList();
         Assert.Equal([(960L, 1440L, 62), (3648L, 3840L, 60)], notes.Select(n => (n.Position.Value, n.EndPosition.Value, (int)n.Note.Value)));
     }
 
@@ -240,7 +240,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(3000);
         _controller.Stop();
 
-        var notes = Recorded(track).Events.Cast<NoteEvent>().Select(n => (n.Position.Value, n.EndPosition.Value)).ToList();
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (n.Position.Value, n.EndPosition.Value)).ToList();
         Assert.Equal([(384L, 768L), (3648L, 3840L)], notes);
     }
 
@@ -260,7 +260,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(1000);
         _controller.Stop();
 
-        Assert.Equal([64, 41], Recorded(track).Events.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
+        Assert.Equal([64, 41], Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (int)n.Note.Value));
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(2500);
         _controller.Stop();
 
-        Assert.Empty(Recorded(track).Events);
+        Assert.Empty(Recorded(track).ArrangedEvents);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public sealed class RecordingTests : IAsyncDisposable
         RunTo(600);
         _controller.Stop();
 
-        var events = Recorded(track).Events;
+        var events = Recorded(track).ArrangedEvents;
         Assert.Equal([typeof(ControllerEvent), typeof(PitchBendEvent)], events.Select(e => e.GetType()));
         Assert.Equal(0x50 << 7, Assert.IsType<PitchBendEvent>(events[1]).Value.ToFourteenBit());
         Assert.All(events, e => Assert.Equal(960, e.Position.Value));
@@ -339,6 +339,6 @@ public sealed class RecordingTests : IAsyncDisposable
         _controller.Stop();
 
         Assert.Equal(label, _session.History.UndoLabel);
-        Assert.Empty(Recorded(track).Events);
+        Assert.Empty(Recorded(track).ArrangedEvents);
     }
 }

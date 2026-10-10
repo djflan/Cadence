@@ -29,7 +29,7 @@ internal static class Workloads
                 events.Add(new ControllerEvent(tick, channel, ControllerNumber.ModulationWheel, ControlValue.FromSevenBit(random.Next(128))));
             }
 
-            sequence = sequence.WithTrack(new Track(TrackId.New(), $"Track {t + 1}", events));
+            sequence = sequence.WithTrack(Track.FromEvents(TrackId.New(), $"Track {t + 1}", events));
         }
 
         return sequence;

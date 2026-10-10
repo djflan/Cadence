@@ -18,11 +18,12 @@ namespace Cadence.Infrastructure.Projects;
 public sealed class ProjectSerializer
 {
     public const string FormatName = "cadence-project";
-    public const int CurrentFormatVersion = 2;
+    public const int CurrentFormatVersion = 3;
     public const int MaxBytes = 256 * 1024 * 1024;
 
     private const int MaxTracks = 4096;
     private const int MaxEventsPerTrack = 5_000_000;
+    private const int MaxClipsPerTrack = 100_000;
     private const int MaxNameLength = 1024;
     private static readonly string[] KnownRootProperties = ["format", "formatVersion", "project"];
 
@@ -30,7 +31,7 @@ public sealed class ProjectSerializer
     private readonly Dictionary<int, IProjectMigration> _migrations;
 
     public ProjectSerializer()
-        : this(CurrentFormatVersion, [])
+        : this(CurrentFormatVersion, [new Format2To3Migration()])
     {
     }
 
@@ -199,10 +200,10 @@ public sealed class ProjectSerializer
             writer.WriteString("name", track.Name);
             writer.WriteBoolean("muted", track.IsMuted);
             writer.WriteBoolean("soloed", track.IsSoloed);
-            writer.WriteStartArray("events");
-            foreach (var e in track.Events)
+            writer.WriteStartArray("clips");
+            foreach (var clip in track.Clips)
             {
-                WriteEvent(writer, e);
+                WriteClip(writer, clip);
             }
 
             writer.WriteEndArray();
@@ -210,6 +211,37 @@ public sealed class ProjectSerializer
         }
 
         writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteClip(Utf8JsonWriter writer, Clip clip)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("id", clip.Id.Value.ToString("D"));
+        writer.WriteString("type", clip switch
+        {
+            NoteClip => "note",
+            _ => throw new NotSupportedException($"Clip type {clip.GetType().Name} cannot be saved."),
+        });
+        writer.WriteNumber("start", clip.Start.Value);
+        writer.WriteNumber("length", clip.Length.Value);
+        writer.WriteNumber("offset", clip.ContentOffset.Value);
+        if (clip.Name.Length > 0)
+        {
+            writer.WriteString("name", clip.Name);
+        }
+
+        if (clip is NoteClip notes)
+        {
+            writer.WriteStartArray("events");
+            foreach (var e in notes.Content.Items)
+            {
+                WriteEvent(writer, e);
+            }
+
+            writer.WriteEndArray();
+        }
+
         writer.WriteEndObject();
     }
 
@@ -380,23 +412,13 @@ public sealed class ProjectSerializer
     private static Sequence ReadSequence(JsonObject json)
     {
         const string path = "$.project.sequence";
-        var ppqn = new Ppqn(Int(json, "ppqn", path, 1, Ppqn.MaxValue));
+        var ppqn = ReadPpqn(json, path);
 
         var tempo = Array(json, "tempo", path, 1_000_000).Select((node, i) =>
         {
             var at = $"{path}.tempo[{i}]";
             var item = Object(node, at);
             return new TempoChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), new Tempo(Int(item, "microsecondsPerQuarter", at, 1, Tempo.MaxMicrosecondsPerQuarterNote)));
-        }).ToList();
-
-        var meter = Array(json, "meter", path, 1_000_000).Select((node, i) =>
-        {
-            var at = $"{path}.meter[{i}]";
-            var item = Object(node, at);
-            var numerator = Int(item, "numerator", at, 1, 255);
-            var denominator = Int(item, "denominator", at, 1, TimeSignature.MaxDenominator);
-            var signature = Guard(at, () => new TimeSignature(numerator, denominator));
-            return new MeterChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), signature);
         }).ToList();
 
         var markers = Array(json, "markers", path, 1_000_000).Select((node, i) =>
@@ -409,19 +431,56 @@ public sealed class ProjectSerializer
         var tracks = Array(json, "tracks", path, MaxTracks).Select((node, i) => ReadTrack(Object(node, $"{path}.tracks[{i}]"), $"{path}.tracks[{i}]")).ToList();
 
         var tempoMap = new TempoMap(ppqn, tempo);
-        var meterMap = Guard($"{path}.meter", () => new MeterMap(ppqn, meter));
+        var meterMap = ReadMeterMap(json, path, ppqn);
         return Guard($"{path}.tracks", () => new Sequence(tempoMap, meterMap, tracks, markers));
+    }
+
+    internal static Ppqn ReadPpqn(JsonObject sequence, string path) => new(Int(sequence, "ppqn", path, 1, Ppqn.MaxValue));
+
+    internal static MeterMap ReadMeterMap(JsonObject sequence, string path, Ppqn ppqn)
+    {
+        var meter = Array(sequence, "meter", path, 1_000_000).Select((node, i) =>
+        {
+            var at = $"{path}.meter[{i}]";
+            var item = Object(node, at);
+            var numerator = Int(item, "numerator", at, 1, 255);
+            var denominator = Int(item, "denominator", at, 1, TimeSignature.MaxDenominator);
+            var signature = Guard(at, () => new TimeSignature(numerator, denominator));
+            return new MeterChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), signature);
+        }).ToList();
+        return Guard($"{path}.meter", () => new MeterMap(ppqn, meter));
     }
 
     private static Track ReadTrack(JsonObject json, string path)
     {
-        var events = Array(json, "events", path, MaxEventsPerTrack).Select((node, i) => ReadEvent(Object(node, $"{path}.events[{i}]"), $"{path}.events[{i}]")).ToList();
-        return Guard(path, () => new Track(
+        var eventCount = 0;
+        var clips = Array(json, "clips", path, MaxClipsPerTrack).Select((node, i) => ReadClip(Object(node, $"{path}.clips[{i}]"), $"{path}.clips[{i}]", ref eventCount)).ToList();
+        return Guard($"{path}.clips", () => new Track(
             new TrackId(Guid(json, "id", path)),
             String(json, "name", path, Track.MaxNameLength),
-            events,
+            clips,
             Bool(json, "muted", path, false),
             Bool(json, "soloed", path, false)));
+    }
+
+    private static NoteClip ReadClip(JsonObject json, string path, ref int eventCount)
+    {
+        var id = new ClipId(Guid(json, "id", path));
+        var start = new Tick(Long(json, "start", path, 0, long.MaxValue));
+        var length = new TickSpan(Long(json, "length", path, 1, long.MaxValue - start.Value));
+        var offset = new TickSpan(Long(json, "offset", path, 0, long.MaxValue));
+        var name = OptionalString(json, "name", path, Clip.MaxNameLength) ?? string.Empty;
+        var type = String(json, "type", path, 16);
+        switch (type)
+        {
+            case "note":
+                var array = Array(json, "events", path, MaxEventsPerTrack - eventCount);
+                eventCount += array.Count;
+                var events = array.Select((node, i) => ReadEvent(Object(node, $"{path}.events[{i}]"), $"{path}.events[{i}]")).ToList();
+                return Guard($"{path}.events", () => new NoteClip(id, start, length, offset, new EventList(events), name));
+            default:
+                throw new ProjectFormatException($"{path}.type", $"\"{type}\" is not a known clip type.");
+        }
     }
 
     private static TrackEvent ReadEvent(JsonObject json, string path)

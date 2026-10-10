@@ -161,7 +161,7 @@ public sealed class TimelineView : Control
         {
             var bottom = Math.Round((lane + 1) * LaneHeight) - 0.5;
             context.DrawLine(LaneDivider, new Point(left, bottom), new Point(right, bottom));
-            DrawRegion(context, sequence, sequence.Tracks[lane], lane, left, right);
+            DrawRegion(context, sequence.Tracks[lane], lane, left, right);
         }
 
         if (RecordingLane >= 0 && RecordingLane < lanes && RecordingPreview.Count > 0)
@@ -190,7 +190,7 @@ public sealed class TimelineView : Control
             else
             {
                 LaneClicked?.Invoke(this, (lane, e.KeyModifiers));
-                if (RegionExtent(project.Sequence, project.Sequence.Tracks[lane]) is var (start, end)
+                if (RegionExtent(project.Sequence.Tracks[lane]) is var (start, end)
                     && point.Position.X >= TickToX(start) && point.Position.X <= TickToX(end))
                 {
                     _dragLane = lane;
@@ -224,7 +224,7 @@ public sealed class TimelineView : Control
 
         var x = e.GetPosition(this).X;
         _dragging |= Math.Abs(x - _dragPress.X) > 4;
-        if (_dragging && RegionExtent(project.Sequence, project.Sequence.Tracks[_dragLane]) is var (start, _))
+        if (_dragging && RegionExtent(project.Sequence.Tracks[_dragLane]) is var (start, _))
         {
             var raw = (long)Math.Round((x - _dragPress.X) * project.Sequence.Ppqn.TicksPerQuarterNote / PixelsPerQuarter);
             var target = Math.Max(0, SnapRegion(project.Sequence, start + raw));
@@ -266,49 +266,59 @@ public sealed class TimelineView : Control
         return tick - bar.Value < next.Value - tick ? bar.Value : next.Value;
     }
 
-    /// <summary>A track's region: from the bar containing its first event to the end of the bar containing its last.</summary>
-    private static (long Start, long End)? RegionExtent(Sequence sequence, Track track)
-    {
-        if (track.Events.IsEmpty)
-        {
-            return null;
-        }
+    /// <summary>The span of a track's clips, from the start of the first to the end of the last.</summary>
+    private static (long Start, long End)? RegionExtent(Track track) =>
+        track.Clips.IsEmpty ? null : (track.Clips[0].Start.Value, track.Clips[^1].End.Value);
 
-        var meter = sequence.MeterMap;
-        var start = meter.BarStart(track.Events[0].Position);
-        var last = track.EndPosition;
-        var endBar = meter.BarStart(last);
-        var end = endBar == last ? last : meter.NextBarStart(endBar);
-        return (start.Value, end.Value);
-    }
-
-    private void DrawRegion(DrawingContext context, Sequence sequence, Track track, int lane, double left, double right)
+    private void DrawRegion(DrawingContext context, Track track, int lane, double left, double right)
     {
         if (lane == _dragLane && _dragging && _dragDelta != 0)
         {
-            // The original stays in place (dimmed unless copying) under the region being dragged.
+            // The original stays in place (dimmed unless copying) under the clips being dragged.
             using (context.PushOpacity(_dragCopy ? 1 : 0.35))
             {
-                DrawRegion(context, sequence, track, lane, left, right, 0);
+                DrawClips(context, track, lane, left, right, 0);
             }
 
-            DrawRegion(context, sequence, track, lane, left, right, _dragDelta);
+            DrawClips(context, track, lane, left, right, _dragDelta);
             return;
         }
 
-        DrawRegion(context, sequence, track, lane, left, right, 0);
+        DrawClips(context, track, lane, left, right, 0);
     }
 
-    private void DrawRegion(DrawingContext context, Sequence sequence, Track track, int lane, double left, double right, long offset)
+    private void DrawClips(DrawingContext context, Track track, int lane, double left, double right, long offset)
     {
-        if (RegionExtent(sequence, track) is not var (startTick, endTick))
+        // One pitch range for the whole track, so a note sits at the same height in every clip.
+        var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
+        var low = notes.Count == 0 ? 0 : notes.Min(n => n.Note.Value);
+        var high = Math.Max(low + 12, notes.Count == 0 ? 0 : notes.Max(n => n.Note.Value));
+        var first = 0;
+        foreach (var clip in track.Clips)
         {
-            return;
-        }
+            // Notes are in timeline order and clips do not overlap, so each clip's notes follow the last clip's.
+            while (first < notes.Count && notes[first].Position < clip.Start)
+            {
+                first++;
+            }
 
+            var end = first;
+            while (end < notes.Count && notes[end].Position < clip.End)
+            {
+                end++;
+            }
+
+            DrawClip(context, track, clip, notes, (first, end), (low, high), lane, left, right, offset);
+            first = end;
+        }
+    }
+
+    // notes[slice] are this clip's notes, in timeline order.
+    private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Start, int End) slice, (int Low, int High) range, int lane, double left, double right, long offset)
+    {
         var shift = TickToX(offset);
-        var x0 = Math.Round(TickToX(startTick) + shift) + 1;
-        var x1 = Math.Round(TickToX(endTick) + shift);
+        var x0 = Math.Round(TickToX(clip.Start.Value) + shift) + 1;
+        var x1 = Math.Round(TickToX(clip.End.Value) + shift);
         if (x1 < left || x0 > right)
         {
             return;
@@ -327,11 +337,11 @@ public sealed class TimelineView : Control
         context.DrawRectangle(new SolidColorBrush(fill), new Pen(new SolidColorBrush(edge), 1), body, 2, 2);
         context.DrawRectangle(new SolidColorBrush(header), null, new Rect(body.X + 0.5, body.Y + 0.5, body.Width - 1, 13), 1.5, 1.5);
 
-        // The name stays readable at the left edge of the view while the region scrolls past.
+        // The name stays readable at the left edge of the view while the clip scrolls past.
         var labelX = Math.Max(body.X + 4, VisibleLeft + 4);
         if (labelX < body.Right - 24)
         {
-            var name = new FormattedText(track.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, RegionFace, 10, RegionText)
+            var name = new FormattedText(clip.Name.Length > 0 ? clip.Name : track.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, RegionFace, 10, RegionText)
             {
                 MaxTextWidth = Math.Max(1, body.Right - labelX - 4),
                 MaxLineCount = 1,
@@ -340,26 +350,30 @@ public sealed class TimelineView : Control
             context.DrawText(name, new Point(labelX, body.Y + 0.5));
         }
 
-        var notes = track.Events.OfType<NoteEvent>().ToList();
-        if (notes.Count == 0)
+        if (slice.Start == slice.End)
         {
             return;
         }
 
+        var (low, high) = range;
         var noteTop = body.Y + 16;
         var noteArea = body.Bottom - noteTop - 3;
-        var low = notes.Min(n => n.Note.Value);
-        var high = Math.Max(low + 12, notes.Max(n => n.Note.Value));
         var span = high - low + 1;
         var noteHeight = Math.Clamp(noteArea / span, 1.5, 4);
         var noteColor = muted ? Palette.Mix(color, Palette.Lane, 0.4) : Palette.Lighten(color, selected ? 0.6 : 0.45);
-        var firstTick = XToTick(Math.Max(0, left - shift));
-        var lastVisible = XToTick(Math.Max(0, right - shift));
+        var firstTick = Math.Max(clip.Start.Value, XToTick(Math.Max(0, left - shift)));
+        var lastVisible = Math.Min(clip.End.Value - 1, XToTick(Math.Max(0, right - shift)));
         using (context.PushClip(body))
         {
-            foreach (var note in notes)
+            for (var i = slice.Start; i < slice.End; i++)
             {
-                if (note.EndPosition.Value < firstTick || note.Position.Value > lastVisible)
+                var note = notes[i];
+                if (note.Position.Value > lastVisible)
+                {
+                    break;
+                }
+
+                if (note.EndPosition.Value < firstTick)
                 {
                     continue;
                 }

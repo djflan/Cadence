@@ -218,28 +218,28 @@ public sealed class EventEditsTests
     {
         var keep = Note(0);
         var drop = Note(480);
-        var track = new Track(TrackId.New(), "t", [keep, drop]);
+        var track = Track.FromEvents(TrackId.New(), "t", [keep, drop]);
         var history = new EditHistory(Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Ppqn).WithTrack(track) });
         var added = Note(960);
 
-        history.Execute(ProjectCommands.EditEvents(track.Id, "Edit Notes", [drop.Id], [added, keep with { Velocity = new Velocity(1) }]));
+        history.Execute(ProjectCommands.EditEvents(track.Id, track.Clips[0].Id, "Edit Notes", [drop.Id], [added, keep with { Velocity = new Velocity(1) }]));
 
-        var events = history.Current.Sequence.Tracks[0].Events.Cast<NoteEvent>().ToList();
+        var events = history.Current.Sequence.Tracks[0].ArrangedEvents.Cast<NoteEvent>().ToList();
         Assert.Equal([keep.Id, added.Id], events.Select(e => e.Id));
         Assert.Equal(1, events[0].Velocity.Value);
         Assert.Equal("Edit Notes", history.UndoLabel);
         history.Undo();
-        Assert.Equal(2, history.Current.Sequence.Tracks[0].Events.Length);
+        Assert.Equal(2, history.Current.Sequence.Tracks[0].ArrangedEvents.Length);
     }
 
     [Fact]
     public void EditEvents_ThatChangeNothing_AreNotRecorded()
     {
-        var track = new Track(TrackId.New(), "t", [Note(0)]);
+        var track = Track.FromEvents(TrackId.New(), "t", [Note(0)]);
         var history = new EditHistory(Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Ppqn).WithTrack(track) });
 
         Assert.False(history.Execute(ProjectCommands.RemoveEvents(track.Id, [EventId.New()])));
-        Assert.False(history.Execute(ProjectCommands.ReplaceEvents(track.Id, "Quantize", [])));
+        Assert.False(history.Execute(ProjectCommands.ReplaceEvents(track.Id, track.Clips[0].Id, "Quantize", [])));
     }
 
     [Fact]
@@ -248,15 +248,15 @@ public sealed class EventEditsTests
         var before = Note(0);
         var inside = Note(1000);
         var after = Note(5000);
-        var track = new Track(TrackId.New(), "t", [before, inside, after]);
+        var track = Track.FromEvents(TrackId.New(), "t", [before, inside, after]);
         var project = Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Ppqn).WithTrack(track) };
         var take = Note(1200);
 
         var replaced = ProjectCommands.Record(track.Id, [take], new TickRange(new Tick(960), new Tick(4000))).Apply(project);
         var merged = ProjectCommands.Record(track.Id, [take], null).Apply(project);
 
-        Assert.Equal([before.Id, take.Id, after.Id], replaced.Sequence.Tracks[0].Events.Select(e => e.Id));
-        Assert.Equal(4, merged.Sequence.Tracks[0].Events.Length);
+        Assert.Equal([before.Id, take.Id, after.Id], replaced.Sequence.Tracks[0].ArrangedEvents.Select(e => e.Id));
+        Assert.Equal(4, merged.Sequence.Tracks[0].ArrangedEvents.Length);
         Assert.Same(project, ProjectCommands.Record(track.Id, [], new TickRange(new Tick(6000), new Tick(7000))).Apply(project));
     }
 }
