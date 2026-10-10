@@ -149,15 +149,62 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
 - Plugin MIDI rendering is tested with the reference Transpose plugin only (real workers), at the routing level and
   through the app on the headless UI thread (worker killed, then restarted).
 
-## 7. Remaining work, in priority order
+## 7. Remaining work
 
-1. **Audio engine** (deferred by the prompt; listed in `docs/architecture.md` "Deferred"): play audio clips and
-   software-instrument feeds, mixer gain/pan, and drive plugin instances from playback. ADR 0026's measurement bar
-   decides whether the callback is C# or Rust.
-2. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
-   parameter enumeration, editors.
-3. **More headless UI tests** in `Cadence.Tests.Ui` (Track, Routing, Connections, the arrangement, the piano roll).
-   `Avalonia.Headless.XUnit` 12.1 targets xUnit v3 3.x while the repository uses 4.x, so the tests use
-   `HeadlessUnitTestSession` directly (`HeadlessApp.RunAsync`).
-4. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
-   track processing; a dedicated mixer view (the inspector section is a list, not a console with meters).
+Nothing here blocks the epic: the prompt lets each item be deferred, and the boundaries for each exist. Suggested
+order: the quick wins (7.3, and 7.4's rescan and group UI), then a measured spike on the audio engine (7.1), then
+third-party plugins (7.2), which need the engine to drive them.
+
+### 7.1 Audio engine (largest; turns the model into a working DAW)
+
+- **In place:** audio clips, audio connections, and mixer channels are modelled, saved, validated, and editable. The
+  signal graph produces `SoftwareInstrumentFeed`s (merged events per software instrument) and `ParameterFeed`s
+  (automation for out-of-process devices). The plugin data plane has a shared-memory block exchange, pipelining
+  with reported latency, and silence or dry input when a worker fails.
+- **Missing:** audio device output per OS (CoreAudio, WASAPI, ALSA/PipeWire); a real-time callback that runs the
+  audio graph per block; audio clip playback (file decoding, sample-rate conversion, streaming from disk); mixer
+  summing with gain, pan, mute, and solo; driving instrument and effect plugins through `PluginInstance.ProcessBlock`
+  during playback; one clock shared with the MIDI engine.
+- **How:** measure first (ADR 0026). Build the callback in C#, allocation-free, and measure deadline misses and GC
+  pauses under load; move only the callback path to Rust if that fails. Order: device output with a test tone →
+  mixer → audio clip playback → instrument plugins driven live. Several PRs.
+
+### 7.2 Third-party plugins
+
+- **In place:** worker processes, crash recovery, scanning with quarantine, opaque state in the project, and the
+  `IHostedPlugin` seam in the worker.
+- **Missing:** a native hosting layer that loads plugin binaries; parameter enumeration mapped to `DeviceParameter`s;
+  state through the format's API; bus layouts and processing with event lists; editor windows per OS (including a
+  worker dying with its editor open).
+- **Decide:** the first format. CLAP has a plain C ABI and is simpler to host; VST3 has the broadest library (check
+  the SDK's current licence). The native layer is where ADR 0026 expects Rust. Claim no format until loading,
+  processing, state, and recovery are shown with a real plugin.
+
+### 7.3 More headless UI tests
+
+`Cadence.Tests.Ui` covers Devices, Racks, and Mixer. Add Track, Routing, Connections, the arrangement (clip drag,
+resize, rename), the piano roll (draw, select, move notes), and keyboard shortcuts. `Avalonia.Headless.XUnit` 12.1
+targets xUnit v3 3.x while the repository uses 4.x, so the tests use `HeadlessUnitTestSession` directly
+(`HeadlessApp.RunAsync`). Cheap; also what a cloud or Linux agent needs to check UI work.
+
+### 7.4 Smaller items
+
+- **Rescanning plugins from the UI.** The app scans `<AppData>/Cadence/plugins` once at start;
+  `PluginScanner.RescanAsync` and clearing quarantine are API only. Add a menu or settings view and a list of
+  quarantined modules with "retry". Small.
+- **Device automation → CC/RPN/NRPN/SysEx for hardware.** Today a hardware parameter reachable only that way is
+  automated with a MIDI lane. Translating device parameters needs a parameter map in device profiles ("cutoff →
+  NRPN 1/32", SysEx templates), emitted at plan compile. Changes what playback sends, so section 5's hashes must
+  still hold for existing projects. Medium.
+- **Group track processing.** Membership, the Group role, and commands exist; group processing already works by
+  connecting members into the group track. Missing: UI to put tracks in a group, folding in the arrangement,
+  routing members to their group automatically, and whether group mute/solo affects members (decision 11 says mute
+  applies to a track's own content, so this is a deliberate change).
+- **Dedicated mixer view.** The inspector's Mixer section is a list. A console (strips, sends, meters) follows the
+  audio engine, since meters need it.
+
+### 7.5 Also deferred (`docs/architecture.md`, "Deferred" and "Known compromises")
+
+MIDI 2.0/UMP and MPE (16-bit velocity is already designed); live input through plugins and through built-in devices
+other than Transpose (plugins shape playback only through the compiled plan); plugin delay compensation across the
+graph; operating-system sandboxing of workers; visual node-graph editing and feedback routing.
