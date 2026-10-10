@@ -87,6 +87,7 @@ with a count.
 | SMF200 | Info | Mute/solo state cannot be stored in a MIDI file |
 | SMF201 | Info | Non-ASCII names were written as UTF-8 |
 | SMF202 | Warning | Same-pitch notes overlap on one channel; their lengths may change when read back |
+| SMF203 | Info | Clip events were left out because the track's automation replaces them |
 
 ## Known limitations
 

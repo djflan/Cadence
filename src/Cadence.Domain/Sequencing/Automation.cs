@@ -41,11 +41,8 @@ public readonly record struct AutomationTarget
     /// <summary>The controller, for <see cref="AutomationParameter.Controller"/> targets.</summary>
     public ControllerNumber Controller { get; }
 
-    /// <summary>The bits MIDI 1.0 sends for this target: 14 for pitch bend, 7 otherwise.</summary>
-    public int Midi1Bits => Parameter == AutomationParameter.PitchBend ? 14 : 7;
-
-    /// <summary>The value at rest: pitch bend centred, anything else at its minimum.</summary>
-    public ControlValue Rest => Parameter == AutomationParameter.PitchBend ? ControlValue.Center : ControlValue.Min;
+    /// <summary>False for a target not made by one of the factories, such as <c>default</c>.</summary>
+    public bool IsValid => Parameter != AutomationParameter.Controller || IsAutomatable(Controller);
 
     /// <exception cref="ArgumentException">The controller cannot be automated (see <see cref="IsAutomatable"/>).</exception>
     public static AutomationTarget ForController(MidiChannel channel, ControllerNumber controller) =>
@@ -60,10 +57,15 @@ public readonly record struct AutomationTarget
     public static bool IsAutomatable(ControllerNumber controller) =>
         !(controller.IsBankSelect || controller.Value is >= 32 and <= 63 or 6 or 96 or 97 || controller.IsParameterNumberSelector || controller.IsChannelMode);
 
-    /// <summary>The target <paramref name="e"/> sets, or null if no lane could control it.</summary>
+    /// <summary>
+    /// The target <paramref name="e"/> sets, or null if no lane could control it. An LSB controller
+    /// (32-63) belongs to its MSB controller's target, since it sets the fine part of the same value.
+    /// </summary>
     public static AutomationTarget? Of(ChannelEvent e) => e switch
     {
         ControllerEvent c when IsAutomatable(c.Controller) => new(AutomationParameter.Controller, c.Channel, c.Controller),
+        ControllerEvent c when c.Controller.Value is >= 32 and <= 63 && IsAutomatable(new ControllerNumber(c.Controller.Value - 32)) =>
+            new(AutomationParameter.Controller, c.Channel, new ControllerNumber(c.Controller.Value - 32)),
         PitchBendEvent p => ForPitchBend(p.Channel),
         ChannelPressureEvent p => ForChannelPressure(p.Channel),
         _ => null,
@@ -73,7 +75,7 @@ public readonly record struct AutomationTarget
 
     /// <summary><paramref name="value"/> as MIDI 1.0 sends it for this target, scaled back up.</summary>
     public ControlValue AtMidi1Resolution(ControlValue value) =>
-        Midi1Bits == 14 ? ControlValue.FromFourteenBit(value.ToFourteenBit()) : ControlValue.FromSevenBit(value.ToSevenBit());
+        Parameter == AutomationParameter.PitchBend ? ControlValue.FromFourteenBit(value.ToFourteenBit()) : ControlValue.FromSevenBit(value.ToSevenBit());
 
     /// <summary>An event setting this target to <paramref name="value"/>. It is rendered, not stored, so it has no ID.</summary>
     public ChannelEvent CreateEvent(Tick position, ControlValue value) => Parameter switch
@@ -112,13 +114,13 @@ public sealed class AutomationLane
         Points = points;
     }
 
-    /// <exception cref="ArgumentException">Two points share a position, or there are too many.</exception>
+    /// <exception cref="ArgumentException">The target is not valid, two points share a position, or there are too many.</exception>
     public AutomationLane(AutomationLaneId id, AutomationTarget target, IEnumerable<AutomationPoint> points)
-        : this(id, target, Sort(points))
+        : this(id, Validate(target), Sort(points))
     {
     }
 
-    public static AutomationLane Create(AutomationTarget target) => new(AutomationLaneId.New(), target, ImmutableArray<AutomationPoint>.Empty);
+    public static AutomationLane Create(AutomationTarget target) => new(AutomationLaneId.New(), Validate(target), ImmutableArray<AutomationPoint>.Empty);
 
     public AutomationLaneId Id { get; }
 
@@ -166,9 +168,6 @@ public sealed class AutomationLane
     public AutomationLane ReplaceRange(Tick from, Tick to, IEnumerable<AutomationPoint> points) =>
         new(Id, Target, Sort(Points.Where(p => p.Position < from || p.Position > to).Concat(points)));
 
-    public AutomationLane WithPoints(IEnumerable<AutomationPoint> points) => new(Id, Target, Sort(points));
-
-    public AutomationLane WithTarget(AutomationTarget target) => new(Id, target, Points);
 
     internal static ControlValue Interpolate(AutomationPoint from, AutomationPoint to, long position)
     {
@@ -178,25 +177,10 @@ public sealed class AutomationLane
         return new ControlValue((uint)value);
     }
 
-    private int LastAtOrBefore(Tick position)
-    {
-        int low = 0, high = Points.Length - 1, found = -1;
-        while (low <= high)
-        {
-            var mid = (low + high) / 2;
-            if (Points[mid].Position <= position)
-            {
-                found = mid;
-                low = mid + 1;
-            }
-            else
-            {
-                high = mid - 1;
-            }
-        }
+    private int LastAtOrBefore(Tick position) => Search.LastAtOrBefore(Points, position, p => p.Position);
 
-        return found;
-    }
+    private static AutomationTarget Validate(AutomationTarget target) =>
+        target.IsValid ? target : throw new ArgumentException($"Controller {target.Controller} cannot be automated.", nameof(target));
 
     private static ImmutableArray<AutomationPoint> Sort(IEnumerable<AutomationPoint> points)
     {
@@ -230,6 +214,10 @@ public static class AutomationRenderer
     /// at tick 0, each point's value at its position, and linear segments every <paramref name="interval"/>.
     /// A value is sent only when it differs from the last one sent.
     /// </summary>
+    /// <remarks>
+    /// A linear segment only ever moves one way, so the next sample to send is found by binary search
+    /// over its sampling grid. The cost follows the number of values sent, not the segment's length.
+    /// </remarks>
     public static IEnumerable<(Tick Position, ControlValue Value)> Sample(AutomationLane lane, TickSpan interval)
     {
         ArgumentNullException.ThrowIfNull(lane);
@@ -260,13 +248,16 @@ public static class AutomationRenderer
                 continue;
             }
 
+            // Grid ticks strictly inside the segment are point + k * interval for k in 1..steps.
             var next = points[i + 1];
-            for (var tick = point.Position.Value + interval.Value; tick < next.Position.Value; tick += interval.Value)
+            var steps = (next.Position.Value - point.Position.Value - 1) / interval.Value;
+            long k = 0;
+            while (k < steps && FirstChange(point, next, k, steps) is { } change)
             {
-                if (Emit(AutomationLane.Interpolate(point, next, tick), out value))
-                {
-                    yield return (new Tick(tick), value);
-                }
+                k = change;
+                var tick = point.Position.Value + (k * interval.Value);
+                Emit(AutomationLane.Interpolate(point, next, tick), out value);
+                yield return (new Tick(tick), value);
             }
         }
 
@@ -280,6 +271,32 @@ public static class AutomationRenderer
 
             last = sent;
             return true;
+        }
+
+        // The first grid step after `from` whose value differs from the last one sent, or null.
+        long? FirstChange(AutomationPoint start, AutomationPoint end, long from, long steps)
+        {
+            ControlValue At(long step) => target.AtMidi1Resolution(AutomationLane.Interpolate(start, end, start.Position.Value + (step * interval.Value)));
+            if (At(steps) == last)
+            {
+                return null;
+            }
+
+            long low = from + 1, high = steps;
+            while (low < high)
+            {
+                var mid = low + ((high - low) / 2);
+                if (At(mid) == last)
+                {
+                    low = mid + 1;
+                }
+                else
+                {
+                    high = mid;
+                }
+            }
+
+            return low;
         }
     }
 }

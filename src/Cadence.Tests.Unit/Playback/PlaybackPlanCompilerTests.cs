@@ -113,7 +113,7 @@ public sealed class PlaybackPlanCompilerTests
         Assert.Equal((1000L, 127), (volume[^1].Tick, (int)volume[^1].Message.Data2));
         Assert.True(volume.Zip(volume.Skip(1)).All(p => p.Second.Message.Data2 > p.First.Message.Data2 && p.Second.Tick - p.First.Tick <= 15));
         Assert.Single(plan.Events, e => e.Message.Status == 0xB0 && e.Message.Data1 == 11);
-        Assert.Contains("1 controller events in clips were replaced", Assert.Single(plan.Diagnostics).Message, StringComparison.Ordinal);
+        Assert.Contains("1 events in clips were replaced", Assert.Single(plan.Diagnostics).Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -74,7 +74,13 @@ public static class SmfExporter
         }
 
         // Automation is written as the controller events it plays.
-        var events = TrackRendering.Render(track, ppqn).Events;
+        var rendered = TrackRendering.Render(track, ppqn);
+        if (rendered.SuppressedEvents > 0)
+        {
+            diagnostics.Info(SmfDiagnosticCodes.AutomationReplacedEvents, $"{rendered.SuppressedEvents} events in clips were left out because the track's automation replaces them.", fileTrackIndex);
+        }
+
+        var events = rendered.Events;
         for (var i = 0; i < events.Length; i++)
         {
             var e = events[i];

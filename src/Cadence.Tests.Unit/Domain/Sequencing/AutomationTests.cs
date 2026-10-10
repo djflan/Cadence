@@ -129,6 +129,76 @@ public sealed class AutomationTests
                 && samples.All(s => s.Value == lane.Target.AtMidi1Resolution(lane.ValueAt(s.Position)!.Value));
         });
 
+    // The plain way to sample: every grid tick, sending changes only.
+    private static List<(Tick, ControlValue)> Stepped(AutomationLane lane, long interval)
+    {
+        var sent = new List<(Tick, ControlValue)>();
+        void Send(long tick, ControlValue raw)
+        {
+            var value = lane.Target.AtMidi1Resolution(raw);
+            if (sent.Count == 0 || sent[^1].Item2 != value)
+            {
+                sent.Add((new Tick(tick), value));
+            }
+        }
+
+        if (lane.Points[0].Position > Tick.Zero)
+        {
+            Send(0, lane.Points[0].Value);
+        }
+
+        for (var i = 0; i < lane.Points.Length; i++)
+        {
+            Send(lane.Points[i].Position.Value, lane.Points[i].Value);
+            if (i + 1 < lane.Points.Length && lane.Points[i].Curve == AutomationCurve.Linear)
+            {
+                for (var t = lane.Points[i].Position.Value + interval; t < lane.Points[i + 1].Position.Value; t += interval)
+                {
+                    Send(t, lane.ValueAt(new Tick(t))!.Value);
+                }
+            }
+        }
+
+        return sent;
+    }
+
+    [Fact]
+    public void Sample_MatchesSamplingEveryGridTick() =>
+        Gen.Select(GenLane, Gen.Long[1, 200]).Sample((lane, interval) =>
+            AutomationRenderer.Sample(lane, new TickSpan(interval)).Select(s => (s.Position, s.Value)).SequenceEqual(Stepped(lane, interval)));
+
+    [Fact]
+    public void Sample_LongSegmentsCostOnlyTheirChanges()
+    {
+        var lane = Lane(Volume, new AutomationPoint(Tick.Zero, ControlValue.Min), new AutomationPoint(new Tick(long.MaxValue - 3), ControlValue.Max));
+
+        var samples = AutomationRenderer.Sample(lane, new TickSpan(15)).ToList();
+
+        Assert.Equal(128, samples.Count);
+        Assert.Equal(127, samples[^1].Value.ToSevenBit());
+    }
+
+    [Fact]
+    public void Lanes_RefuseADefaultTarget()
+    {
+        Assert.False(default(AutomationTarget).IsValid);
+        Assert.Throws<ArgumentException>(() => AutomationLane.Create(default));
+        Assert.Throws<ArgumentException>(() => new AutomationLane(AutomationLaneId.New(), default, []));
+    }
+
+    [Fact]
+    public void Render_AlsoReplacesTheLsbPartnerOfAControllerLane()
+    {
+        var fine = new ControllerEvent(new Tick(5), One, new ControllerNumber(39), ControlValue.Max);
+        var bankLsb = new ControllerEvent(new Tick(5), One, ControllerNumber.BankSelectLsb, ControlValue.Max);
+        var track = TrackWith([fine, bankLsb], Lane(Volume, Point(0, 64)), Lane(AutomationTarget.ForController(One, ControllerNumber.ModulationWheel), Point(0, 1)));
+
+        var rendered = TrackRendering.Render(track, Resolution);
+
+        Assert.Equal(1, rendered.SuppressedEvents);
+        Assert.Contains(rendered.Events, e => e.Id == bankLsb.Id);
+    }
+
     private static Track TrackWith(IEnumerable<TrackEvent> events, params AutomationLane[] lanes) =>
         new(TrackId.New(), "t", Track.FromEvents(TrackId.New(), "t", events).Clips, automation: lanes);
 

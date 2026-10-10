@@ -499,9 +499,10 @@ public sealed class ProjectSerializer
     {
         var eventCount = 0;
         var clips = Array(json, "clips", path, MaxClipsPerTrack).Select((node, i) => ReadClip(Object(node, $"{path}.clips[{i}]"), $"{path}.clips[{i}]", ref eventCount)).ToList();
+        // Automation points share the track's budget with clip events.
         var lanes = json["automation"] is null
             ? []
-            : Array(json, "automation", path, Track.MaxAutomationLanes).Select((node, i) => ReadLane(Object(node, $"{path}.automation[{i}]"), $"{path}.automation[{i}]")).ToList();
+            : Array(json, "automation", path, Track.MaxAutomationLanes).Select((node, i) => ReadLane(Object(node, $"{path}.automation[{i}]"), $"{path}.automation[{i}]", ref eventCount)).ToList();
         var id = new TrackId(Guid(json, "id", path));
         var name = String(json, "name", path, Track.MaxNameLength);
         var muted = Bool(json, "muted", path, false);
@@ -530,7 +531,7 @@ public sealed class ProjectSerializer
         }
     }
 
-    private static AutomationLane ReadLane(JsonObject json, string path)
+    private static AutomationLane ReadLane(JsonObject json, string path, ref int pointCount)
     {
         var id = new AutomationLaneId(Guid(json, "id", path));
         var at = $"{path}.target";
@@ -544,7 +545,9 @@ public sealed class ProjectSerializer
             "channelPressure" => AutomationTarget.ForChannelPressure(channel),
             _ => throw new ProjectFormatException($"{at}.type", $"\"{type}\" is not a known automation target."),
         };
-        var points = Array(json, "points", path, AutomationLane.MaxPoints).Select((node, i) =>
+        var array = Array(json, "points", path, Math.Min(AutomationLane.MaxPoints, MaxEventsPerTrack - pointCount));
+        pointCount += array.Count;
+        var points = array.Select((node, i) =>
         {
             var point = $"{path}.points[{i}]";
             var item = Object(node, point);

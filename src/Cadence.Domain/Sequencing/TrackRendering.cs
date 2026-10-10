@@ -18,9 +18,9 @@ public static class TrackRendering
 {
     /// <summary>
     /// The track's arranged events, with its non-empty lanes rendered (see <see cref="AutomationRenderer"/>).
-    /// Automation wins: clip events setting a target a lane controls are left out. Targets are compared
-    /// on <paramref name="channelOverride"/> when given, as the route will send them. At the same tick and
-    /// phase, automation follows clip events.
+    /// Automation wins: clip events setting a target a lane controls (including the LSB partner of a
+    /// controller lane) are left out. Targets are compared on <paramref name="channelOverride"/> when
+    /// given, as the route will send them. At the same tick and phase, automation follows clip events.
     /// </summary>
     public static RenderedTrack Render(Track track, Ppqn ppqn, MidiChannel? channelOverride = null)
     {
@@ -60,12 +60,22 @@ public static class TrackRendering
             }
         }
 
+        // Each lane's samples are in order; OrderBy is stable, so earlier lanes go first at a shared tick.
         var interval = AutomationRenderer.DefaultInterval(ppqn);
-        var rendered = lanes.SelectMany(lane => AutomationRenderer.Sample(lane, interval).Select(s => (TrackEvent)lane.Target.CreateEvent(s.Position, s.Value)));
+        var rendered = lanes
+            .SelectMany(lane => AutomationRenderer.Sample(lane, interval).Select(s => (TrackEvent)lane.Target.CreateEvent(s.Position, s.Value)))
+            .OrderBy(e => e.Position)
+            .ToList();
 
-        // OrderBy is stable: clip events stay ahead of automation at the same tick and phase.
-        ImmutableArray<TrackEvent> events = [.. kept.Concat(rendered).OrderBy(e => e.Position).ThenBy(e => e.Phase)];
-        return new RenderedTrack(events, suppressed, dropped);
+        // Both lists are in canonical order; merge them, clip events first at the same tick and phase.
+        var events = ImmutableArray.CreateBuilder<TrackEvent>(kept.Count + rendered.Count);
+        int i = 0, j = 0;
+        while (i < kept.Count || j < rendered.Count)
+        {
+            events.Add(j == rendered.Count || (i < kept.Count && EventOrder.Compare(kept[i], rendered[j]) <= 0) ? kept[i++] : rendered[j++]);
+        }
+
+        return new RenderedTrack(events.MoveToImmutable(), suppressed, dropped);
     }
 
     private static AutomationTarget Effective(AutomationTarget target, MidiChannel? channelOverride) =>

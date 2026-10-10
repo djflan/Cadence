@@ -49,7 +49,7 @@ public static class PlaybackPlanCompiler
             var rendered = TrackRendering.Render(track, sequence.Ppqn, binding.Channel);
             if (rendered.SuppressedEvents > 0)
             {
-                diagnostics.Add(new PlanDiagnostic(track.Id, $"{rendered.SuppressedEvents} controller events in clips were replaced by the track's automation."));
+                diagnostics.Add(new PlanDiagnostic(track.Id, $"{rendered.SuppressedEvents} events in clips were replaced by the track's automation."));
             }
 
             if (rendered.DroppedLanes > 0)

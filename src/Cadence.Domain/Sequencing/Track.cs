@@ -253,25 +253,7 @@ public sealed class Track
         return new Track(Id, Name, [.. result], Automation, IsMuted, IsSoloed);
     }
 
-    private int LastStartingAtOrBefore(Tick position)
-    {
-        int low = 0, high = Clips.Length - 1, found = -1;
-        while (low <= high)
-        {
-            var mid = (low + high) / 2;
-            if (Clips[mid].Start <= position)
-            {
-                found = mid;
-                low = mid + 1;
-            }
-            else
-            {
-                high = mid - 1;
-            }
-        }
-
-        return found;
-    }
+    private int LastStartingAtOrBefore(Tick position) => Search.LastAtOrBefore(Clips, position, c => c.Start);
 
     private static ImmutableArray<Clip> ValidateClips(IEnumerable<Clip> clips)
     {
