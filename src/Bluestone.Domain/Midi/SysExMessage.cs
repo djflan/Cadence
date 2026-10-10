@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A complete MIDI 1.0 System Exclusive message, including the leading <c>F0</c> and trailing <c>F7</c>.

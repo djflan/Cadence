@@ -1,5 +1,5 @@
 {
-  "format": "cadence-project",
+  "format": "bluestone-project",
   "formatVersion": 3,
   "project": {
     "id": "00000000-0000-7000-8000-000000000002",
@@ -13769,7 +13769,7 @@
       {
         "track": "01a12771-7079-7f70-883e-6dd1aa943126",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13791,7 +13791,7 @@
       {
         "track": "01a12771-707d-714d-a900-a73e7ab6e1a6",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13812,7 +13812,7 @@
       {
         "track": "01a12771-707d-79bd-aee9-cd2947ca3dc1",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13833,7 +13833,7 @@
       {
         "track": "01a12771-707d-704d-ad1d-41da1e79d8fe",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13855,7 +13855,7 @@
       {
         "track": "01a12771-707e-7062-94cd-9b79caf74fd0",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13877,7 +13877,7 @@
       {
         "track": "01a12771-707e-7e5a-abf9-7d7ea479c29b",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13898,7 +13898,7 @@
       {
         "track": "01a12771-707e-7093-8f10-ff7fd574edfe",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -13919,7 +13919,7 @@
       {
         "track": "01a12771-707f-730f-aebb-eeb3501edd24",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {

@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Text.Json;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 /// <summary>Protocol families a profile can claim compatibility with.</summary>
 public enum ProtocolFamily

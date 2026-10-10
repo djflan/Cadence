@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>The plugins this worker can host. Built in; nothing is loaded from disk.</summary>
 internal static class ReferencePluginCatalog

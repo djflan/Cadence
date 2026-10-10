@@ -3,9 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Cryptography;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.Plugins.Workers;
+namespace Bluestone.Plugins.Workers;
 
 /// <summary>Why a worker process ended.</summary>
 internal enum WorkerExitReason
@@ -114,7 +114,7 @@ internal sealed class WorkerProcess : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var pipeName = "cadence-plugin-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8));
+        var pipeName = "bluestone-plugin-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8));
         var token = Handshake.CreateToken();
         ProcessStartInfo info;
         try

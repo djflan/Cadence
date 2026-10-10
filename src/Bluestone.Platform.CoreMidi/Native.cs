@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Cadence.Platform.CoreMidi;
+namespace Bluestone.Platform.CoreMidi;
 
 /// <summary>Minimal CoreMIDI, CoreFoundation, and mach bindings. Types follow the macOS SDK headers.</summary>
 [SupportedOSPlatform("macos")]

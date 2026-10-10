@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
+using Bluestone.Midi.Endpoints;
 
-namespace Cadence.Platform.Windows;
+namespace Bluestone.Platform.Windows;
 
 /// <summary>
 /// MIDI outputs from the legacy Windows multimedia API (WinMM). WinMM cannot schedule messages, so
-/// every endpoint is in the immediate delivery class and Cadence's playback thread waits for each
+/// every endpoint is in the immediate delivery class and Bluestone's playback thread waits for each
 /// message. Inputs and hot-plug notifications are not supported yet (ADR 0014).
 /// </summary>
 /// <remarks>
@@ -26,7 +26,7 @@ public sealed class WinMmProvider : IMidiEndpointProvider
 
     public string DisplayName => "Windows MIDI (WinMM)";
 
-    public string TimingDescription => "WinMM: messages are sent when due by Cadence's playback thread; the system does not schedule them.";
+    public string TimingDescription => "WinMM: messages are sent when due by Bluestone's playback thread; the system does not schedule them.";
 
     /// <summary>WinMM has no device-change notifications, so this event is never raised.</summary>
     public event EventHandler? EndpointsChanged

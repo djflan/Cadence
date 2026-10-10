@@ -1,10 +1,10 @@
 using System.Globalization;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
-using Cadence.Midi.SysEx;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.SysEx;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>Consistent, culture-invariant display text for musical values.</summary>
 public static class Formatting
@@ -184,7 +184,7 @@ public static class Formatting
         string.Create(CultureInfo.InvariantCulture, $"{time.TotalMilliseconds:0.0} ms");
 
     /// <summary>
-    /// Describes a MIDI message for the monitor. SysEx payloads are never shown: only what Cadence
+    /// Describes a MIDI message for the monitor. SysEx payloads are never shown: only what Bluestone
     /// recognized it as, or else its manufacturer, and its size.
     /// </summary>
     public static string Message(ReadOnlySpan<byte> bytes)

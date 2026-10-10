@@ -1,8 +1,8 @@
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Platform.Windows;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Platform.Windows;
 
-namespace Cadence.Tests.Integration.Platform;
+namespace Bluestone.Tests.Integration.Platform;
 
 /// <summary>
 /// Exercises the real WinMM stack on Windows. These tests never send a sounding message: they only

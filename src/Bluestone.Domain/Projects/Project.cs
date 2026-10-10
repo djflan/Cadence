@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Projects;
+namespace Bluestone.Domain.Projects;
 
 /// <summary>Stable identity of a project.</summary>
 public readonly record struct ProjectId(Guid Value)

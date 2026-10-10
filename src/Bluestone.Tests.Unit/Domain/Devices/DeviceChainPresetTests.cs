@@ -1,8 +1,8 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Tests.Unit.Domain.Devices;
+namespace Bluestone.Tests.Unit.Domain.Devices;
 
 /// <summary>Scenario 7: loading one saved chain on several tracks creates independent device instances.</summary>
 public sealed class DeviceChainPresetTests

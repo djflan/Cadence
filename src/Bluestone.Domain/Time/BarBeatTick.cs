@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>
 /// A musical position for display and entry: one-based bar and beat, and a zero-based tick within

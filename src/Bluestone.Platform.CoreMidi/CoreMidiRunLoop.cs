@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
 
-namespace Cadence.Platform.CoreMidi;
+namespace Bluestone.Platform.CoreMidi;
 
 /// <summary>
-/// The one thread on which Cadence creates CoreMIDI clients. CoreMIDI delivers setup notifications
+/// The one thread on which Bluestone creates CoreMIDI clients. CoreMIDI delivers setup notifications
 /// for every client on the run loop that was current when the process first called
 /// <c>MIDIClientCreate</c>, so that run loop must outlive every provider. This background thread is
 /// started once and runs for the life of the process.

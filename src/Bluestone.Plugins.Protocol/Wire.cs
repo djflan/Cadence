@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Text;
 
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 /// <summary>Little-endian writer for control-plane payloads. Control plane only; it allocates.</summary>
 internal sealed class WireWriter

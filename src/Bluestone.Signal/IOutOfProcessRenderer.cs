@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>What the chain runner gives an <see cref="IOutOfProcessRenderer"/> for one device and one block.</summary>
 /// <param name="Device">The device, as the project stores it (state and parameter values included).</param>
@@ -24,7 +24,7 @@ public sealed record OutOfProcessResult(ImmutableArray<SignalEvent>? Events, Imm
 }
 
 /// <summary>
-/// Runs event devices that cannot run in Cadence's process, such as plugin MIDI effects, at plan-compile time
+/// Runs event devices that cannot run in Bluestone's process, such as plugin MIDI effects, at plan-compile time
 /// (ADR 0025). The implementation lives outside this project (the plugin bridge); it may block and do I/O, so it is
 /// only used when a chain is run for the plan, never by a real-time runner. Each call stands alone: the device starts
 /// from its stored state, so plan compilation, which runs the whole timeline as one block, gets a coherent result.

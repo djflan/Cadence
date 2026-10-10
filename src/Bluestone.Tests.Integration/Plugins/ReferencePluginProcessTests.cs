@@ -1,8 +1,8 @@
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol.Exchange;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol.Exchange;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>Each reference plugin, created in a real worker process, produces the output it should.</summary>
 [Collection(PluginProcessTests.Name)]

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using Cadence.Midi.Endpoints;
+using Bluestone.Midi.Endpoints;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>A received message, already formatted for display.</summary>
 public sealed record MonitorEntry(TimeSpan Time, string Text);

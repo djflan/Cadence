@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>
 /// How the engine sounds the metronome: a short note on every beat, sent to one output slot.

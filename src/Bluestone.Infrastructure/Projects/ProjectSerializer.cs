@@ -2,25 +2,25 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using static Cadence.Infrastructure.Projects.NodeReader;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using static Bluestone.Infrastructure.Projects.NodeReader;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>
-/// Reads and writes the Cadence project format: versioned, indented JSON that diffs well in version
+/// Reads and writes the Bluestone project format: versioned, indented JSON that diffs well in version
 /// control. Older formats are upgraded through <see cref="IProjectMigration"/>s before reading; newer
 /// formats are refused with <see cref="ProjectVersionException"/>. See docs/project-format.md.
 /// </summary>
 public sealed class ProjectSerializer
 {
-    public const string FormatName = "cadence-project";
+    public const string FormatName = "bluestone-project";
     public const int CurrentFormatVersion = 4;
     public const int MaxBytes = 256 * 1024 * 1024;
 
@@ -119,7 +119,7 @@ public sealed class ProjectSerializer
             var root = Object(node, "$");
             if (root["format"] is not JsonValue format || !format.TryGetValue(out string? formatName) || formatName != FormatName)
             {
-                throw new ProjectFormatException("$.format", $"must be \"{FormatName}\"; this is not a Cadence project.");
+                throw new ProjectFormatException("$.format", $"must be \"{FormatName}\"; this is not a Bluestone project.");
             }
 
             var version = Int(root, "formatVersion", "$", 0, int.MaxValue);

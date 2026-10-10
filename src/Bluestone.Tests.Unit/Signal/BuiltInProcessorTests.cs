@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Signal;
-using Cadence.Signal.BuiltIn;
-using static Cadence.Tests.Unit.Signal.SignalFixture;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Signal;
+using Bluestone.Signal.BuiltIn;
+using static Bluestone.Tests.Unit.Signal.SignalFixture;
 
-namespace Cadence.Tests.Unit.Signal;
+namespace Bluestone.Tests.Unit.Signal;
 
 public sealed class BuiltInProcessorTests
 {
@@ -16,7 +16,7 @@ public sealed class BuiltInProcessorTests
     {
         var catalog = DeviceCatalog.BuiltIn;
 
-        Assert.Equal(["cadence.midi.arpeggiator", "cadence.midi.event-filter", "cadence.midi.transpose"], catalog.Definitions.Select(d => d.Id.Value));
+        Assert.Equal(["bluestone.midi.arpeggiator", "bluestone.midi.event-filter", "bluestone.midi.transpose"], catalog.Definitions.Select(d => d.Id.Value));
         Assert.All(catalog.Definitions, d => Assert.True(catalog.CanProcess(d.Id)));
         Assert.All(catalog.Definitions, d => Assert.Equal(DeviceOrigin.BuiltIn, d.Origin));
     }

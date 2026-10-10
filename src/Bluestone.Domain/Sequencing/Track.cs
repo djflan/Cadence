@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// An immutable track: a name, mute/solo state, clips, and automation lanes. There is one track type; its

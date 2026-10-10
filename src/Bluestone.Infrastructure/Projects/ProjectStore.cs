@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>The outcome of opening a project.</summary>
 /// <param name="Document">The project that was read.</param>
@@ -20,7 +20,7 @@ public sealed record ProjectLoadResult(ProjectDocument Document, bool RecoveredF
 /// </para>
 /// <para>
 /// Opening falls back to the backup when the main file is damaged, and reports that it did. A file
-/// from a newer Cadence is never replaced by its backup.
+/// from a newer Bluestone is never replaced by its backup.
 /// </para>
 /// </remarks>
 public sealed class ProjectStore(ProjectSerializer? serializer = null)
@@ -42,7 +42,7 @@ public sealed class ProjectStore(ProjectSerializer? serializer = null)
         WriteAtomicallyAsync(document, RecoveryPath(path), keepBackup: false, cancellationToken);
 
     /// <exception cref="ProjectFormatException">Neither the project nor its backup could be read.</exception>
-    /// <exception cref="ProjectVersionException">The project was saved by a newer version of Cadence.</exception>
+    /// <exception cref="ProjectVersionException">The project was saved by a newer version of Bluestone.</exception>
     /// <exception cref="FileNotFoundException">Neither the project nor a backup exists.</exception>
     public async Task<ProjectLoadResult> LoadAsync(string path, CancellationToken cancellationToken = default)
     {

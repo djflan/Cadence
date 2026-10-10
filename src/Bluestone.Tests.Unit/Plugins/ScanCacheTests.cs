@@ -1,11 +1,11 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Scanning;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Scanning;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 public sealed class ScanCacheTests : IDisposable
 {
-    private static readonly PluginIdentity Gain = new("cadence-reference", "cadence.reference", "reference.gain", "Gain", "Cadence", PluginKind.AudioEffect, "1.0.0");
+    private static readonly PluginIdentity Gain = new("bluestone-reference", "bluestone.reference", "reference.gain", "Gain", "Bluestone", PluginKind.AudioEffect, "1.0.0");
 
     private readonly TestDirectory _directory = new();
 
@@ -18,14 +18,14 @@ public sealed class ScanCacheTests : IDisposable
     {
         var cache = ScanCache.Load(CachePath);
         var fingerprint = new ModuleFingerprint(120, 638_000_000_000_000_000);
-        cache.Set("/m/a.cadence-reference-plugin", fingerprint, [Gain], null);
+        cache.Set("/m/a.bluestone-reference-plugin", fingerprint, [Gain], null);
         cache.Set("/m/b.txt", new ModuleFingerprint(3, 1), [], new ScanFailure(ScanFailureKind.Malformed, "nope"));
         cache.Save();
 
         var loaded = ScanCache.Load(CachePath);
 
         Assert.Empty(loaded.Diagnostics);
-        Assert.True(loaded.TryGet("/m/a.cadence-reference-plugin", fingerprint, out var plugins, out var failure));
+        Assert.True(loaded.TryGet("/m/a.bluestone-reference-plugin", fingerprint, out var plugins, out var failure));
         Assert.Equal([Gain], plugins);
         Assert.Null(failure);
         Assert.True(loaded.TryGet("/m/b.txt", new ModuleFingerprint(3, 1), out _, out var malformed));
@@ -84,7 +84,7 @@ public sealed class ScanCacheTests : IDisposable
     {
         var path = _directory.File(PluginScanner.QuarantineFileName);
         var quarantine = ScanQuarantine.Load(path);
-        var entry = new QuarantineEntry("/m/crash.cadence-reference-plugin", ScanFailureKind.Crashed, "boom", DateTimeOffset.UnixEpoch);
+        var entry = new QuarantineEntry("/m/crash.bluestone-reference-plugin", ScanFailureKind.Crashed, "boom", DateTimeOffset.UnixEpoch);
         quarantine.Add(entry);
         quarantine.Save();
 
@@ -111,7 +111,7 @@ public sealed class ScanCacheTests : IDisposable
     [Fact]
     public async Task AQuarantinedModule_IsSkippedWithoutLaunchingAScanner()
     {
-        var module = _directory.File("crash.cadence-reference-plugin");
+        var module = _directory.File("crash.bluestone-reference-plugin");
         File.WriteAllText(module, "x");
         var quarantine = ScanQuarantine.Load(_directory.File(PluginScanner.QuarantineFileName));
         quarantine.Add(new QuarantineEntry(module, ScanFailureKind.Crashed, "boom", DateTimeOffset.UnixEpoch));
@@ -127,7 +127,7 @@ public sealed class ScanCacheTests : IDisposable
     [Fact]
     public async Task AScannerThatCannotStart_FailsTheModule_WithoutQuarantiningIt()
     {
-        var module = _directory.File("good.cadence-reference-plugin");
+        var module = _directory.File("good.bluestone-reference-plugin");
         File.WriteAllText(module, "{}");
         using var scanner = new PluginScanner(new PluginScannerOptions(_directory.Path) { WorkerPath = _directory.File("no-such-worker") });
 

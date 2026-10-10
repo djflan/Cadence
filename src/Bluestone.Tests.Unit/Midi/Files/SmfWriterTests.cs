@@ -1,11 +1,11 @@
 using System.Buffers;
-using Cadence.Domain.Midi;
-using Cadence.Midi.Files;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Files;
+using Bluestone.Midi.Wire;
 using CsCheck;
-using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
+using static Bluestone.Tests.Unit.Midi.Files.SmfBytes;
 
-namespace Cadence.Tests.Unit.Midi.Files;
+namespace Bluestone.Tests.Unit.Midi.Files;
 
 public sealed class SmfWriterTests
 {

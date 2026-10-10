@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
-using Cadence.Application.Editing;
-using Cadence.Domain.Projects;
-using Cadence.Infrastructure.Projects;
-using Cadence.Midi.Files;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Projects;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Midi.Files;
 
-namespace Cadence.Application.Sessions;
+namespace Bluestone.Application.Sessions;
 
 /// <summary>What happened when a project or MIDI file was opened, for the UI to explain.</summary>
 public sealed record OpenReport(

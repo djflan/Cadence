@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace Cadence.Tests.Unit.Midi.Files;
+namespace Bluestone.Tests.Unit.Midi.Files;
 
 /// <summary>Builds small, hand-authored MIDI files for tests.</summary>
 internal static class SmfBytes

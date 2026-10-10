@@ -1,8 +1,8 @@
 using System.Globalization;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>One automation lane shown under its track in the arrangement.</summary>
 public sealed record AutomationLaneViewModel(TrackViewModel Track, AutomationLaneId Id, AutomationTarget Target)

@@ -1,6 +1,6 @@
-using Cadence.Midi.Timing;
+using Bluestone.Midi.Timing;
 
-namespace Cadence.Midi.Endpoints;
+namespace Bluestone.Midi.Endpoints;
 
 /// <summary>
 /// A single software input endpoint fed by the computer keyboard. The UI turns key presses into MIDI
@@ -25,7 +25,7 @@ public sealed class ComputerKeyboardProvider : IMidiEndpointProvider
 
     public string DisplayName => "Computer Keyboard";
 
-    public string TimingDescription => "Computer keyboard: notes are stamped when the key event reaches Cadence.";
+    public string TimingDescription => "Computer keyboard: notes are stamped when the key event reaches Bluestone.";
 
     public EndpointDescriptor Descriptor { get; } =
         new(InputId, "Computer Keyboard", EndpointDirection.Input, EndpointTransport.Software, EndpointCapabilities.None);

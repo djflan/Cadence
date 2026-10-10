@@ -1,64 +1,64 @@
 using System.Reflection;
 
-namespace Cadence.Tests.Unit.Architecture;
+namespace Bluestone.Tests.Unit.Architecture;
 
 /// <summary>Project references must follow the documented dependency direction (README, ADR 0002).</summary>
 public sealed class DependencyDirectionTests
 {
     public static TheoryData<string, string[]> AllowedReferences() => new()
     {
-        { "Cadence.Domain", [] },
-        { "Cadence.Midi", ["Cadence.Domain"] },
-        { "Cadence.Profiles", ["Cadence.Domain"] },
-        { "Cadence.Signal", ["Cadence.Domain"] },
-        { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi", "Cadence.Signal"] },
-        { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Plugins", "Cadence.Plugins.Protocol", "Cadence.Profiles", "Cadence.Signal"] },
-        { "Cadence.Infrastructure", ["Cadence.Domain"] },
-        { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles", "Cadence.Signal"] },
-        { "Cadence.Plugins.Protocol", [] },
-        { "Cadence.Plugins", ["Cadence.Plugins.Protocol"] },
-        { "Cadence.PluginWorker", ["Cadence.Plugins.Protocol"] },
+        { "Bluestone.Domain", [] },
+        { "Bluestone.Midi", ["Bluestone.Domain"] },
+        { "Bluestone.Profiles", ["Bluestone.Domain"] },
+        { "Bluestone.Signal", ["Bluestone.Domain"] },
+        { "Bluestone.Playback", ["Bluestone.Domain", "Bluestone.Midi", "Bluestone.Signal"] },
+        { "Bluestone.Application", ["Bluestone.Domain", "Bluestone.Infrastructure", "Bluestone.Midi", "Bluestone.Playback", "Bluestone.Plugins", "Bluestone.Plugins.Protocol", "Bluestone.Profiles", "Bluestone.Signal"] },
+        { "Bluestone.Infrastructure", ["Bluestone.Domain"] },
+        { "Bluestone.Presentation", ["Bluestone.Application", "Bluestone.Domain", "Bluestone.Infrastructure", "Bluestone.Midi", "Bluestone.Playback", "Bluestone.Profiles", "Bluestone.Signal"] },
+        { "Bluestone.Plugins.Protocol", [] },
+        { "Bluestone.Plugins", ["Bluestone.Plugins.Protocol"] },
+        { "Bluestone.PluginWorker", ["Bluestone.Plugins.Protocol"] },
     };
 
     [Theory]
     [MemberData(nameof(AllowedReferences))]
-    public void Project_ReferencesOnlyAllowedCadenceAssemblies(string assembly, string[] allowed)
+    public void Project_ReferencesOnlyAllowedBluestoneAssemblies(string assembly, string[] allowed)
     {
         var references = Assembly.Load(assembly).GetReferencedAssemblies().Select(r => r.Name ?? string.Empty).ToList();
 
-        var cadence = references.Where(name => name.StartsWith("Cadence", StringComparison.Ordinal));
-        Assert.All(cadence, name => Assert.Contains(name, allowed));
+        var bluestone = references.Where(name => name.StartsWith("Bluestone", StringComparison.Ordinal));
+        Assert.All(bluestone, name => Assert.Contains(name, allowed));
     }
 
     [Fact]
     public void Presentation_DoesNotDependOnAUiFramework() =>
         Assert.DoesNotContain(
-            Assembly.Load("Cadence.Presentation").GetReferencedAssemblies(),
+            Assembly.Load("Bluestone.Presentation").GetReferencedAssemblies(),
             r => r.Name?.StartsWith("Avalonia", StringComparison.Ordinal) == true);
 
     [Fact]
     public void Domain_ReferencesOnlyTheBaseClassLibrary()
     {
-        var references = Assembly.Load("Cadence.Domain").GetReferencedAssemblies().Select(r => r.Name ?? string.Empty);
+        var references = Assembly.Load("Bluestone.Domain").GetReferencedAssemblies().Select(r => r.Name ?? string.Empty);
 
         Assert.All(references, name => Assert.True(
             name is "System" or "mscorlib" or "netstandard" || name.StartsWith("System.", StringComparison.Ordinal),
-            $"Cadence.Domain must not reference {name}."));
+            $"Bluestone.Domain must not reference {name}."));
     }
 
     [Fact]
     public void PluginsProtocol_ReferencesOnlyTheBaseClassLibrary()
     {
-        var references = Assembly.Load("Cadence.Plugins.Protocol").GetReferencedAssemblies().Select(r => r.Name ?? string.Empty);
+        var references = Assembly.Load("Bluestone.Plugins.Protocol").GetReferencedAssemblies().Select(r => r.Name ?? string.Empty);
 
         Assert.All(references, name => Assert.True(
             name is "System" or "mscorlib" or "netstandard" || name.StartsWith("System.", StringComparison.Ordinal),
-            $"Cadence.Plugins.Protocol must not reference {name}."));
+            $"Bluestone.Plugins.Protocol must not reference {name}."));
     }
 
     [Fact]
     public void Plugins_DoesNotReferenceTheWorker_SoNoPluginCanRunInTheHostProcess() =>
         Assert.DoesNotContain(
-            Assembly.Load("Cadence.Plugins").GetReferencedAssemblies(),
-            r => r.Name == "Cadence.PluginWorker");
+            Assembly.Load("Bluestone.Plugins").GetReferencedAssemblies(),
+            r => r.Name == "Bluestone.PluginWorker");
 }

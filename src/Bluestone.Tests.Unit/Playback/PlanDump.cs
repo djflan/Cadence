@@ -1,18 +1,18 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Cadence.Application.Routing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Files;
-using Cadence.Midi.Wire;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Files;
+using Bluestone.Midi.Wire;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Unit.Playback;
+namespace Bluestone.Tests.Unit.Playback;
 
 /// <summary>
 /// Comparable, hashable descriptions of what a MIDI 1.0 device receives from a sequence, for playback and

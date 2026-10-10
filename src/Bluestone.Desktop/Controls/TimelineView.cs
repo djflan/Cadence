@@ -5,14 +5,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Cadence.Application.Recording;
-using Cadence.Desktop.Theme;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Recording;
+using Bluestone.Desktop.Theme;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Desktop.Controls;
+namespace Bluestone.Desktop.Controls;
 
 /// <summary>
 /// The arrangement: one row per track, with each of the track's clips drawn as a coloured block

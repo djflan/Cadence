@@ -1,6 +1,6 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
 /// <summary>Note values used for snapping, quantizing, and new-note lengths.</summary>
 public enum GridDivision

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A MIDI program (patch) number. <see cref="Value"/> is the zero-based wire value (0-127);

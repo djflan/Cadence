@@ -3,10 +3,10 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Platform.CoreMidi;
+namespace Bluestone.Platform.CoreMidi;
 
 /// <summary>Shared one-way state handling for CoreMIDI handles.</summary>
 [SupportedOSPlatform("macos")]
@@ -44,7 +44,7 @@ internal abstract class CoreMidiHandle(EndpointDescriptor endpoint)
 }
 
 /// <summary>
-/// Sends to a CoreMIDI destination with <c>MIDISend</c> (timestamped), or out of a Cadence virtual
+/// Sends to a CoreMIDI destination with <c>MIDISend</c> (timestamped), or out of a Bluestone virtual
 /// source with <c>MIDIReceived</c>. Small messages are built on the stack; nothing is allocated per send.
 /// </summary>
 [SupportedOSPlatform("macos")]
@@ -110,7 +110,7 @@ internal sealed unsafe class CoreMidiOutput(CoreMidiProvider provider, EndpointD
 
 /// <summary>
 /// Receives from a CoreMIDI source on CoreMIDI's high-priority thread, splitting packets into complete
-/// messages and converting host timestamps to Cadence clock time.
+/// messages and converting host timestamps to Bluestone clock time.
 /// </summary>
 [SupportedOSPlatform("macos")]
 internal sealed unsafe class CoreMidiInput : CoreMidiHandle, IMidiInput
@@ -129,7 +129,7 @@ internal sealed unsafe class CoreMidiInput : CoreMidiHandle, IMidiInput
         _provider = provider;
         _onMessage = Deliver;
         _self = GCHandle.Alloc(this);
-        var name = Native.CreateString("Cadence In");
+        var name = Native.CreateString("Bluestone In");
         try
         {
             var status = Native.MIDIInputPortCreate(provider.Client, name, &OnRead, GCHandle.ToIntPtr(_self), out _port);

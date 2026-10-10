@@ -1,8 +1,8 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>A half-open window of the timeline that a processor works through in one call.</summary>
 public readonly record struct SignalBlock

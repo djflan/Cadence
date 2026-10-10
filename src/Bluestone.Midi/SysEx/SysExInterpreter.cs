@@ -1,10 +1,10 @@
-using Cadence.Domain.Midi;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.SysEx;
+namespace Bluestone.Midi.SysEx;
 
 /// <summary>
-/// What Cadence recognized in a SysEx message. Interpretations are derived on demand and never
+/// What Bluestone recognized in a SysEx message. Interpretations are derived on demand and never
 /// replace the message: its bytes remain the only thing that is stored, played, and exported.
 /// </summary>
 public abstract record SysExInterpretation
@@ -14,7 +14,7 @@ public abstract record SysExInterpretation
 }
 
 /// <summary>
-/// Recognizes Universal SysEx and the manufacturer dialects Cadence knows (Yamaha XG, Roland GS) by
+/// Recognizes Universal SysEx and the manufacturer dialects Bluestone knows (Yamaha XG, Roland GS) by
 /// dispatching on the manufacturer ID. Each dialect keeps its own model; nothing is shared that is
 /// not genuinely common.
 /// </summary>

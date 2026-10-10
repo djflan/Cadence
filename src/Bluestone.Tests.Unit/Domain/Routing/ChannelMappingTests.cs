@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
 
-namespace Cadence.Tests.Unit.Domain.Routing;
+namespace Bluestone.Tests.Unit.Domain.Routing;
 
 public sealed class ChannelMappingTests
 {

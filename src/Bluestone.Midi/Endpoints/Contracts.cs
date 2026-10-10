@@ -1,4 +1,4 @@
-namespace Cadence.Midi.Endpoints;
+namespace Bluestone.Midi.Endpoints;
 
 /// <summary>When a message should be delivered, in <see cref="Timing.IMonotonicClock"/> time.</summary>
 public readonly record struct MidiTimestamp

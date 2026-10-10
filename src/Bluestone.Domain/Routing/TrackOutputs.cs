@@ -1,9 +1,9 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>
 /// The everyday way to send a track to hardware: an instrument (by endpoint and profile), a channel, a

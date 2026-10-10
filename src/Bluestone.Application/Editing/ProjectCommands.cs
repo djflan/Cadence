@@ -1,12 +1,12 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
-/// <summary>The editing operations Cadence offers, as undoable commands.</summary>
+/// <summary>The editing operations Bluestone offers, as undoable commands.</summary>
 public static class ProjectCommands
 {
     public static IProjectCommand RenameProject(string name) =>

@@ -1,16 +1,16 @@
 using System.Text;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Projects;
-using Cadence.Infrastructure.Projects;
+using Bluestone.Domain.Projects;
+using Bluestone.Infrastructure.Projects;
 
-namespace Cadence.Tests.Integration.Projects;
+namespace Bluestone.Tests.Integration.Projects;
 
 public sealed class ProjectStoreTests : IDisposable
 {
-    private readonly string _directory = Directory.CreateTempSubdirectory("cadence-tests-").FullName;
+    private readonly string _directory = Directory.CreateTempSubdirectory("bluestone-tests-").FullName;
     private readonly ProjectStore _store = new();
 
-    private string ProjectPath => Path.Combine(_directory, "song.cadence");
+    private string ProjectPath => Path.Combine(_directory, "song.bluestone");
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -28,7 +28,7 @@ public sealed class ProjectStoreTests : IDisposable
         Assert.Equal("First", result.Document.Project.Name);
         Assert.False(result.RecoveredFromBackup);
         Assert.False(File.Exists(ProjectStore.BackupPath(ProjectPath)));
-        Assert.Equal(["song.cadence"], Directory.GetFiles(_directory).Select(Path.GetFileName));
+        Assert.Equal(["song.bluestone"], Directory.GetFiles(_directory).Select(Path.GetFileName));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class ProjectStoreTests : IDisposable
         await Assert.ThrowsAsync<IOException>(() => _store.SaveAsync(Document("Doomed"), ProjectPath, Ct));
 
         Assert.Equal(before, await File.ReadAllBytesAsync(ProjectPath, Ct));
-        Assert.Equal(["song.cadence"], Directory.GetFiles(_directory).Select(Path.GetFileName));
+        Assert.Equal(["song.bluestone"], Directory.GetFiles(_directory).Select(Path.GetFileName));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class ProjectStoreTests : IDisposable
     {
         await _store.SaveAsync(Document("Good"), ProjectPath, Ct);
         await _store.SaveAsync(Document("Newer"), ProjectPath, Ct);
-        await File.WriteAllTextAsync(ProjectPath, "{ \"format\": \"cadence-project\", \"formatVersion\": 1, \"proj", Ct);
+        await File.WriteAllTextAsync(ProjectPath, "{ \"format\": \"bluestone-project\", \"formatVersion\": 1, \"proj", Ct);
 
         var result = await _store.LoadAsync(ProjectPath, Ct);
 
@@ -139,7 +139,7 @@ public sealed class ProjectStoreTests : IDisposable
     [Fact]
     public async Task SaveIntoMissingDirectory_FailsWithoutSideEffects()
     {
-        var path = Path.Combine(_directory, "missing", "song.cadence");
+        var path = Path.Combine(_directory, "missing", "song.bluestone");
 
         await Assert.ThrowsAnyAsync<IOException>(() => _store.SaveAsync(Document("x"), path, Ct));
 
@@ -153,7 +153,7 @@ public sealed class ProjectStoreTests : IDisposable
 
         var text = Encoding.UTF8.GetString(await File.ReadAllBytesAsync(ProjectPath, Ct));
 
-        Assert.Contains("\"cadence-project\"", text, StringComparison.Ordinal);
+        Assert.Contains("\"bluestone-project\"", text, StringComparison.Ordinal);
         Assert.False(text.StartsWith('﻿'));
     }
 }

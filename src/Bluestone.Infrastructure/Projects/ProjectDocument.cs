@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Projects;
+using Bluestone.Domain.Projects;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>
-/// A project plus file-level data Cadence does not interpret: the <c>extensions</c> object and any
+/// A project plus file-level data Bluestone does not interpret: the <c>extensions</c> object and any
 /// unknown top-level properties. Both are written back unchanged on save.
 /// </summary>
 public sealed class ProjectDocument
@@ -53,7 +53,7 @@ public class ProjectFormatException : Exception
 }
 
 /// <summary>
-/// The file was written by a newer Cadence. It must never be replaced by an older backup or
+/// The file was written by a newer Bluestone. It must never be replaced by an older backup or
 /// overwritten, or the newer data would be lost.
 /// </summary>
 public sealed class ProjectVersionException : ProjectFormatException
@@ -73,7 +73,7 @@ public sealed class ProjectVersionException : ProjectFormatException
     }
 
     public ProjectVersionException(int fileVersion, int supportedVersion)
-        : base("$.formatVersion", $"the project was saved by a newer version of Cadence (format {fileVersion}); this version reads formats up to {supportedVersion}.")
+        : base("$.formatVersion", $"the project was saved by a newer version of Bluestone (format {fileVersion}); this version reads formats up to {supportedVersion}.")
     {
         FileVersion = fileVersion;
     }

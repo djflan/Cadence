@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Wire;
-using Cadence.Signal;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Wire;
+using Bluestone.Signal;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>
 /// One stream of events for one output: what the signal graph delivers to one external instrument part,

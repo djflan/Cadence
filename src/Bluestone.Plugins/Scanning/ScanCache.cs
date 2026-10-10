@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.Plugins.Scanning;
+namespace Bluestone.Plugins.Scanning;
 
 /// <summary>Size and last-write time of a module file. A change means the cached result is stale.</summary>
 public readonly record struct ModuleFingerprint(long Size, long LastWriteUtcTicks)

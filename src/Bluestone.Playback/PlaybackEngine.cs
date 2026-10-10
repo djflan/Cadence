@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>
 /// The real-time scheduler and transport. Commands (play, stop, seek, loop, panic, plan and output

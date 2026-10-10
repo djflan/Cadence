@@ -1,10 +1,10 @@
 using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Domain.Midi;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 /// <summary>The outcome of reading a file: its structure plus anything unusual found on the way.</summary>
 public sealed record SmfReadResult(SmfFile File, IReadOnlyList<SmfDiagnostic> Diagnostics);

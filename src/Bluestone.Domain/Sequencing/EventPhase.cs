@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// The order in which simultaneous events are dispatched. Events at the same tick are ordered by

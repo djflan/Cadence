@@ -1,6 +1,6 @@
-using Cadence.Midi.Timing;
+using Bluestone.Midi.Timing;
 
-namespace Cadence.Tests.Unit.Midi.Timing;
+namespace Bluestone.Tests.Unit.Midi.Timing;
 
 public sealed class ClockTests
 {

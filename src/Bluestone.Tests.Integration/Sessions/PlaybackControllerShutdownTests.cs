@@ -1,14 +1,14 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Profiles;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Integration.Sessions;
+namespace Bluestone.Tests.Integration.Sessions;
 
 /// <summary>Quitting must be clean whether or not playback is running on the real playback thread.</summary>
 public sealed class PlaybackControllerShutdownTests

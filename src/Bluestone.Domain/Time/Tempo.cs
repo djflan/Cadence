@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>
 /// Tempo as microseconds per quarter note, the exact unit used by MIDI files.

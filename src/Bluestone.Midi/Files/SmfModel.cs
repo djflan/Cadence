@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 /// <summary>Standard MIDI File format types.</summary>
 public enum SmfFormat

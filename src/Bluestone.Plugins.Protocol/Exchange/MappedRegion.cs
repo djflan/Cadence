@@ -1,9 +1,9 @@
 using System.IO.MemoryMappedFiles;
 
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 /// <summary>
-/// The only pointer code in Cadence's plugin hosting. Why it exists: <see cref="MemoryMappedViewAccessor"/> offers only
+/// The only pointer code in Bluestone's plugin hosting. Why it exists: <see cref="MemoryMappedViewAccessor"/> offers only
 /// per-call marshalled reads and writes, which cannot hand out spans for audio or refs for <see cref="Interlocked"/>
 /// and <see cref="Volatile"/>. The view's pointer is acquired once here and exposed only as bounds-checked spans and
 /// refs; callers must not use them after <see cref="Dispose"/>, which the exchanges guarantee with an in-use counter.

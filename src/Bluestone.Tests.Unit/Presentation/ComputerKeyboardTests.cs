@@ -1,8 +1,8 @@
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Presentation;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Presentation;
 
-namespace Cadence.Tests.Unit.Presentation;
+namespace Bluestone.Tests.Unit.Presentation;
 
 public sealed class ComputerKeyboardTests : IDisposable
 {

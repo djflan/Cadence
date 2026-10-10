@@ -1,15 +1,15 @@
 using System.Text;
-using Cadence.Application.Routing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Profiles;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 public sealed class RouteResolverTests
 {
@@ -21,7 +21,7 @@ public sealed class RouteResolverTests
 
     internal static ProfileCatalog Catalog(params string[] ids) =>
         ids.Aggregate(ProfileCatalog.Empty, (catalog, id) => catalog.Add(id, ProfileLoader.Load(Encoding.UTF8.GetBytes($$"""
-            { "format": "cadence-device-profile", "schemaVersion": 1, "id": "{{id}}", "version": "1", "name": "Profile {{id}}",
+            { "format": "bluestone-device-profile", "schemaVersion": 1, "id": "{{id}}", "version": "1", "name": "Profile {{id}}",
               "provenance": { "sources": ["t"], "contributors": ["t"], "license": "MIT", "redistributionConfirmed": true, "verification": "unverified" },
               "banks": [ { "id": "main", "name": "Main", "msb": 0, "lsb": 3 } ] }
             """))));

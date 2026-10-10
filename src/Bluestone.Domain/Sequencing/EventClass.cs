@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// Families of events, so a device can say which ones it processes. The rest pass through it untouched

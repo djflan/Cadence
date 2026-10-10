@@ -1,4 +1,4 @@
-namespace Cadence.Midi.Wire;
+namespace Bluestone.Midi.Wire;
 
 /// <summary>The broad class of a single MIDI 1.0 byte-stream message.</summary>
 public enum MidiMessageClass

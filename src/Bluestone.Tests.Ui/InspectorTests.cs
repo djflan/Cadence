@@ -1,19 +1,19 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Cadence.Application.Editing;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using Cadence.Signal;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Ui;
+namespace Bluestone.Tests.Ui;
 
 /// <summary>
 /// The inspector's Devices, Racks, and Mixer sections in the real window on Avalonia's headless platform: the views
@@ -98,7 +98,7 @@ public sealed class InspectorTests
     [Fact]
     public Task APluginMidiEffect_ShapesThePlan_AndTheAppRecompilesWhenItsWorkerDiesAndIsRestarted() => HeadlessApp.RunAsync(async () =>
     {
-        var transpose = new PluginIdentity("cadence-reference", "cadence.reference", "reference.transpose", "Reference Transpose", "Cadence", PluginKind.MidiEffect, "1.0.0");
+        var transpose = new PluginIdentity("bluestone-reference", "bluestone.reference", "reference.transpose", "Reference Transpose", "Bluestone", PluginKind.MidiEffect, "1.0.0");
         var directory = Path.Combine(AppContext.BaseDirectory, "plugin-data", Guid.NewGuid().ToString("N"));
         await using var manager = new PluginHostManager(new PluginHostOptions { DataDirectory = directory, RequestTimeout = TimeSpan.FromSeconds(15) });
         var session = OneTrack();

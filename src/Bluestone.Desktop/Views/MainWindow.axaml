@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:Cadence.Presentation"
-        xmlns:controls="using:Cadence.Desktop.Controls"
-        xmlns:theme="using:Cadence.Desktop.Theme"
-        x:Class="Cadence.Desktop.Views.MainWindow"
+        xmlns:vm="using:Bluestone.Presentation"
+        xmlns:controls="using:Bluestone.Desktop.Controls"
+        xmlns:theme="using:Bluestone.Desktop.Theme"
+        x:Class="Bluestone.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
         Width="1440" Height="900" MinWidth="1040" MinHeight="640"
@@ -147,7 +147,7 @@
                   <ProgressBar Classes="keysMeter" Value="{Binding VelocityFraction}" />
                 </StackPanel>
                 <StackPanel VerticalAlignment="Center" MinWidth="30">
-                  <TextBlock Text="{Binding LastNoteText}" Classes="keysValue" Foreground="{StaticResource Cadence.LcdText}" />
+                  <TextBlock Text="{Binding LastNoteText}" Classes="keysValue" Foreground="{StaticResource Bluestone.LcdText}" />
                   <TextBlock Text="NOTE" Classes="lcdLabel" />
                 </StackPanel>
               </StackPanel>
@@ -167,7 +167,7 @@
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
 
       <!-- Inspector -->
-      <Border Grid.Column="0" Classes="pane" Width="236" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,0"
+      <Border Grid.Column="0" Classes="pane" Width="236" BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,0,1,0"
               IsVisible="{Binding IsInspectorVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel>
@@ -190,7 +190,7 @@
                   <TextBlock Text="Role" Classes="label" />
                   <ComboBox Grid.Column="1" ItemsSource="{Binding RoleChoices}" SelectedItem="{Binding Role}" PlaceholderText="Mixed" HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Track role"
-                            ToolTip.Tip="What the track is for. Changing it never removes clips, devices, automation, or routing; Cadence asks or refuses when it would." />
+                            ToolTip.Tip="What the track is for. Changing it never removes clips, devices, automation, or routing; Bluestone asks or refuses when it would." />
                 </Grid>
               </Expander>
 
@@ -241,7 +241,7 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="x:String">
                     <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
-                      <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Foreground="{StaticResource Cadence.Warning}" VerticalAlignment="Top" Margin="0,2,6,0" />
+                      <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Foreground="{StaticResource Bluestone.Warning}" VerticalAlignment="Top" Margin="0,2,6,0" />
                       <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Classes="muted" />
                     </Grid>
                   </DataTemplate>
@@ -256,10 +256,10 @@
                 <ItemsControl ItemsSource="{Binding Devices}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:DeviceViewModel">
-                      <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
+                      <Border BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
                         <StackPanel Spacing="3">
                           <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-                            <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Margin="0,0,4,0" Foreground="{StaticResource Cadence.Warning}" IsVisible="{Binding NeedsAttention}" />
+                            <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Margin="0,0,4,0" Foreground="{StaticResource Bluestone.Warning}" IsVisible="{Binding NeedsAttention}" />
                             <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
                             <Button Grid.Column="2" Classes="tool" Content="↑" Command="{Binding MoveUpCommand}" ToolTip.Tip="Move earlier in the chain" AutomationProperties.Name="Move device up" />
                             <Button Grid.Column="3" Classes="tool" Content="↓" Command="{Binding MoveDownCommand}" ToolTip.Tip="Move later in the chain" AutomationProperties.Name="Move device down" />
@@ -378,11 +378,11 @@
 
             <Expander x:Name="MixerSection" Classes="section" Header="Mixer" IsExpanded="False" DataContext="{Binding Mixer}" x:DataType="vm:MixerViewModel">
               <StackPanel Spacing="6">
-                <TextBlock Text="Mixer channels are audio paths, independent of tracks. Cadence has no audio engine yet, so they are kept and saved but nothing sounds." Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="Mixer channels are audio paths, independent of tracks. Bluestone has no audio engine yet, so they are kept and saved but nothing sounds." Classes="muted" TextWrapping="Wrap" />
                 <ItemsControl ItemsSource="{Binding Channels}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:MixerChannelRow">
-                      <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
+                      <Border BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
                         <StackPanel Spacing="3">
                           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="2">
                             <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Channel name" />
@@ -478,14 +478,14 @@
           </Border>
 
           <!-- Ruler row -->
-          <Border Grid.Row="1" Background="#2B2B2E" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,1" />
+          <Border Grid.Row="1" Background="#2B2B2E" BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,0,1,1" />
           <controls:RulerView x:Name="Ruler" Grid.Row="1" Grid.Column="1" Project="{Binding Project}" PixelsPerQuarter="{Binding Zoom}"
                               IsRecording="{Binding IsRecording}" AutomationProperties.Name="Bar ruler. Click to move the playhead; drag the top strip to set the cycle." />
 
           <!-- Track headers, scrolled with the lanes -->
           <ScrollViewer x:Name="TrackHeaderScroller" Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
                         Background="#1F1F21">
-            <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,1,0">
+            <Border BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,0,1,0">
               <ListBox x:Name="TrackList" Classes="tracks" ItemsSource="{Binding Tracks}" SelectedItems="{Binding SelectedTracks}" SelectionMode="Multiple"
                        ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Tracks">
                 <ListBox.Styles>
@@ -511,8 +511,8 @@
                       <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2" Margin="0,0,4,0">
                         <TextBox Classes="inline" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Track name" />
                         <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="{Binding RouteText}" AutomationProperties.Name="{Binding HealthText}">
-                          <PathIcon Data="{StaticResource Icon.Check}" Width="8" Height="8" Foreground="{StaticResource Cadence.Success}" IsVisible="{Binding IsReady}" />
-                          <PathIcon Data="{StaticResource Icon.Warning}" Width="8" Height="8" Foreground="{StaticResource Cadence.Warning}" IsVisible="{Binding NeedsAttention}" />
+                          <PathIcon Data="{StaticResource Icon.Check}" Width="8" Height="8" Foreground="{StaticResource Bluestone.Success}" IsVisible="{Binding IsReady}" />
+                          <PathIcon Data="{StaticResource Icon.Warning}" Width="8" Height="8" Foreground="{StaticResource Bluestone.Warning}" IsVisible="{Binding NeedsAttention}" />
                           <PathIcon Data="{StaticResource Icon.Offline}" Width="8" Height="8" Foreground="#9A6B6D" IsVisible="{Binding IsOffline}" />
                           <TextBlock Text="{Binding StatusLine}" Classes="muted" FontSize="10.5" TextTrimming="CharacterEllipsis" MaxWidth="110" />
                         </StackPanel>
@@ -553,7 +553,7 @@
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Lanes}" IsVisible="{Binding IsAutomationExpanded}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:AutomationLaneViewModel">
-                          <Grid Height="{x:Static vm:TrackViewModel.AutomationLaneHeight}" ColumnDefinitions="27,*,Auto" Background="{StaticResource Cadence.AutomationLane}" AutomationProperties.Name="{Binding Name}">
+                          <Grid Height="{x:Static vm:TrackViewModel.AutomationLaneHeight}" ColumnDefinitions="27,*,Auto" Background="{StaticResource Bluestone.AutomationLane}" AutomationProperties.Name="{Binding Name}">
                             <Border Grid.Column="1" BorderBrush="#19191B" BorderThickness="0,1,0,0" />
                             <TextBlock Grid.Column="1" Text="{Binding Name}" Classes="muted" FontSize="10.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                             <Button Grid.Column="2" Classes="trackButton" Margin="0,0,8,0" VerticalAlignment="Center"
@@ -591,9 +591,9 @@
           <!-- Empty state -->
           <StackPanel Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
                       IsVisible="{Binding !Tracks.Count}">
-            <PathIcon Classes="stroke" Data="{StaticResource Icon.PianoRoll}" Width="34" Height="34" Foreground="{StaticResource Cadence.BorderStrong}" />
+            <PathIcon Classes="stroke" Data="{StaticResource Icon.PianoRoll}" Width="34" Height="34" Foreground="{StaticResource Bluestone.BorderStrong}" />
             <TextBlock Text="Start with a MIDI file or a new track" Classes="title" HorizontalAlignment="Center" />
-            <TextBlock Text="Drop a .mid or .cadence file anywhere on the window." Classes="secondary" HorizontalAlignment="Center" />
+            <TextBlock Text="Drop a .mid or .bluestone file anywhere on the window." Classes="secondary" HorizontalAlignment="Center" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
               <Button Classes="primary" Content="Import MIDI…" Command="{Binding ImportMidiCommand}" />
               <Button Classes="raised" Content="New Track" Command="{Binding AddTrackCommand}" />
@@ -670,7 +670,7 @@
               <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsLaneOverridden}"
                           ToolTip.Tip="A track automation lane controls this, so these events do not play"
                           AutomationProperties.Name="Overridden by track automation">
-                <PathIcon Data="{StaticResource Icon.Warning}" Width="9" Height="9" Foreground="{StaticResource Cadence.Warning}" />
+                <PathIcon Data="{StaticResource Icon.Warning}" Width="9" Height="9" Foreground="{StaticResource Bluestone.Warning}" />
                 <TextBlock Text="Overridden by automation" Classes="muted" FontSize="10.5" VerticalAlignment="Center" />
               </StackPanel>
               <ToggleButton Classes="tool" IsChecked="{Binding FollowPlayhead}" ToolTip.Tip="Follow the playhead" AutomationProperties.Name="Follow playhead">
@@ -697,11 +697,11 @@
         </Border>
 
         <!-- Lower pane content -->
-        <Panel Grid.Row="3" x:Name="EditorPane" IsVisible="{Binding IsEditorVisible}" Background="{StaticResource Cadence.Panel}">
+        <Panel Grid.Row="3" x:Name="EditorPane" IsVisible="{Binding IsEditorVisible}" Background="{StaticResource Bluestone.Panel}">
 
           <!-- Piano roll -->
           <Grid RowDefinitions="Auto,*" IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=PianoRoll}">
-            <Border Background="#262628" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,0,1" Padding="8,3" DataContext="{Binding Editor}" x:DataType="vm:EditorViewModel">
+            <Border Background="#262628" BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,0,0,1" Padding="8,3" DataContext="{Binding Editor}" x:DataType="vm:EditorViewModel">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="{Binding Track.Name, FallbackValue='No track'}" Classes="title" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" MaxWidth="160" TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="Position" Classes="label" />
@@ -727,7 +727,7 @@
 
           <!-- Event list -->
           <Grid RowDefinitions="Auto,*" IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=EventList}">
-            <Border Background="#262628" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,0,0,1" Height="22">
+            <Border Background="#262628" BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,0,0,1" Height="22">
               <Grid ColumnDefinitions="100,100,44,80,70,100,*" Margin="0,0,0,0">
                 <TextBlock Text="POSITION" Classes="overline" VerticalAlignment="Center" Margin="10,0" />
                 <TextBlock Grid.Column="1" Text="STATUS" Classes="overline" VerticalAlignment="Center" Margin="6,0" />
@@ -759,7 +759,7 @@
                    IsVisible="{Binding LowerPane, Converter={x:Static theme:EnumEqualsConverter.Instance}, ConverterParameter=Monitor}">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:MonitorEntry">
-                <TextBlock Text="{Binding Text}" FontFamily="{StaticResource Cadence.MonoFont}" FontSize="11.5" />
+                <TextBlock Text="{Binding Text}" FontFamily="{StaticResource Bluestone.MonoFont}" FontSize="11.5" />
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
@@ -782,7 +782,7 @@
     </Grid>
 
     <!-- Status bar -->
-    <Border Grid.Row="2" Background="#19191B" BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="0,1,0,0" Height="22">
+    <Border Grid.Row="2" Background="#19191B" BorderBrush="{StaticResource Bluestone.Divider}" BorderThickness="0,1,0,0" Height="22">
       <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,0">
         <TextBlock Text="{Binding OutputsText}" Classes="muted" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Classes="muted" VerticalAlignment="Center" Margin="16,0,0,0"
@@ -795,9 +795,9 @@
 
   <!-- Shown while a supported file is dragged over the window. -->
   <Border x:Name="DropOverlay" IsVisible="False" IsHitTestVisible="False" Margin="8"
-          Background="#CC1C1E22" BorderBrush="{StaticResource Cadence.Accent}" BorderThickness="2" CornerRadius="4">
+          Background="#CC1C1E22" BorderBrush="{StaticResource Bluestone.Accent}" BorderThickness="2" CornerRadius="4">
     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-      <PathIcon Data="{StaticResource Icon.Logo}" Width="32" Height="32" Foreground="{StaticResource Cadence.Accent}" />
+      <PathIcon Data="{StaticResource Icon.Logo}" Width="32" Height="32" Foreground="{StaticResource Bluestone.Accent}" />
       <TextBlock x:Name="DropText" Classes="title" HorizontalAlignment="Center" />
       <TextBlock x:Name="DropDetail" Classes="secondary" HorizontalAlignment="Center" />
     </StackPanel>

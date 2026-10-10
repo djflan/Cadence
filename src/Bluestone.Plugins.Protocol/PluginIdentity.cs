@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Text;
 
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 public enum PluginKind : byte
 {
@@ -32,7 +32,7 @@ public sealed record PluginIdentity
         Kind = kind;
     }
 
-    /// <summary>The plugin format, for example <c>cadence-reference</c> for the built-in reference plugins.</summary>
+    /// <summary>The plugin format, for example <c>bluestone-reference</c> for the built-in reference plugins.</summary>
     public string Format { get; }
 
     public string ModuleId { get; }

@@ -18,9 +18,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
-    <Authors>Cadence contributors</Authors>
-    <Product>Cadence</Product>
-    <Copyright>Copyright (c) 2026 Cadence contributors</Copyright>
+    <Authors>Bluestone contributors</Authors>
+    <Product>Bluestone</Product>
+    <Copyright>Copyright (c) 2026 Bluestone contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 

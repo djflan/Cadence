@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>Stable identity of an event within a project, preserved across edits and saves.</summary>
 public readonly record struct EventId(Guid Value)

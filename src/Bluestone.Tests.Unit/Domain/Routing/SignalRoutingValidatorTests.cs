@@ -1,10 +1,10 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using static Cadence.Tests.Unit.Domain.Routing.RoutingFixture;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using static Bluestone.Tests.Unit.Domain.Routing.RoutingFixture;
 
-namespace Cadence.Tests.Unit.Domain.Routing;
+namespace Bluestone.Tests.Unit.Domain.Routing;
 
 public sealed class SignalRoutingValidatorTests
 {

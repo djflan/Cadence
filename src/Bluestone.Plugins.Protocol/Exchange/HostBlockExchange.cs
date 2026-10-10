@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 /// <summary>
 /// The host's handle on one instance's block exchange. Called from one audio thread (submit and collect) and from

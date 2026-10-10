@@ -1,12 +1,12 @@
 using System.Text;
-using Cadence.Profiles;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Profiles;
+namespace Bluestone.Tests.Unit.Profiles;
 
 public sealed class ProfileCatalogTests
 {
     private static ProfileLoadResult Profile(string id, string name) => ProfileLoader.Load(Encoding.UTF8.GetBytes($$"""
-        { "format": "cadence-device-profile", "schemaVersion": 1, "id": "{{id}}", "version": "1", "name": "{{name}}",
+        { "format": "bluestone-device-profile", "schemaVersion": 1, "id": "{{id}}", "version": "1", "name": "{{name}}",
           "provenance": { "sources": ["t"], "contributors": ["t"], "license": "MIT", "redistributionConfirmed": true, "verification": "unverified" } }
         """));
 

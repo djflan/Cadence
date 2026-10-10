@@ -1,7 +1,7 @@
 using Avalonia.Threading;
-using Cadence.Presentation;
+using Bluestone.Presentation;
 
-namespace Cadence.Desktop.Services;
+namespace Bluestone.Desktop.Services;
 
 internal sealed class AvaloniaDispatcher : IUiDispatcher
 {

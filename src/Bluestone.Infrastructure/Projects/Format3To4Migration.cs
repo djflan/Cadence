@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using static Cadence.Infrastructure.Projects.NodeReader;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using static Bluestone.Infrastructure.Projects.NodeReader;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>
 /// Format 4 replaces the per-track route with the routing model (ADR 0027): external instruments, device

@@ -1,10 +1,10 @@
 using System.Runtime.Versioning;
-using Cadence.Midi.Timing;
+using Bluestone.Midi.Timing;
 
-namespace Cadence.Platform.CoreMidi;
+namespace Bluestone.Platform.CoreMidi;
 
 /// <summary>
-/// Converts between Cadence's monotonic clock and CoreMIDI host time (mach_absolute_time units).
+/// Converts between Bluestone's monotonic clock and CoreMIDI host time (mach_absolute_time units).
 /// Conversions are made relative to "now" on both clocks, so they do not depend on the clocks
 /// sharing an origin.
 /// </summary>
@@ -36,7 +36,7 @@ internal sealed class HostTime
         return Native.mach_absolute_time() + (nanoseconds * _denom / _numer);
     }
 
-    /// <summary>Cadence clock time for a host timestamp; 0 means "now".</summary>
+    /// <summary>Bluestone clock time for a host timestamp; 0 means "now".</summary>
     public TimeSpan FromHost(ulong host)
     {
         var now = _clock.Now;

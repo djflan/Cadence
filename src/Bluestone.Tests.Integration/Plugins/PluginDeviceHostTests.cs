@@ -1,18 +1,18 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Infrastructure.Projects;
-using Cadence.Plugins;
-using Cadence.Signal;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Plugins;
+using Bluestone.Signal;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>
 /// The project's plugin devices running in real worker processes through <see cref="PluginDeviceHost"/>:
@@ -102,7 +102,7 @@ public sealed class PluginDeviceHostTests
     }
 
     [Fact]
-    public async Task Scenarios11And13_OneWorkerCrashing_LeavesCadenceTheProjectAndTheOtherPluginsRunning()
+    public async Task Scenarios11And13_OneWorkerCrashing_LeavesBluestoneTheProjectAndTheOtherPluginsRunning()
     {
         await using var host = new PluginTestHost();
         var (session, _, first) = ProjectWithGainOn("Vocals");

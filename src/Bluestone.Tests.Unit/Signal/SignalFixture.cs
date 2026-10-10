@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Signal;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Unit.Signal;
+namespace Bluestone.Tests.Unit.Signal;
 
 /// <summary>Events, chains, projects, and a catalog for signal tests: the built-ins plus the test instrument and a plugin.</summary>
 internal static class SignalFixture

@@ -1,9 +1,9 @@
 using System.Text;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 /// <summary>
-/// Text in MIDI files has no declared encoding. Cadence reads valid UTF-8 as UTF-8 (which covers
+/// Text in MIDI files has no declared encoding. Bluestone reads valid UTF-8 as UTF-8 (which covers
 /// ASCII) and anything else as Latin-1, and always writes UTF-8.
 /// </summary>
 internal static class SmfText

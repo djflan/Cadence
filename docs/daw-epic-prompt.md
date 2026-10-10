@@ -6,11 +6,11 @@ disagree, this prompt wins. Delete this file with the handoff when the epic is f
 
 ---
 
-# Cadence — DAW Architecture Modernization Epic
+# Bluestone — DAW Architecture Modernization Epic
 
 ## Mission
 
-You are the principal software architect and implementation engineer responsible for modernizing Cadence, a cross-platform, .NET-based MIDI sequencer evolving into a modern digital audio workstation (DAW).
+You are the principal software architect and implementation engineer responsible for modernizing Bluestone, a cross-platform, .NET-based MIDI sequencer evolving into a modern digital audio workstation (DAW).
 
 This is an **implementation epic**, not merely a research or design exercise.
 
@@ -39,7 +39,7 @@ Refactor, replace, or remove existing abstractions where appropriate.
 
 # 1. Project Background
 
-Cadence began as a cross-platform MIDI sequencer inspired by Yamaha XGworks and traditional hardware-oriented MIDI sequencing applications.
+Bluestone began as a cross-platform MIDI sequencer inspired by Yamaha XGworks and traditional hardware-oriented MIDI sequencing applications.
 
 Its original focus includes:
 
@@ -54,15 +54,15 @@ Its original focus includes:
 - MIDI automation and controllers.
 - Multitimbral synthesizers.
 
-Cadence is now evolving toward a modern DAW, drawing significant inspiration from Bitwig Studio.
+Bluestone is now evolving toward a modern DAW, drawing significant inspiration from Bitwig Studio.
 
-However, Cadence must retain one important distinguishing characteristic:
+However, Bluestone must retain one important distinguishing characteristic:
 
 **MIDI remains a first-class citizen, not a secondary feature attached to an audio workstation.**
 
 This includes deep support for traditional hardware and manufacturer-specific MIDI extensions alongside modern software instruments.
 
-Cadence should eventually support:
+Bluestone should eventually support:
 
 - VST3 instruments.
 - VST3 MIDI/note effects.
@@ -81,7 +81,7 @@ However, the architecture established by this epic must provide a credible, exte
 
 ## Existing Architecture
 
-Cadence already contains valuable architectural concepts, including:
+Bluestone already contains valuable architectural concepts, including:
 
 - A largely type-agnostic Track domain model.
 - Polymorphic clip types.
@@ -100,9 +100,9 @@ Inspect the actual repository before making assumptions about the implementation
 The solution structure is approximately:
 
 ```text
-Cadence/
+Bluestone/
 ├── src/
-│   ├── Cadence.slnx
+│   ├── Bluestone.slnx
 │   ├── SubModules/
 │   └── <ProjectFolders>/
 ├── README.md
@@ -181,9 +181,9 @@ Loading a device-chain preset creates independent instances.
 
 Presets are not shared mutable processing objects.
 
-## 2.9 Plugin Failures Must Not Crash Cadence
+## 2.9 Plugin Failures Must Not Crash Bluestone
 
-Third-party plugins must execute outside the main Cadence process by default.
+Third-party plugins must execute outside the main Bluestone process by default.
 
 A plugin crash must not terminate the application or corrupt its project state.
 
@@ -199,7 +199,7 @@ Do not build a full modular audio framework merely because one might eventually 
 
 ## Decision: Bitwig-Inspired Flexible Track Roles
 
-Cadence will support recognizable track roles.
+Bluestone will support recognizable track roles.
 
 Conceptually:
 
@@ -278,7 +278,7 @@ Track roles should primarily influence behavior, defaults, and presentation.
 
 ## Automatic Role Conversion
 
-Cadence should behave similarly to Bitwig.
+Bluestone should behave similarly to Bitwig.
 
 Track roles may change automatically as users add content or devices.
 
@@ -315,7 +315,7 @@ Document the decision.
 
 # 4. Clip Architecture
 
-Preserve Cadence's existing clip-oriented arrangement model.
+Preserve Bluestone's existing clip-oriented arrangement model.
 
 Conceptually:
 
@@ -362,7 +362,7 @@ Splitting MIDI content by channel should be a workflow option, not a destructive
 
 ## Decision: Unified Device Chains
 
-Cadence will use Bitwig-inspired unified device chains.
+Bluestone will use Bitwig-inspired unified device chains.
 
 Example:
 
@@ -535,7 +535,7 @@ Do not assume arbitrary VST plugins understand all MIDI messages.
 
 ## Host Adapters
 
-Host adapters are responsible for converting between Cadence's internal signal representation and the interfaces exposed by plugins.
+Host adapters are responsible for converting between Bluestone's internal signal representation and the interfaces exposed by plugins.
 
 For example, a VST3 plugin may understand note events without supporting arbitrary MIDI SysEx messages.
 
@@ -669,7 +669,7 @@ Avoid arbitrary UI-thread modifications of audio-thread plugin state.
 
 ## Decision: Unified Routing Model
 
-Cadence must support:
+Bluestone must support:
 
 - Track-to-track MIDI routing.
 - Track-to-instrument routing.
@@ -831,7 +831,7 @@ Device-level initialization and part-level configuration should be distinguishab
 
 # 12. MIDI Event Representation
 
-Cadence must continue to support:
+Bluestone must continue to support:
 
 - MIDI 1.0.
 - Future MIDI 2.0.
@@ -953,13 +953,13 @@ External hardware references must be resolvable across machines.
 
 ## Decision: Plugins Run Out of Process by Default
 
-**Cadence must not load third-party plugins directly into the main application process by default.**
+**Bluestone must not load third-party plugins directly into the main application process by default.**
 
 Third-party plugin hosting should use separate sandbox/worker processes.
 
 The primary motivation is:
 
-**A crashing plugin must not crash Cadence.**
+**A crashing plugin must not crash Bluestone.**
 
 This requirement applies particularly to VST3 instruments and audio effects.
 
@@ -971,7 +971,7 @@ Conceptually:
 
 ```text
 ┌───────────────────────────────────────────────┐
-│               CADENCE HOST                    │
+│               BLUESTONE HOST                  │
 │                                               │
 │  UI / Arrangement / Routing / Automation      │
 │                                               │
@@ -994,7 +994,7 @@ Conceptually:
 └──────────┘   └──────────┘   └──────────┘
 ```
 
-These workers execute outside the main Cadence process.
+These workers execute outside the main Bluestone process.
 
 A failure in one worker must not automatically terminate other workers or the main host.
 
@@ -1031,7 +1031,7 @@ A plugin worker should own:
 - Plugin cleanup.
 - Plugin crash containment.
 
-The main Cadence process should own:
+The main Bluestone process should own:
 
 - Project state.
 - Arrangement.
@@ -1118,7 +1118,7 @@ If a plugin process crashes:
 
 1. Detect the failed worker.
 2. Mark affected plugin instances as unavailable.
-3. Keep the Cadence application running.
+3. Keep the Bluestone application running.
 4. Prevent invalid or stale shared-memory access.
 5. Apply a defined output-failure policy.
 6. Notify the user.
@@ -1139,11 +1139,11 @@ Avoid uncontrolled restart loops for repeatedly crashing plugins.
 
 ## 15.7 Plugin State Persistence
 
-Plugin state belongs to the Cadence project model as persisted configuration data.
+Plugin state belongs to the Bluestone project model as persisted configuration data.
 
 The plugin worker maintains the active runtime instance.
 
-Cadence must be able to:
+Bluestone must be able to:
 
 - Request plugin state snapshots.
 - Persist plugin state.
@@ -1180,7 +1180,7 @@ Document unsupported configurations.
 
 Plugin discovery should also be isolated from the main process.
 
-A malformed or crashing plugin must not terminate Cadence during scanning.
+A malformed or crashing plugin must not terminate Bluestone during scanning.
 
 Support:
 
@@ -1214,9 +1214,9 @@ Document the security limitations clearly.
 
 ## Decision: C#/.NET Is the Primary Language
 
-Cadence is fundamentally a .NET application.
+Bluestone is fundamentally a .NET application.
 
-**C# is the default language for all new Cadence development.**
+**C# is the default language for all new Bluestone development.**
 
 Use C# for:
 
@@ -1243,7 +1243,7 @@ Use profiling, benchmarking, and realistic performance targets.
 
 ## 16.1 Rust for Critical Native Components
 
-When native code is genuinely justified, prefer Rust over C or C++ for new Cadence-owned implementations.
+When native code is genuinely justified, prefer Rust over C or C++ for new Bluestone-owned implementations.
 
 Possible uses include:
 
@@ -1261,7 +1261,7 @@ Prefer a small, cohesive native layer over a large parallel Rust application arc
 
 ## 16.2 C/C++ Policy
 
-Avoid writing new Cadence-owned C/C++ code unless required by concrete constraints.
+Avoid writing new Bluestone-owned C/C++ code unless required by concrete constraints.
 
 C/C++ remains acceptable for:
 
@@ -1392,7 +1392,7 @@ Existing MIDI playback must remain functional throughout the transition.
 
 # 18. User Experience
 
-Cadence should feel like a modern DAW without hiding its advanced MIDI capabilities.
+Bluestone should feel like a modern DAW without hiding its advanced MIDI capabilities.
 
 ## Track Creation
 
@@ -1508,7 +1508,7 @@ Invalid signal connections and feedback cycles are detected.
 
 A plugin worker crashes.
 
-Cadence remains running.
+Bluestone remains running.
 
 The project state survives.
 
@@ -1520,7 +1520,7 @@ The user can restart or reload the affected plugins.
 
 A plugin worker is restarted.
 
-Cadence restores the plugin using previously persisted state.
+Bluestone restores the plugin using previously persisted state.
 
 Automation references remain valid.
 
@@ -1544,7 +1544,7 @@ Routing changes are validated.
 
 A malformed plugin crashes during discovery.
 
-The scanner worker fails, but Cadence remains operational.
+The scanner worker fails, but Bluestone remains operational.
 
 The failure is reported and can be avoided on subsequent scans.
 
@@ -1789,7 +1789,7 @@ Prefer isolated domain tests where possible.
 
 Use integration tests for routing, playback, and plugin hosting.
 
-For plugin crash tests, deliberately terminate a test worker process and verify that Cadence survives.
+For plugin crash tests, deliberately terminate a test worker process and verify that Bluestone survives.
 
 Do not rely exclusively on mocked crash notifications.
 
@@ -1889,7 +1889,7 @@ Do not create large speculative frameworks that provide no immediate value.
 
 This epic is complete when:
 
-1. Cadence has a coherent DAW-oriented track architecture.
+1. Bluestone has a coherent DAW-oriented track architecture.
 2. Tracks support flexible roles.
 3. Device chains are first-class entities.
 4. Device chains can be reordered and persisted.
@@ -1902,7 +1902,7 @@ This epic is complete when:
 11. Existing MIDI sequencing remains functional.
 12. Existing project data is preserved through supported migrations.
 13. A concrete out-of-process plugin-hosting foundation exists.
-14. Worker crashes cannot directly terminate the Cadence main process.
+14. Worker crashes cannot directly terminate the Bluestone main process.
 15. Plugin recovery behavior is implemented and tested to the scope delivered.
 16. The implementation contains meaningful automated tests.
 17. Documentation and ADRs reflect the resulting architecture.
@@ -1934,7 +1934,7 @@ Do not sacrifice existing MIDI compatibility.
 
 Do not introduce Rust without a concrete technical justification.
 
-Do not load third-party plugins into the main Cadence process by default.
+Do not load third-party plugins into the main Bluestone process by default.
 
 Do not assume process isolation provides a complete security boundary.
 
@@ -1956,7 +1956,7 @@ When finished, report:
 
 # 27. Long-Term Architectural Vision
 
-Cadence should combine:
+Bluestone should combine:
 
 - The MIDI sequencing depth of Yamaha XGworks.
 - The hardware compatibility of a dedicated MIDI workstation.
@@ -1994,4 +1994,4 @@ The goal is to develop a cohesive DAW architecture that makes sophisticated MIDI
 
 Above all:
 
-**Cadence should remain understandable, maintainable, reliable, and enjoyable to develop.**
+**Bluestone should remain understandable, maintainable, reliable, and enjoyable to develop.**

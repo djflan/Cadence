@@ -1,19 +1,19 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
 
-namespace Cadence.Platform.CoreMidi;
+namespace Bluestone.Platform.CoreMidi;
 
 /// <summary>
 /// Endpoints from macOS CoreMIDI: hardware ports, the IAC bus, network sessions, other apps' virtual
-/// ports, and virtual ports Cadence publishes itself. Endpoint IDs are CoreMIDI unique IDs.
+/// ports, and virtual ports Bluestone publishes itself. Endpoint IDs are CoreMIDI unique IDs.
 /// </summary>
 /// <remarks>
 /// CoreMIDI delivers setup notifications on the run loop current when the process first created a
 /// client, so every client is created on <see cref="CoreMidiRunLoop"/>, which never exits. Outputs to destinations pass timestamps to
-/// <c>MIDISend</c>, which CoreMIDI schedules. Virtual ports published by Cadence deliver immediately.
+/// <c>MIDISend</c>, which CoreMIDI schedules. Virtual ports published by Bluestone deliver immediately.
 /// </remarks>
 [SupportedOSPlatform("macos")]
 public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
@@ -31,7 +31,7 @@ public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
     private volatile bool _disposed;
 
     /// <exception cref="EndpointUnavailableException">CoreMIDI could not create a client (for example, the MIDI server is unreachable).</exception>
-    public CoreMidiProvider(IMonotonicClock clock, string clientName = "Cadence")
+    public CoreMidiProvider(IMonotonicClock clock, string clientName = "Bluestone")
     {
         Clock = clock ?? throw new ArgumentNullException(nameof(clock));
         HostTime = new HostTime(clock);
@@ -48,7 +48,7 @@ public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
 
     public string DisplayName => "CoreMIDI";
 
-    public string TimingDescription => "CoreMIDI: hardware and IAC destinations receive timestamped messages scheduled by the system; Cadence's own virtual ports send immediately.";
+    public string TimingDescription => "CoreMIDI: hardware and IAC destinations receive timestamped messages scheduled by the system; Bluestone's own virtual ports send immediately.";
 
     public IMonotonicClock Clock { get; }
 
@@ -61,7 +61,7 @@ public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
     public event EventHandler? EndpointsChanged;
 
     /// <summary>
-    /// Publishes a virtual MIDI port that other applications see as a source. Cadence lists it as an
+    /// Publishes a virtual MIDI port that other applications see as a source. Bluestone lists it as an
     /// output; anything sent to it is delivered to those applications.
     /// </summary>
     public EndpointId CreateVirtualOutput(string name)
@@ -108,7 +108,7 @@ public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
             var ownSources = _virtualSources.Values.ToHashSet();
             foreach (var (name, _) in _virtualSources.OrderBy(v => v.Key, StringComparer.Ordinal))
             {
-                result.Add(new EndpointDescriptor(VirtualId(name), name, EndpointDirection.Output, EndpointTransport.Virtual, EndpointCapabilities.SystemExclusive, "Cadence"));
+                result.Add(new EndpointDescriptor(VirtualId(name), name, EndpointDirection.Output, EndpointTransport.Virtual, EndpointCapabilities.SystemExclusive, "Bluestone"));
             }
 
             var destinations = Native.MIDIGetNumberOfDestinations();
@@ -234,7 +234,7 @@ public sealed unsafe class CoreMidiProvider : IMidiEndpointProvider
     {
         // FNV-1a over the name: stable across launches, unlikely to collide with hardware IDs.
         var hash = 2166136261u;
-        foreach (var c in "cadence:" + name)
+        foreach (var c in "bluestone:" + name)
         {
             hash = (hash ^ c) * 16777619u;
         }

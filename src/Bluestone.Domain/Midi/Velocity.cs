@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A 7-bit note velocity (0-127). On the wire a note-on with velocity 0 means note-off,

@@ -1,12 +1,12 @@
 # Plugin hosting
 
-Cadence hosts plugins **out of process**. A plugin never runs inside the Cadence process: it runs in a separate
-worker process, `Cadence.PluginWorker`, supervised by the main process. If a worker crashes, hangs, or misbehaves,
-Cadence keeps running, the affected instances report a status, their audio output becomes exact silence, and the
+Bluestone hosts plugins **out of process**. A plugin never runs inside the Bluestone process: it runs in a separate
+worker process, `Bluestone.PluginWorker`, supervised by the main process. If a worker crashes, hangs, or misbehaves,
+Bluestone keeps running, the affected instances report a status, their audio output becomes exact silence, and the
 user can restart them without closing the project.
 
-**Scope today.** The worker hosts only Cadence's built-in **reference plugins** (`reference.gain`,
-`reference.sine`, `reference.transpose`). It does not load any third-party plugin binary and Cadence does not
+**Scope today.** The worker hosts only Bluestone's built-in **reference plugins** (`reference.gain`,
+`reference.sine`, `reference.transpose`). It does not load any third-party plugin binary and Bluestone does not
 support any third-party plugin format yet. Real VST3 loading is deferred (see [Deferred](#deferred)); nothing in
 this package should be read as VST3 support.
 
@@ -20,31 +20,31 @@ binary is loaded, and the data plane has not been measured to need it.
 
 | Project | Runs in | References | Role |
 | ------- | ------- | ---------- | ---- |
-| `Cadence.Plugins.Protocol` | both | BCL only | Control-plane frames and messages, the handshake, the memory-mapped block exchange |
-| `Cadence.Plugins` | Cadence | Protocol | Worker launching and supervision, instance lifecycle and recovery, the real-time processing API, scanning |
-| `Cadence.PluginWorker` | worker process | Protocol | Instance-host mode and scan mode; the reference plugins |
+| `Bluestone.Plugins.Protocol` | both | BCL only | Control-plane frames and messages, the handshake, the memory-mapped block exchange |
+| `Bluestone.Plugins` | Bluestone | Protocol | Worker launching and supervision, instance lifecycle and recovery, the real-time processing API, scanning |
+| `Bluestone.PluginWorker` | worker process | Protocol | Instance-host mode and scan mode; the reference plugins |
 
-`Cadence.Plugins` does not reference `Cadence.PluginWorker`, so the plugin code cannot even be loaded into the
+`Bluestone.Plugins` does not reference `Bluestone.PluginWorker`, so the plugin code cannot even be loaded into the
 host (`DependencyDirectionTests.Plugins_DoesNotReferenceTheWorker_SoNoPluginCanRunInTheHostProcess`).
 
 ## Process model
 
 ```text
-Cadence process                                     Worker process (one per instance by default)
+Bluestone process                                     Worker process (one per instance by default)
 ---------------                                     ---------------------------------------------
-PluginHostManager                                   Cadence.PluginWorker --mode host --pipe NAME
+PluginHostManager                                   Bluestone.PluginWorker --mode host --pipe NAME
   WorkerProcess  --- named pipe (control plane) ---  InstanceHostSession (one request at a time)
   PluginInstance --- mapped file (data plane)   ---  HostedInstance (one processing thread each)
                                                        IHostedPlugin (reference plugins only)
-PluginScanner                                       Cadence.PluginWorker --mode scan --pipe NAME
+PluginScanner                                       Bluestone.PluginWorker --mode scan --pipe NAME
   one scanner process per module file               ModuleScanner (reads one manifest, then exits)
 ```
 
 Launching a worker:
 
 1. The host creates a named-pipe server with a random name and `PipeOptions.CurrentUserOnly`.
-2. It starts the worker directly, never through a shell: the `Cadence.PluginWorker` app host beside
-   `Cadence.Plugins.dll`, else `dotnet Cadence.PluginWorker.dll`. Standard input, output, and error are redirected;
+2. It starts the worker directly, never through a shell: the `Bluestone.PluginWorker` app host beside
+   `Bluestone.Plugins.dll`, else `dotnet Bluestone.PluginWorker.dll`. Standard input, output, and error are redirected;
    output and error are drained continuously into a short ring of recent lines used in diagnostics.
 3. A random per-launch token is written to the worker's standard input (not the command line, which other users
    can read).
@@ -90,7 +90,7 @@ identity (`PluginInstanceId`, a GUID that stays the same across restarts) are di
 ### The block exchange (data plane)
 
 Each instance has one file, created by the worker in the host's data directory and named
-`<instance id>-g<generation>.cadence-exchange`. Named shared memory is Windows-only in .NET, so the mapping is
+`<instance id>-g<generation>.bluestone-exchange`. Named shared memory is Windows-only in .NET, so the mapping is
 file-backed on every platform. The layout (`ExchangeLayout`):
 
 - **Header**: magic, layout version, **generation**, slot count (at least 2), max frames, channel counts, event and
@@ -262,7 +262,7 @@ closed.
   values exist (`PluginCrashRecoveryTests.CaptureState_FromACrashedInstance_IsRefused_AndTheLastSnapshotIsKept`).
 - State the plugin rejects (corrupt, unknown version) is reported in `LastStateRestoreError` and the instance runs
   with default parameters (`PluginCrashRecoveryTests.CorruptState_IsReported_AndTheInstanceRunsWithDefaults`).
-  The reference plugins' state is a versioned list of parameter values (format `cadence.reference-state`).
+  The reference plugins' state is a versioned list of parameter values (format `bluestone.reference-state`).
 
 ## Isolation policies
 
@@ -276,11 +276,11 @@ closed.
 ## Scanning and quarantine
 
 `PluginScanner` launches **one scanner process per module file**, with a hard timeout (`ScanTimeout`) covering
-launch, handshake, and the scan. Nothing about a module is read in the Cadence process. Each file yields its plugin
+launch, handshake, and the scan. Nothing about a module is read in the Bluestone process. Each file yields its plugin
 descriptors or a `ScanFailure`: `Crashed`, `TimedOut`, `Malformed`, or `ProtocolError`. Scanning never throws
 because of a bad module.
 
-- **Modules**: in scan mode, a file ending `.cadence-reference-plugin` is a module, a small JSON manifest listing
+- **Modules**: in scan mode, a file ending `.bluestone-reference-plugin` is a module, a small JSON manifest listing
   plugins. Every other file is `Malformed`. The scanner never loads a file as code.
 - **Cache**: `scan-cache.json`, keyed by path plus file size and last-write time, written atomically (temporary
   file, then rename). A changed fingerprint triggers a rescan. An unreadable cache is treated as empty and
@@ -289,8 +289,8 @@ because of a bad module.
   later scans **without launching a scanner**, until `RescanAsync(path, ignoreQuarantine: true)` or
   `ClearQuarantine(path)`. Malformed files are ordinary failures: cached, not quarantined. A scanner that fails
   before it was given the module does not quarantine the module.
-- **Test hook**: a module whose first line is `#cadence-test: crash-scanner` makes the scanner call
-  `Environment.FailFast`, and `#cadence-test: hang-scanner` makes it hang. **The crash in the scanner tests is
+- **Test hook**: a module whose first line is `#bluestone-test: crash-scanner` makes the scanner call
+  `Environment.FailFast`, and `#bluestone-test: hang-scanner` makes it hang. **The crash in the scanner tests is
   induced by this marker, not by a native binary.**
 
 Tested by `PluginScannerProcessTests` (crash, quarantine, skip without launch, rescan, malformed, good module beside
@@ -303,7 +303,7 @@ All failure behaviours are test-only and explicit:
 - `InduceTestFault` messages (sent by the internal `PluginInstance.InduceTestFaultAsync`): `FailFast`
   (`Environment.FailFast`), `Hang` (the worker stops answering on both planes), `GarbageFrames` (invalid bytes on the
   control pipe).
-- `CADENCE_PLUGINWORKER_TEST_CRASH_AT_STARTUP=1` in the worker's environment (set only through the internal
+- `BLUESTONE_PLUGINWORKER_TEST_CRASH_AT_STARTUP=1` in the worker's environment (set only through the internal
   `PluginHostOptions.WorkerEnvironment`) makes the worker kill itself before connecting. An environment variable
   is used because no message can reach a worker before its connection exists. It kills itself rather than calling
   `FailFast` so the repeated restarts in that test do not fill the operating system's crash-report folder.
@@ -316,10 +316,10 @@ No crash notification is mocked.
 
 Process isolation here is **crash isolation, not a security boundary**:
 
-- A worker runs as the same user, with the same operating-system permissions as Cadence.
-- There is no filesystem, network, or inter-process sandboxing. A plugin can read and write anything Cadence can.
+- A worker runs as the same user, with the same operating-system permissions as Bluestone.
+- There is no filesystem, network, or inter-process sandboxing. A plugin can read and write anything Bluestone can.
 - The pipe is restricted to the current user and the per-launch token only proves that the connecting process is
-  the one Cadence launched; neither protects against code already running as the user.
+  the one Bluestone launched; neither protects against code already running as the user.
 
 Operating-system sandboxing (App Sandbox, seccomp, AppContainer, and so on) is deferred.
 
@@ -340,7 +340,7 @@ Operating-system sandboxing (App Sandbox, seccomp, AppContainer, and so on) is d
 
 ## The application bridge
 
-`Cadence.Application/Plugins/PluginDeviceHost` connects the project to the workers; the project stays the
+`Bluestone.Application/Plugins/PluginDeviceHost` connects the project to the workers; the project stays the
 authority (ADR 0025):
 
 - A plugin device in a chain has a definition ID `plugin:<format>:<module>/<plugin>`. Each available plugin is
@@ -353,7 +353,7 @@ authority (ADR 0025):
   state stays.
 - `StatusOf(device)` turns the instance status into the device strip's words ("Running", "Crashed",
   "Not responding", "Stopped after repeated crashes"), and `RestartAsync` restarts from the last captured state.
-- The desktop app scans `<application data>/Cadence/plugins` at start, one scanner process per module.
+- The desktop app scans `<application data>/Bluestone/plugins` at start, one scanner process per module.
 
 Tests: `PluginDeviceHostTests` (scenarios 11 to 13 through the project: save, reopen, kill, restart, automation still
 valid; one of two workers killed; a missing plugin; removing a device stops its worker) and
@@ -385,13 +385,13 @@ unchanged with a reason, and a restart brings the transposition back.
 
 | # | Scenario | Tests (real worker processes) |
 | - | -------- | ----------------------------- |
-| 11 | A worker crashes; Cadence keeps running, the project survives, the device shows as unavailable, and can be restarted | `PluginCrashRecoveryTests.KillingTheWorkerMidStream_*`, `PluginDeviceHostTests.Scenarios11And13_*`, `PluginDeviceStripTests` |
+| 11 | A worker crashes; Bluestone keeps running, the project survives, the device shows as unavailable, and can be restarted | `PluginCrashRecoveryTests.KillingTheWorkerMidStream_*`, `PluginDeviceHostTests.Scenarios11And13_*`, `PluginDeviceStripTests` |
 | 12 | A restarted worker is restored from persisted state; automation references stay valid | `PluginDeviceHostTests.Scenario12_*`, `PluginCrashRecoveryTests.ASnapshot_RestoresIntoANewInstance` |
 | 13 | Several workers; one fails, the others keep working | `PluginCrashRecoveryTests.KillingOneOfSeveralWorkers_LeavesTheOthersProducingCorrectAudio`, `PluginDeviceHostTests.Scenarios11And13_*` |
-| 15 | A module crashes the scanner; Cadence carries on, reports it, and skips it next time | `PluginScannerProcessTests.ACrashingModule_IsQuarantined_SkippedNextTime_AndRetriedOnRequest_WhileOthersStillScan` |
+| 15 | A module crashes the scanner; Bluestone carries on, reports it, and skips it next time | `PluginScannerProcessTests.ACrashingModule_IsQuarantined_SkippedNextTime_AndRetriedOnRequest_WhileOthersStillScan` |
 
-These use the reference plugins in `Cadence.PluginWorker`, not third-party plugins: the crash, recovery, and
-isolation machinery is real, the plugins are Cadence's own.
+These use the reference plugins in `Bluestone.PluginWorker`, not third-party plugins: the crash, recovery, and
+isolation machinery is real, the plugins are Bluestone's own.
 
 ## Implemented and tested
 
@@ -412,7 +412,7 @@ isolation machinery is real, the plugins are Cadence's own.
 | In-process hosting refused; bypass rules | `PluginHostManagerTests` |
 | Scanning, cache, quarantine | `PluginScannerProcessTests`, `ScanCacheTests`, `ModuleScannerTests` |
 
-Unit tests are in `src/Cadence.Tests.Unit/Plugins/`; process tests are in `src/Cadence.Tests.Integration/Plugins/`
+Unit tests are in `src/Bluestone.Tests.Unit/Plugins/`; process tests are in `src/Bluestone.Tests.Integration/Plugins/`
 and run as one non-parallel collection. The integration project references the worker with
 `ReferenceOutputAssembly="false"` so the worker is built and copied beside the tests without being loaded.
 
@@ -431,5 +431,5 @@ and run as one non-parallel collection. The integration project references the w
 - **Audio from plugins into a mixer.** There is no audio engine: plugin instances process blocks when asked (as the
   tests do), but nothing drives them from playback yet. Plugin MIDI effects reach the plan by rendering (above); live
   input does not pass through plugins.
-- **Scanning from the UI.** The app scans `<application data>/Cadence/plugins` once at start; rescanning and
+- **Scanning from the UI.** The app scans `<application data>/Bluestone/plugins` once at start; rescanning and
   clearing quarantine are API calls (`PluginScanner.RescanAsync`) without a menu yet.

@@ -1,9 +1,9 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Midi.Wire;
-using Cadence.Signal;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Midi.Wire;
+using Bluestone.Signal;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>Encodes processed event streams into an immutable <see cref="PlaybackPlan"/>.</summary>
 /// <remarks>

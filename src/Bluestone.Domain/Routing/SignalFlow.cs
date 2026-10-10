@@ -1,8 +1,8 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>
 /// What may be present in a signal at one point of a chain, worked out from the devices before it. It is

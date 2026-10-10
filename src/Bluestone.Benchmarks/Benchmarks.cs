@@ -1,15 +1,15 @@
 using BenchmarkDotNet.Attributes;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Infrastructure.Projects;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Files;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
-using Cadence.Profiles;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Files;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
+using Bluestone.Profiles;
 
-namespace Cadence.Benchmarks;
+namespace Bluestone.Benchmarks;
 
 /// <summary>Preparing a plan from the project, which happens after every edit during playback.</summary>
 [MemoryDiagnoser]
@@ -120,7 +120,7 @@ public class FileBenchmarks
             root = Path.GetDirectoryName(root)!;
         }
 
-        _profile = File.ReadAllBytes(Path.Combine(root, "profiles", "general-midi.cadence-profile.json"));
+        _profile = File.ReadAllBytes(Path.Combine(root, "profiles", "general-midi.bluestone-profile.json"));
     }
 
     [Benchmark]

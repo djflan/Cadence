@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace Cadence.Desktop.Views;
+namespace Bluestone.Desktop.Views;
 
 /// <summary>The keyboard shortcut reference, shown from Help ▸ Keyboard Shortcuts.</summary>
 internal static class Shortcuts

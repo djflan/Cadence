@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Cadence.Platform.Windows;
+namespace Bluestone.Platform.Windows;
 
 /// <summary>Windows thread scheduling for time-critical threads.</summary>
 [SupportedOSPlatform("windows")]

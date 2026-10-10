@@ -1,8 +1,8 @@
-using Cadence.Domain.Midi;
-using Cadence.Midi.Files;
-using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Files;
+using static Bluestone.Tests.Unit.Midi.Files.SmfBytes;
 
-namespace Cadence.Tests.Unit.Midi.Files;
+namespace Bluestone.Tests.Unit.Midi.Files;
 
 public sealed class SmfReaderTests
 {

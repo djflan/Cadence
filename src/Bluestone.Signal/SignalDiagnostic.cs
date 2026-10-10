@@ -1,8 +1,8 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 public enum SignalDiagnosticCode
 {
@@ -18,7 +18,7 @@ public enum SignalDiagnosticCode
     /// <summary>A device's definition is not known on this machine. Its signal passes through it unchanged.</summary>
     DeviceUnavailable,
 
-    /// <summary>A device that changes events has no processor in Cadence's process (a plugin runs only in a worker), so its events pass through unchanged here.</summary>
+    /// <summary>A device that changes events has no processor in Bluestone's process (a plugin runs only in a worker), so its events pass through unchanged here.</summary>
     NotProcessedHere,
 
     /// <summary>Something a device reported, such as notes it dropped.</summary>

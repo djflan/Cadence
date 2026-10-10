@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>The piano roll's mouse tool.</summary>
 public enum EditTool

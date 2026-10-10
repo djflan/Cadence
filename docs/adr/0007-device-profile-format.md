@@ -5,13 +5,13 @@
 
 ## Context
 
-Cadence must support many instruments without recompiling, accept community contributions safely,
+Bluestone must support many instruments without recompiling, accept community contributions safely,
 and keep vendor knowledge out of the sequencing core and out of endpoint adapters.
 
 ## Decision
 
-- Profiles are human-reviewable JSON files (`*.cadence-profile.json`) with a `schemaVersion`. The
-  loader (`Cadence.Profiles`) contains no device content; shipped content lives in `/profiles`.
+- Profiles are human-reviewable JSON files (`*.bluestone-profile.json`) with a `schemaVersion`. The
+  loader (`Bluestone.Profiles`) contains no device content; shipped content lives in `/profiles`.
 - Loading is validating and non-throwing: every finding carries a JSON path; any error rejects the
   profile; warnings do not. Unknown properties warn, so newer files degrade gracefully, and custom
   data belongs in namespaced `extensions`, which round-trip.
@@ -21,7 +21,7 @@ and keep vendor knowledge out of the sequencing core and out of endpoint adapter
 - Every profile must carry provenance with confirmed redistribution rights and an honest
   verification level. Resets and bulk messages are marked so the UI confirms before sending.
 - Program numbers in JSON are one-based, matching printed voice lists; the model stores wire values.
-- `Cadence.Profiles` depends on `Cadence.Domain` only; the domain never references profiles.
+- `Bluestone.Profiles` depends on `Bluestone.Domain` only; the domain never references profiles.
 
 ## Consequences
 

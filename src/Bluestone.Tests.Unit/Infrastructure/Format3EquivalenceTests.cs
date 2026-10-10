@@ -1,11 +1,11 @@
-using Cadence.Application.Routing;
-using Cadence.Infrastructure.Projects;
-using Cadence.Midi.Endpoints;
-using Cadence.Profiles;
-using Cadence.Signal;
-using static Cadence.Tests.Unit.Playback.PlanDump;
+using Bluestone.Application.Routing;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Profiles;
+using Bluestone.Signal;
+using static Bluestone.Tests.Unit.Playback.PlanDump;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 /// <summary>
 /// Holds projects saved in format 3 to the MIDI 1.0 bytes the pre-refactor pipeline sent for them
@@ -20,8 +20,8 @@ public sealed class Format3EquivalenceTests
 {
     public static TheoryData<string, string, string, int, int> Fixtures() => new()
     {
-        { "format3-routing-full.cadence", "2F73C9A155441A5E", "BAD8DAA4476B28E9", 3, 158 },
-        { "format3-canon.cadence", "1B5E6E6E27359652", "6F9AA00B419CABFC", 3, 1407 },
+        { "format3-routing-full.bluestone", "2F73C9A155441A5E", "BAD8DAA4476B28E9", 3, 158 },
+        { "format3-canon.bluestone", "1B5E6E6E27359652", "6F9AA00B419CABFC", 3, 1407 },
     };
 
     internal static IReadOnlyList<EndpointDescriptor> Endpoints { get; } =
@@ -55,7 +55,7 @@ public sealed class Format3EquivalenceTests
     [Fact]
     public void RoutingFull_ReportsWhatItLeftOut()
     {
-        var project = ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", "format3-routing-full.cadence"))).Project;
+        var project = ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", "format3-routing-full.bluestone"))).Project;
 
         var plan = PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, Profiles, Endpoints).Compile(project.Sequence);
 

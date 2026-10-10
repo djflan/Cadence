@@ -1,4 +1,4 @@
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 /// <summary>A unique scratch directory under the test binaries, removed on dispose.</summary>
 internal sealed class TestDirectory : IDisposable

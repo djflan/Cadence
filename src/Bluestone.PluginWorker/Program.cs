@@ -1,10 +1,10 @@
 using System.IO.Pipes;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
-/// Entry point. Usage: <c>Cadence.PluginWorker --mode host|scan --pipe NAME</c>, with the per-launch token as the
+/// Entry point. Usage: <c>Bluestone.PluginWorker --mode host|scan --pipe NAME</c>, with the per-launch token as the
 /// first line on standard input (not on the command line, where other users could read it). The worker connects to
 /// the host's pipe, completes the Hello handshake, and serves until Shutdown or until the pipe closes.
 /// </summary>
@@ -22,7 +22,7 @@ internal static class Program
         WorkerFaults.CrashAtStartupIfRequested();
         if (!TryParse(args, out var mode, out var pipeName))
         {
-            await Console.Error.WriteLineAsync("Usage: Cadence.PluginWorker --mode host|scan --pipe NAME (token on standard input)").ConfigureAwait(false);
+            await Console.Error.WriteLineAsync("Usage: Bluestone.PluginWorker --mode host|scan --pipe NAME (token on standard input)").ConfigureAwait(false);
             return ExitUsage;
         }
 

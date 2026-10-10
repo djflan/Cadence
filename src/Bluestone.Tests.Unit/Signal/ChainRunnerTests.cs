@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Signal;
-using static Cadence.Tests.Unit.Signal.SignalFixture;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Signal;
+using static Bluestone.Tests.Unit.Signal.SignalFixture;
 
-namespace Cadence.Tests.Unit.Signal;
+namespace Bluestone.Tests.Unit.Signal;
 
 public sealed class ChainRunnerTests
 {

@@ -1,4 +1,4 @@
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 public enum ProfileDiagnosticSeverity
 {

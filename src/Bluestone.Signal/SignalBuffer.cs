@@ -1,4 +1,4 @@
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>
 /// A reusable, growable list of <see cref="SignalEvent"/>s. It allocates only when it has to grow, so a

@@ -1,9 +1,9 @@
 using System.Buffers.Binary;
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>
 /// Shared behaviour of the reference plugins: parameter storage, versioned state, and sample-accurate processing.
@@ -12,9 +12,9 @@ namespace Cadence.PluginWorker.Plugins;
 /// </summary>
 internal abstract class ReferencePlugin : IHostedPlugin
 {
-    public const string Format = "cadence-reference";
-    public const string ModuleId = "cadence.reference";
-    public const string StateFormat = "cadence.reference-state";
+    public const string Format = "bluestone-reference";
+    public const string ModuleId = "bluestone.reference";
+    public const string StateFormat = "bluestone.reference-state";
     public const ushort StateVersion = 1;
 
     private static readonly byte[] StateMagic = "CRPS"u8.ToArray();
@@ -50,7 +50,7 @@ internal abstract class ReferencePlugin : IHostedPlugin
     protected int OutputChannels { get; private set; }
 
     public static PluginIdentity CreateIdentity(string pluginId, string displayName, PluginKind kind) =>
-        new(Format, ModuleId, pluginId, displayName, "Cadence", kind, "1.0.0");
+        new(Format, ModuleId, pluginId, displayName, "Bluestone", kind, "1.0.0");
 
     public void Prepare(double sampleRate, int maxFrames, int inputChannels, int outputChannels)
     {

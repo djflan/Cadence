@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>
 /// Drives a <see cref="PlaybackEngine"/> on a dedicated high-priority thread: pump, then wait until
@@ -28,7 +28,7 @@ public sealed class PlaybackThread : IDisposable
         _thread = new Thread(Run)
         {
             IsBackground = true,
-            Name = "Cadence playback",
+            Name = "Bluestone playback",
             Priority = ThreadPriority.Highest,
         };
         _thread.Start();

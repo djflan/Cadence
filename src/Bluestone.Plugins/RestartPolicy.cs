@@ -1,4 +1,4 @@
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 /// <summary>
 /// When to restart an instance after its worker fails. Automatic restart is off by default. When on, at most

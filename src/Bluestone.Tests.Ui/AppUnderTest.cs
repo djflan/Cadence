@@ -4,20 +4,20 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Desktop;
-using Cadence.Desktop.Services;
-using Cadence.Desktop.Views;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Presentation;
-using Cadence.Profiles;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Desktop;
+using Bluestone.Desktop.Services;
+using Bluestone.Desktop.Views;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Presentation;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Ui;
+namespace Bluestone.Tests.Ui;
 
 /// <summary>
-/// Cadence's own <see cref="App"/> (theme, styles, fonts) on Avalonia's headless platform, rendered with Skia so frames
+/// Bluestone's own <see cref="App"/> (theme, styles, fonts) on Avalonia's headless platform, rendered with Skia so frames
 /// can be captured. Every test runs on the one Avalonia UI thread through <see cref="RunAsync"/>.
 /// </summary>
 public static class HeadlessApp

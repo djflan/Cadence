@@ -1,78 +1,78 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!--
-    Cadence design system, layered on Fluent: neutral charcoal surfaces divided by hairlines (no
+    Bluestone design system, layered on Fluent: neutral charcoal surfaces divided by hairlines (no
     floating cards), compact controls, a monochrome 16-unit icon set, and colour reserved for
     meaning (track colours, record, cycle, mute and solo).
   -->
   <Styles.Resources>
-    <Color x:Key="Cadence.BaseColor">#1C1C1E</Color>
-    <Color x:Key="Cadence.PanelColor">#252527</Color>
-    <Color x:Key="Cadence.RaisedColor">#2E2E31</Color>
-    <Color x:Key="Cadence.HoverColor">#38383C</Color>
-    <Color x:Key="Cadence.PressedColor">#434348</Color>
-    <Color x:Key="Cadence.DividerColor">#111113</Color>
-    <Color x:Key="Cadence.BorderColor">#3A3A3E</Color>
-    <Color x:Key="Cadence.BorderStrongColor">#4A4A50</Color>
-    <Color x:Key="Cadence.TextColor">#D9D9DC</Color>
-    <Color x:Key="Cadence.TextSecondaryColor">#A1A1A7</Color>
-    <Color x:Key="Cadence.TextMutedColor">#6E6E75</Color>
-    <Color x:Key="Cadence.AccentColor">#4C8DDB</Color>
-    <Color x:Key="Cadence.AccentHoverColor">#6AA2E4</Color>
-    <Color x:Key="Cadence.OnAccentColor">#FFFFFF</Color>
-    <Color x:Key="Cadence.DangerColor">#E5484D</Color>
-    <Color x:Key="Cadence.WarningColor">#E0A43A</Color>
-    <Color x:Key="Cadence.SuccessColor">#4CB873</Color>
-    <Color x:Key="Cadence.CycleColor">#C9A227</Color>
-    <Color x:Key="Cadence.MuteColor">#4C8DDB</Color>
-    <Color x:Key="Cadence.SoloColor">#E3C345</Color>
-    <Color x:Key="Cadence.LcdColor">#141416</Color>
-    <Color x:Key="Cadence.LcdTextColor">#ECEDEF</Color>
-    <Color x:Key="Cadence.LcdLabelColor">#74767D</Color>
+    <Color x:Key="Bluestone.BaseColor">#1C1C1E</Color>
+    <Color x:Key="Bluestone.PanelColor">#252527</Color>
+    <Color x:Key="Bluestone.RaisedColor">#2E2E31</Color>
+    <Color x:Key="Bluestone.HoverColor">#38383C</Color>
+    <Color x:Key="Bluestone.PressedColor">#434348</Color>
+    <Color x:Key="Bluestone.DividerColor">#111113</Color>
+    <Color x:Key="Bluestone.BorderColor">#3A3A3E</Color>
+    <Color x:Key="Bluestone.BorderStrongColor">#4A4A50</Color>
+    <Color x:Key="Bluestone.TextColor">#D9D9DC</Color>
+    <Color x:Key="Bluestone.TextSecondaryColor">#A1A1A7</Color>
+    <Color x:Key="Bluestone.TextMutedColor">#6E6E75</Color>
+    <Color x:Key="Bluestone.AccentColor">#4C8DDB</Color>
+    <Color x:Key="Bluestone.AccentHoverColor">#6AA2E4</Color>
+    <Color x:Key="Bluestone.OnAccentColor">#FFFFFF</Color>
+    <Color x:Key="Bluestone.DangerColor">#E5484D</Color>
+    <Color x:Key="Bluestone.WarningColor">#E0A43A</Color>
+    <Color x:Key="Bluestone.SuccessColor">#4CB873</Color>
+    <Color x:Key="Bluestone.CycleColor">#C9A227</Color>
+    <Color x:Key="Bluestone.MuteColor">#4C8DDB</Color>
+    <Color x:Key="Bluestone.SoloColor">#E3C345</Color>
+    <Color x:Key="Bluestone.LcdColor">#141416</Color>
+    <Color x:Key="Bluestone.LcdTextColor">#ECEDEF</Color>
+    <Color x:Key="Bluestone.LcdLabelColor">#74767D</Color>
 
-    <SolidColorBrush x:Key="Cadence.Base" Color="{StaticResource Cadence.BaseColor}" />
-    <SolidColorBrush x:Key="Cadence.Panel" Color="{StaticResource Cadence.PanelColor}" />
-    <SolidColorBrush x:Key="Cadence.Raised" Color="{StaticResource Cadence.RaisedColor}" />
-    <SolidColorBrush x:Key="Cadence.Hover" Color="{StaticResource Cadence.HoverColor}" />
-    <SolidColorBrush x:Key="Cadence.Pressed" Color="{StaticResource Cadence.PressedColor}" />
-    <SolidColorBrush x:Key="Cadence.Divider" Color="{StaticResource Cadence.DividerColor}" />
+    <SolidColorBrush x:Key="Bluestone.Base" Color="{StaticResource Bluestone.BaseColor}" />
+    <SolidColorBrush x:Key="Bluestone.Panel" Color="{StaticResource Bluestone.PanelColor}" />
+    <SolidColorBrush x:Key="Bluestone.Raised" Color="{StaticResource Bluestone.RaisedColor}" />
+    <SolidColorBrush x:Key="Bluestone.Hover" Color="{StaticResource Bluestone.HoverColor}" />
+    <SolidColorBrush x:Key="Bluestone.Pressed" Color="{StaticResource Bluestone.PressedColor}" />
+    <SolidColorBrush x:Key="Bluestone.Divider" Color="{StaticResource Bluestone.DividerColor}" />
     <!-- Matches Palette.AutomationLane, the background of automation lanes in the arrangement. -->
-    <SolidColorBrush x:Key="Cadence.AutomationLane" Color="#1D1D1F" />
-    <SolidColorBrush x:Key="Cadence.Border" Color="{StaticResource Cadence.BorderColor}" />
-    <SolidColorBrush x:Key="Cadence.BorderStrong" Color="{StaticResource Cadence.BorderStrongColor}" />
-    <SolidColorBrush x:Key="Cadence.Text" Color="{StaticResource Cadence.TextColor}" />
-    <SolidColorBrush x:Key="Cadence.TextSecondary" Color="{StaticResource Cadence.TextSecondaryColor}" />
-    <SolidColorBrush x:Key="Cadence.TextMuted" Color="{StaticResource Cadence.TextMutedColor}" />
-    <SolidColorBrush x:Key="Cadence.Accent" Color="{StaticResource Cadence.AccentColor}" />
-    <SolidColorBrush x:Key="Cadence.AccentHover" Color="{StaticResource Cadence.AccentHoverColor}" />
-    <SolidColorBrush x:Key="Cadence.OnAccent" Color="{StaticResource Cadence.OnAccentColor}" />
-    <SolidColorBrush x:Key="Cadence.Danger" Color="{StaticResource Cadence.DangerColor}" />
-    <SolidColorBrush x:Key="Cadence.Warning" Color="{StaticResource Cadence.WarningColor}" />
-    <SolidColorBrush x:Key="Cadence.Success" Color="{StaticResource Cadence.SuccessColor}" />
-    <SolidColorBrush x:Key="Cadence.Cycle" Color="{StaticResource Cadence.CycleColor}" />
-    <SolidColorBrush x:Key="Cadence.Mute" Color="{StaticResource Cadence.MuteColor}" />
-    <SolidColorBrush x:Key="Cadence.Solo" Color="{StaticResource Cadence.SoloColor}" />
-    <SolidColorBrush x:Key="Cadence.Lcd" Color="{StaticResource Cadence.LcdColor}" />
-    <SolidColorBrush x:Key="Cadence.LcdText" Color="{StaticResource Cadence.LcdTextColor}" />
-    <SolidColorBrush x:Key="Cadence.LcdLabel" Color="{StaticResource Cadence.LcdLabelColor}" />
+    <SolidColorBrush x:Key="Bluestone.AutomationLane" Color="#1D1D1F" />
+    <SolidColorBrush x:Key="Bluestone.Border" Color="{StaticResource Bluestone.BorderColor}" />
+    <SolidColorBrush x:Key="Bluestone.BorderStrong" Color="{StaticResource Bluestone.BorderStrongColor}" />
+    <SolidColorBrush x:Key="Bluestone.Text" Color="{StaticResource Bluestone.TextColor}" />
+    <SolidColorBrush x:Key="Bluestone.TextSecondary" Color="{StaticResource Bluestone.TextSecondaryColor}" />
+    <SolidColorBrush x:Key="Bluestone.TextMuted" Color="{StaticResource Bluestone.TextMutedColor}" />
+    <SolidColorBrush x:Key="Bluestone.Accent" Color="{StaticResource Bluestone.AccentColor}" />
+    <SolidColorBrush x:Key="Bluestone.AccentHover" Color="{StaticResource Bluestone.AccentHoverColor}" />
+    <SolidColorBrush x:Key="Bluestone.OnAccent" Color="{StaticResource Bluestone.OnAccentColor}" />
+    <SolidColorBrush x:Key="Bluestone.Danger" Color="{StaticResource Bluestone.DangerColor}" />
+    <SolidColorBrush x:Key="Bluestone.Warning" Color="{StaticResource Bluestone.WarningColor}" />
+    <SolidColorBrush x:Key="Bluestone.Success" Color="{StaticResource Bluestone.SuccessColor}" />
+    <SolidColorBrush x:Key="Bluestone.Cycle" Color="{StaticResource Bluestone.CycleColor}" />
+    <SolidColorBrush x:Key="Bluestone.Mute" Color="{StaticResource Bluestone.MuteColor}" />
+    <SolidColorBrush x:Key="Bluestone.Solo" Color="{StaticResource Bluestone.SoloColor}" />
+    <SolidColorBrush x:Key="Bluestone.Lcd" Color="{StaticResource Bluestone.LcdColor}" />
+    <SolidColorBrush x:Key="Bluestone.LcdText" Color="{StaticResource Bluestone.LcdTextColor}" />
+    <SolidColorBrush x:Key="Bluestone.LcdLabel" Color="{StaticResource Bluestone.LcdLabelColor}" />
 
     <!-- The control bar and pane headers have a faint top-lit gradient, like hardware panels. -->
-    <LinearGradientBrush x:Key="Cadence.BarGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <LinearGradientBrush x:Key="Bluestone.BarGradient" StartPoint="0%,0%" EndPoint="0%,100%">
       <GradientStop Offset="0" Color="#323235" />
       <GradientStop Offset="1" Color="#2A2A2D" />
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Cadence.HeaderGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <LinearGradientBrush x:Key="Bluestone.HeaderGradient" StartPoint="0%,0%" EndPoint="0%,100%">
       <GradientStop Offset="0" Color="#2E2E31" />
       <GradientStop Offset="1" Color="#28282B" />
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Cadence.ButtonGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <LinearGradientBrush x:Key="Bluestone.ButtonGradient" StartPoint="0%,0%" EndPoint="0%,100%">
       <GradientStop Offset="0" Color="#3E3E42" />
       <GradientStop Offset="1" Color="#363639" />
     </LinearGradientBrush>
 
-    <FontFamily x:Key="Cadence.MonoFont">SF Mono, Menlo, Cascadia Mono, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace</FontFamily>
-    <CornerRadius x:Key="Cadence.PanelRadius">0</CornerRadius>
-    <CornerRadius x:Key="Cadence.ControlRadius">3</CornerRadius>
+    <FontFamily x:Key="Bluestone.MonoFont">SF Mono, Menlo, Cascadia Mono, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace</FontFamily>
+    <CornerRadius x:Key="Bluestone.PanelRadius">0</CornerRadius>
+    <CornerRadius x:Key="Bluestone.ControlRadius">3</CornerRadius>
 
     <!-- Fluent's own sizes and radii, so combo boxes, fields, steppers, and flyouts match. -->
     <CornerRadius x:Key="ControlCornerRadius">3</CornerRadius>
@@ -128,34 +128,34 @@
   </Styles.Resources>
 
   <Style Selector="Window">
-    <Setter Property="Background" Value="{StaticResource Cadence.Base}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Base}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
     <Setter Property="FontSize" Value="12" />
   </Style>
 
   <!-- Surfaces: panes are flush and separated by dark hairlines, not floating cards. -->
   <Style Selector="Border.pane">
-    <Setter Property="Background" Value="{StaticResource Cadence.Panel}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Panel}" />
   </Style>
   <Style Selector="Border.bar">
-    <Setter Property="Background" Value="{StaticResource Cadence.BarGradient}" />
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.Divider}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.BarGradient}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.Divider}" />
   </Style>
   <Style Selector="Border.header">
-    <Setter Property="Background" Value="{StaticResource Cadence.HeaderGradient}" />
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.Divider}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.HeaderGradient}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.Divider}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
   </Style>
   <Style Selector="Border.hairline">
-    <Setter Property="Background" Value="{StaticResource Cadence.Divider}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Divider}" />
   </Style>
   <Style Selector="Border.separator">
-    <Setter Property="Background" Value="{StaticResource Cadence.Border}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Border}" />
     <Setter Property="Width" Value="1" />
     <Setter Property="Margin" Value="6,4" />
   </Style>
   <Style Selector="GridSplitter.hairline">
-    <Setter Property="Background" Value="{StaticResource Cadence.Divider}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Divider}" />
     <Setter Property="MinWidth" Value="1" />
     <Setter Property="MinHeight" Value="1" />
   </Style>
@@ -169,17 +169,17 @@
     <Setter Property="FontSize" Value="10" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="LetterSpacing" Value="0.6" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextMuted}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextMuted}" />
   </Style>
   <Style Selector="TextBlock.secondary">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextSecondary}" />
   </Style>
   <Style Selector="TextBlock.muted">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextMuted}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextMuted}" />
     <Setter Property="FontSize" Value="11" />
   </Style>
   <Style Selector="TextBlock.label">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextSecondary}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
@@ -189,7 +189,7 @@
     <Setter Property="MinHeight" Value="24" />
     <Setter Property="FontSize" Value="12" />
     <Setter Property="Padding" Value="8,2,0,2" />
-    <Setter Property="Background" Value="{StaticResource Cadence.ButtonGradient}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.ButtonGradient}" />
     <Setter Property="BorderBrush" Value="#19191B" />
   </Style>
   <Style Selector="ComboBox.flat">
@@ -217,7 +217,7 @@
     <Setter Property="Padding" Value="4,0" />
     <Setter Property="Background" Value="#1A1A1D" />
     <Setter Property="BorderBrush" Value="#111113" />
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
   </Style>
   <Style Selector="NumericUpDown.compact /template/ TextBox">
     <Setter Property="MinHeight" Value="20" />
@@ -235,34 +235,34 @@
   <Style Selector="ToolTip">
     <Setter Property="FontSize" Value="11" />
     <Setter Property="Background" Value="#3A3A3E" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
     <Setter Property="BorderBrush" Value="#19191B" />
     <Setter Property="Padding" Value="7,4" />
   </Style>
 
   <!-- Buttons -->
   <Style Selector="Button, ToggleButton">
-    <Setter Property="CornerRadius" Value="{StaticResource Cadence.ControlRadius}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Bluestone.ControlRadius}" />
     <Setter Property="Padding" Value="9,3" />
     <Setter Property="FontSize" Value="12" />
     <Setter Property="MinHeight" Value="24" />
   </Style>
   <Style Selector="Button.raised">
-    <Setter Property="Background" Value="{StaticResource Cadence.ButtonGradient}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.ButtonGradient}" />
     <Setter Property="BorderBrush" Value="#19191B" />
     <Setter Property="BorderThickness" Value="1" />
   </Style>
   <Style Selector="Button.raised:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Pressed}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Pressed}" />
   </Style>
   <Style Selector="Button.ghost, DropDownButton.ghost">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextSecondary}" />
   </Style>
   <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Hover}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Hover}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
   </Style>
   <Style Selector="Button.link">
     <Setter Property="Background" Value="Transparent" />
@@ -270,7 +270,7 @@
     <Setter Property="Padding" Value="0,2" />
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="FontSize" Value="11" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.AccentHover}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.AccentHover}" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
   <Style Selector="Button.link:pointerover /template/ ContentPresenter">
@@ -278,13 +278,13 @@
     <Setter Property="Foreground" Value="#8CB8EC" />
   </Style>
   <Style Selector="Button.primary">
-    <Setter Property="Background" Value="{StaticResource Cadence.Accent}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.OnAccent}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Accent}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.OnAccent}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.AccentHover}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.OnAccent}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.AccentHover}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.OnAccent}" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="Transparent" />
@@ -304,18 +304,18 @@
     <Setter Property="Padding" Value="0" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextSecondary}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.tool:pointerover /template/ ContentPresenter, ToggleButton.tool:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Hover}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Hover}" />
   </Style>
   <Style Selector="Button.tool:pointerover, ToggleButton.tool:pointerover">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
   </Style>
   <Style Selector="Button.tool:pressed /template/ ContentPresenter, ToggleButton.tool:pressed /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Pressed}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Pressed}" />
   </Style>
   <Style Selector="ToggleButton.tool:checked /template/ ContentPresenter">
     <Setter Property="Background" Value="#24384F" />
@@ -345,7 +345,7 @@
     <Setter Property="Padding" Value="0" />
     <Setter Property="CornerRadius" Value="2" />
     <Setter Property="Margin" Value="0" />
-    <Setter Property="Background" Value="{StaticResource Cadence.ButtonGradient}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.ButtonGradient}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Foreground" Value="#C9C9CD" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -394,7 +394,7 @@
     <Setter Property="Foreground" Value="#6FD8F2" />
   </Style>
   <Style Selector="Border.keysReadout">
-    <Setter Property="Background" Value="{StaticResource Cadence.Lcd}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Lcd}" />
     <Setter Property="BorderBrush" Value="#2A5563" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="4" />
@@ -417,7 +417,7 @@
     <Setter Property="RenderTransform" Value="translateX(0px)" />
   </Style>
   <Style Selector="TextBlock.keysValue">
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
     <Setter Property="FontSize" Value="12" />
     <Setter Property="FontWeight" Value="Medium" />
     <Setter Property="Foreground" Value="#6FD8F2" />
@@ -444,31 +444,31 @@
 
   <!-- The LCD: a recessed display of position, time, tempo, and meter. -->
   <Style Selector="Border.lcd">
-    <Setter Property="Background" Value="{StaticResource Cadence.Lcd}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Lcd}" />
     <Setter Property="BorderBrush" Value="#0B0B0C" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="4" />
     <Setter Property="BoxShadow" Value="inset 0 1 3 0 #90000000" />
   </Style>
   <Style Selector="TextBlock.lcd">
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.LcdText}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.LcdText}" />
   </Style>
   <Style Selector="TextBlock.lcdLabel">
     <Setter Property="FontSize" Value="8.5" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="LetterSpacing" Value="0.8" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.LcdLabel}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.LcdLabel}" />
   </Style>
   <Style Selector="TextBox.lcd">
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
-    <Setter Property="Foreground" Value="{StaticResource Cadence.LcdText}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.LcdText}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="MinWidth" Value="0" />
-    <Setter Property="CaretBrush" Value="{StaticResource Cadence.LcdText}" />
+    <Setter Property="CaretBrush" Value="{StaticResource Bluestone.LcdText}" />
   </Style>
   <Style Selector="TextBox.lcd:pointerover /template/ Border#PART_BorderElement, TextBox.lcd:focus /template/ Border#PART_BorderElement">
     <Setter Property="Background" Value="#24242A" />
@@ -501,7 +501,7 @@
     <Setter Property="CornerRadius" Value="2" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="Background" Value="{StaticResource Cadence.ButtonGradient}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.ButtonGradient}" />
     <Setter Property="BorderBrush" Value="#19191B" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="#9A9AA0" />
@@ -510,13 +510,13 @@
     <Setter Property="Background" Value="#47474C" />
   </Style>
   <Style Selector="ToggleButton.trackButton.mute:checked /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Mute}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Mute}" />
   </Style>
   <Style Selector="ToggleButton.trackButton.mute:checked">
     <Setter Property="Foreground" Value="#FFFFFF" />
   </Style>
   <Style Selector="ToggleButton.trackButton.solo:checked /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Solo}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Solo}" />
   </Style>
   <Style Selector="ToggleButton.trackButton.solo:checked">
     <Setter Property="Foreground" Value="#2A2300" />
@@ -525,7 +525,7 @@
     <Setter Property="Foreground" Value="#A0585A" />
   </Style>
   <Style Selector="ToggleButton.trackButton.arm:checked /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Cadence.Danger}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Danger}" />
   </Style>
   <Style Selector="ToggleButton.trackButton.arm:checked">
     <Setter Property="Foreground" Value="#FFFFFF" />
@@ -535,7 +535,7 @@
   <Style Selector="Border.chip">
     <Setter Property="CornerRadius" Value="2" />
     <Setter Property="Padding" Value="5,1" />
-    <Setter Property="Background" Value="{StaticResource Cadence.Raised}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Raised}" />
   </Style>
 
   <!-- Lower pane tabs -->
@@ -547,20 +547,20 @@
         </Border>
       </ControlTemplate>
     </Setter>
-    <Setter Property="Foreground" Value="{StaticResource Cadence.TextSecondary}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.TextSecondary}" />
     <Setter Property="FontSize" Value="11.5" />
     <Setter Property="Height" Value="28" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
   <Style Selector="RadioButton.tab:pointerover">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
   </Style>
   <Style Selector="RadioButton.tab:checked /template/ Border#PART_Tab">
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.Accent}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.Accent}" />
     <Setter Property="Background" Value="#2A2B2F" />
   </Style>
   <Style Selector="RadioButton.tab:checked">
-    <Setter Property="Foreground" Value="{StaticResource Cadence.Text}" />
+    <Setter Property="Foreground" Value="{StaticResource Bluestone.Text}" />
   </Style>
   <Style Selector="RadioButton.tab:focus-visible /template/ Border#PART_Tab">
     <Setter Property="Background" Value="#33343A" />
@@ -579,8 +579,8 @@
     <Setter Property="MinHeight" Value="26" />
     <Setter Property="Padding" Value="8,0" />
     <Setter Property="CornerRadius" Value="0" />
-    <Setter Property="Background" Value="{StaticResource Cadence.HeaderGradient}" />
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.Divider}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.HeaderGradient}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.Divider}" />
     <Setter Property="BorderThickness" Value="0,1,0,1" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />
@@ -617,7 +617,7 @@
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="Height" Value="22" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
     <Setter Property="FontSize" Value="11.5" />
   </Style>
   <Style Selector="TextBox.cell:pointerover /template/ Border#PART_BorderElement">
@@ -626,7 +626,7 @@
   </Style>
   <Style Selector="TextBox.cell:focus /template/ Border#PART_BorderElement">
     <Setter Property="Background" Value="#1A1A1D" />
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.Accent}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.Accent}" />
     <Setter Property="BorderThickness" Value="1" />
   </Style>
   <Style Selector="TextBox.field">
@@ -636,7 +636,7 @@
     <Setter Property="MinHeight" Value="22" />
     <Setter Property="Height" Value="22" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="FontFamily" Value="{StaticResource Cadence.MonoFont}" />
+    <Setter Property="FontFamily" Value="{StaticResource Bluestone.MonoFont}" />
     <Setter Property="FontSize" Value="11.5" />
   </Style>
 
@@ -676,12 +676,12 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="TextBox.inline:focus /template/ Border#PART_BorderElement">
-    <Setter Property="Background" Value="{StaticResource Cadence.Base}" />
+    <Setter Property="Background" Value="{StaticResource Bluestone.Base}" />
   </Style>
 
   <!-- Keep keyboard focus clearly visible on every restyled control. -->
   <Style Selector=":is(Button):focus-visible /template/ ContentPresenter, ToggleButton:focus-visible /template/ ContentPresenter">
-    <Setter Property="BorderBrush" Value="{StaticResource Cadence.AccentHover}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Bluestone.AccentHover}" />
     <Setter Property="BorderThickness" Value="1" />
   </Style>
 </Styles>

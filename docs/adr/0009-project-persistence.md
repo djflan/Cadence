@@ -6,12 +6,12 @@
 ## Context
 
 Projects must be intelligible, portable, versionable, and recoverable. A crash or full disk during
-save must never destroy the last good version, and a project from a newer Cadence must never be
+save must never destroy the last good version, and a project from a newer Bluestone must never be
 silently downgraded.
 
 ## Decision
 
-- **Format.** A single indented JSON document (`cadence-project`, `formatVersion` 1) written
+- **Format.** A single indented JSON document (`bluestone-project`, `formatVersion` 1) written
   deterministically. Bytes are space-separated hex so SysEx and raw data stay reviewable. A
   container (zip) was rejected for now: projects contain no binary assets, and plain JSON diffs well.
 - **Strict reading** with JSON paths in every error; domain validation failures are converted to

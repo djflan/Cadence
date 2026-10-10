@@ -1,13 +1,13 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
+using Bluestone.Midi.Endpoints;
 
-namespace Cadence.Platform.Alsa;
+namespace Bluestone.Platform.Alsa;
 
 /// <summary>
 /// Endpoints from the Linux ALSA sequencer: hardware ports, software synthesizers, other
-/// applications' ports, and virtual ports Cadence publishes itself. Messages are sent directly
+/// applications' ports, and virtual ports Bluestone publishes itself. Messages are sent directly
 /// (not through an ALSA queue), so every endpoint is in the immediate delivery class. Inputs and
 /// hot-plug notifications are not supported yet (ADR 0016).
 /// </summary>
@@ -31,7 +31,7 @@ public sealed unsafe class AlsaProvider : IMidiEndpointProvider
     private bool _disposed;
 
     /// <exception cref="EndpointUnavailableException">ALSA is not installed or the sequencer could not be opened.</exception>
-    public AlsaProvider(string clientName = "Cadence")
+    public AlsaProvider(string clientName = "Bluestone")
     {
         try
         {
@@ -50,7 +50,7 @@ public sealed unsafe class AlsaProvider : IMidiEndpointProvider
         }
 
         // Direct sends need a source port of our own; it is hidden from other applications.
-        _sendPort = Alsa.snd_seq_create_simple_port(_seq, "Cadence Send", Alsa.CapRead | Alsa.CapNoExport, Alsa.TypeMidiGeneric | Alsa.TypeApplication);
+        _sendPort = Alsa.snd_seq_create_simple_port(_seq, "Bluestone Send", Alsa.CapRead | Alsa.CapNoExport, Alsa.TypeMidiGeneric | Alsa.TypeApplication);
         if (_sendPort < 0)
         {
             var status = _sendPort;
@@ -63,13 +63,13 @@ public sealed unsafe class AlsaProvider : IMidiEndpointProvider
 
     public string DisplayName => "ALSA";
 
-    public string TimingDescription => "ALSA sequencer: messages are sent directly when due by Cadence's playback thread; no ALSA queue schedules them.";
+    public string TimingDescription => "ALSA sequencer: messages are sent directly when due by Bluestone's playback thread; no ALSA queue schedules them.";
 
-    /// <summary>Raised when Cadence publishes a virtual port. ALSA announcements are not subscribed to yet.</summary>
+    /// <summary>Raised when Bluestone publishes a virtual port. ALSA announcements are not subscribed to yet.</summary>
     public event EventHandler? EndpointsChanged;
 
     /// <summary>
-    /// Publishes a virtual port that other applications see as a readable port. Cadence lists it as an
+    /// Publishes a virtual port that other applications see as a readable port. Bluestone lists it as an
     /// output; anything sent to it goes to the applications subscribed to it.
     /// </summary>
     public EndpointId CreateVirtualOutput(string name)
@@ -194,13 +194,13 @@ public sealed unsafe class AlsaProvider : IMidiEndpointProvider
         _ => EndpointTransport.Unknown,
     };
 
-    /// <summary>Lists Cadence's virtual ports, then every writable, subscribable port of other clients.</summary>
+    /// <summary>Lists Bluestone's virtual ports, then every writable, subscribable port of other clients.</summary>
     private List<(EndpointDescriptor Descriptor, (int Client, int Port)? Address)> Enumerate()
     {
         var result = new List<(EndpointDescriptor, (int, int)?)>();
         foreach (var name in _virtualPorts.Keys.Order(StringComparer.Ordinal))
         {
-            result.Add((new EndpointDescriptor(VirtualId(name), name, EndpointDirection.Output, EndpointTransport.Virtual, EndpointCapabilities.SystemExclusive, "Cadence"), null));
+            result.Add((new EndpointDescriptor(VirtualId(name), name, EndpointDirection.Output, EndpointTransport.Virtual, EndpointCapabilities.SystemExclusive, "Bluestone"), null));
         }
 
         var own = new HashSet<int> { Alsa.snd_seq_client_id(_seq), Alsa.snd_seq_client_id(_query) };

@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>One channel remapped to another.</summary>
 public readonly record struct ChannelRemap(MidiChannel From, MidiChannel To);

@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Globalization;
 
-namespace Cadence.Midi.SysEx;
+namespace Bluestone.Midi.SysEx;
 
-/// <summary>The parameter blocks of the GS address map that Cadence distinguishes.</summary>
+/// <summary>The parameter blocks of the GS address map that Bluestone distinguishes.</summary>
 public enum GsArea
 {
     /// <summary><c>00 00 xx</c>: system mode (Sound Canvas models with two part blocks).</summary>

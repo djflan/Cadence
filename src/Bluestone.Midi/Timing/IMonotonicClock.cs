@@ -1,10 +1,10 @@
 using System.Diagnostics;
 
-namespace Cadence.Midi.Timing;
+namespace Bluestone.Midi.Timing;
 
 /// <summary>
 /// A steadily increasing time source, unaffected by wall-clock changes. All scheduling and MIDI
-/// timestamps in Cadence are expressed in this clock's time base.
+/// timestamps in Bluestone are expressed in this clock's time base.
 /// </summary>
 public interface IMonotonicClock
 {

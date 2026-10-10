@@ -1,8 +1,8 @@
-using Cadence.Domain.Midi;
-using Cadence.Midi.SysEx;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.SysEx;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Midi.SysEx;
+namespace Bluestone.Tests.Unit.Midi.SysEx;
 
 public sealed class SysExInterpreterTests
 {

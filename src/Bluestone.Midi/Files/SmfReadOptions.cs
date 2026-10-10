@@ -1,4 +1,4 @@
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 /// <summary>Limits applied while reading untrusted MIDI files.</summary>
 public sealed record SmfReadOptions

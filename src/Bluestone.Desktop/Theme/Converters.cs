@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace Cadence.Desktop.Theme;
+namespace Bluestone.Desktop.Theme;
 
 /// <summary>Maps a track's colour index to its palette brush.</summary>
 public sealed class TrackBrushConverter : IValueConverter

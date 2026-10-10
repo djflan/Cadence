@@ -1,18 +1,18 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 public sealed record SmfExportResult(SmfFile File, IReadOnlyList<SmfDiagnostic> Diagnostics);
 
 /// <summary>
 /// Converts a <see cref="Sequence"/> into a format 1 MIDI file: a conductor track carrying the title,
-/// tempo map, meter map, and markers, followed by one file track per sequence track. Anything Cadence
+/// tempo map, meter map, and markers, followed by one file track per sequence track. Anything Bluestone
 /// stores that a MIDI file cannot hold is reported.
 /// </summary>
 public static class SmfExporter

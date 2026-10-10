@@ -1,17 +1,17 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Infrastructure.Projects;
-using Cadence.Signal;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Signal;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>A device that can be added to a chain.</summary>
 public sealed record DeviceChoice(DeviceDefinition Definition)
@@ -168,7 +168,7 @@ public sealed partial class DeviceStripViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasChain))]
     private async Task SavePresetAsync()
     {
-        if (_chain is not { } chain || await _owner.UserInteraction.PickSaveFileAsync("Save Chain Preset", "Chain.cadence-chain", FileFilters.ChainPreset) is not { } path)
+        if (_chain is not { } chain || await _owner.UserInteraction.PickSaveFileAsync("Save Chain Preset", "Chain.bluestone-chain", FileFilters.ChainPreset) is not { } path)
         {
             return;
         }

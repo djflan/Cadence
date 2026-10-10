@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Wire;
-using Cadence.Playback;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Wire;
+using Bluestone.Playback;
 
-namespace Cadence.Application.Recording;
+namespace Bluestone.Application.Recording;
 
 /// <summary>Where played notes are echoed while a track is selected or armed.</summary>
 /// <param name="Output">The track's open output.</param>
@@ -218,7 +218,7 @@ public sealed class MidiRecorder : IDisposable
     }
 
     /// <summary>
-    /// Takes a message played on Cadence's own on-screen keyboard (the piano roll's keys) as input: it is
+    /// Takes a message played on Bluestone's own on-screen keyboard (the piano roll's keys) as input: it is
     /// echoed through MIDI thru and, while recording, captured in the take at <paramref name="timestamp"/>.
     /// </summary>
     /// <returns>False when thru did not send it (thru is off, or it cannot be transposed), so the caller must sound it some other way.</returns>

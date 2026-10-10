@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Cadence.Platform.Windows;
+namespace Bluestone.Platform.Windows;
 
 /// <summary>WinMM MIDI output functions (mmeapi.h).</summary>
 [SupportedOSPlatform("windows")]

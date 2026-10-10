@@ -1,19 +1,19 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Routing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 /// <summary>
 /// Acceptance scenarios 1, 5, and 8 (prompt section 19) end to end: project model, routing validation, the
@@ -112,7 +112,7 @@ public sealed class AcceptanceScenarioTests
         {
             Id = ExternalInstrumentId.New(),
             Name = "Yamaha MU2000",
-            Profile = new ProfileReference("cadence.generic.xg", "Generic XG"),
+            Profile = new ProfileReference("bluestone.generic.xg", "Generic XG"),
             OperatingMode = "XG",
             Ports =
             [

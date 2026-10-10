@@ -1,7 +1,7 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Scanning;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Scanning;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>Scanning in separate scanner processes (epic scenario 15). The crash is a real <c>Environment.FailFast</c> in the scanner.</summary>
 [Collection(PluginProcessTests.Name)]
@@ -9,12 +9,12 @@ public sealed class PluginScannerProcessTests : IDisposable
 {
     private const string GoodManifest = """
         {
-          "format": "cadence-reference-plugin",
+          "format": "bluestone-reference-plugin",
           "version": 1,
-          "moduleId": "cadence.reference",
+          "moduleId": "bluestone.reference",
           "plugins": [
-            { "pluginId": "reference.gain", "name": "Reference Gain", "vendor": "Cadence", "kind": "AudioEffect", "version": "1.0.0" },
-            { "pluginId": "reference.sine", "name": "Reference Sine", "vendor": "Cadence", "kind": "Instrument", "version": "1.0.0" }
+            { "pluginId": "reference.gain", "name": "Reference Gain", "vendor": "Bluestone", "kind": "AudioEffect", "version": "1.0.0" },
+            { "pluginId": "reference.sine", "name": "Reference Sine", "vendor": "Bluestone", "kind": "Instrument", "version": "1.0.0" }
           ]
         }
         """;
@@ -34,10 +34,10 @@ public sealed class PluginScannerProcessTests : IDisposable
     [Fact]
     public async Task ACrashingModule_IsQuarantined_SkippedNextTime_AndRetriedOnRequest_WhileOthersStillScan()
     {
-        var good = Module("good.cadence-reference-plugin", GoodManifest);
-        var crash = Module("crash.cadence-reference-plugin", "#cadence-test: crash-scanner\n{}");
+        var good = Module("good.bluestone-reference-plugin", GoodManifest);
+        var crash = Module("crash.bluestone-reference-plugin", "#bluestone-test: crash-scanner\n{}");
         var text = Module("readme.txt", "not a plugin");
-        var broken = Module("broken.cadence-reference-plugin", "{ \"format\": ");
+        var broken = Module("broken.bluestone-reference-plugin", "{ \"format\": ");
         string[] all = [good, crash, text, broken];
         using var scanner = Scanner();
 
@@ -78,7 +78,7 @@ public sealed class PluginScannerProcessTests : IDisposable
     [Fact]
     public async Task AHangingModule_TimesOut_AndIsQuarantined()
     {
-        var hang = Module("hang.cadence-reference-plugin", "#cadence-test: hang-scanner\n");
+        var hang = Module("hang.bluestone-reference-plugin", "#bluestone-test: hang-scanner\n");
         using var scanner = Scanner(TimeSpan.FromSeconds(5));
 
         var result = await scanner.ScanAsync([hang], Ct);
@@ -90,7 +90,7 @@ public sealed class PluginScannerProcessTests : IDisposable
     [Fact]
     public async Task AChangedModule_IsScannedAgain()
     {
-        var module = Module("good.cadence-reference-plugin", GoodManifest);
+        var module = Module("good.bluestone-reference-plugin", GoodManifest);
         using var scanner = Scanner();
         await scanner.ScanAsync([module], Ct);
 

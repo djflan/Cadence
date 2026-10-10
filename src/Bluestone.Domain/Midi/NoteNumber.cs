@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>A MIDI note number (0-127). Middle C is 60.</summary>
 public readonly record struct NoteNumber : IComparable<NoteNumber>

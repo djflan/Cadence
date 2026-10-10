@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Domain.Mixing;
+namespace Bluestone.Domain.Mixing;
 
 /// <summary>Stable identity of a mixer channel. It is unrelated to any track's identity.</summary>
 public readonly record struct MixerChannelId(Guid Value)

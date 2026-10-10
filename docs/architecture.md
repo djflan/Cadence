@@ -1,6 +1,6 @@
-# Cadence architecture
+# Bluestone architecture
 
-Cadence models music and musical intent. Tracks organize music, clips contain it, devices process
+Bluestone models music and musical intent. Tracks organize music, clips contain it, devices process
 signals in chains, automation targets device parameters, and one list of connections routes signals to
 other tracks, shared racks, external instruments, and mixer channels. MIDI 1.0, MIDI 2.0/UMP, SysEx
 dialects, and operating-system MIDI APIs sit at the edges. This page shows where things live and why.
@@ -11,69 +11,69 @@ and [0021](adr/0021-track-roles.md) to [0028](adr/0028-plugin-midi-effects-at-pl
 ## Layers
 
 ```text
-UI / Application         Cadence.Desktop, Cadence.Presentation, Cadence.Application
+UI / Application         Bluestone.Desktop, Bluestone.Presentation, Bluestone.Application
        ↓
-Sequencer / Domain       Cadence.Domain, Cadence.Profiles
+Sequencer / Domain       Bluestone.Domain, Bluestone.Profiles
        ↓
-Signal processing        Cadence.Signal: device chains, the routing graph
+Signal processing        Bluestone.Signal: device chains, the routing graph
        ↓
-Playback                 Cadence.Playback: prepared plans, the real-time engine
+Playback                 Bluestone.Playback: prepared plans, the real-time engine
        ↓
 MIDI semantics           channel events (NoteEvent, ControllerEvent, ProgramEvent, …) and ControlValue
        ↓
-Protocol encoding        Cadence.Midi: Wire (MIDI 1.0 bytes), Files (SMF), SysEx (dialects)
+Protocol encoding        Bluestone.Midi: Wire (MIDI 1.0 bytes), Files (SMF), SysEx (dialects)
        ↓
-Platform transport       Cadence.Midi.Endpoints contracts; Cadence.Platform.CoreMidi / Windows / Alsa
+Platform transport       Bluestone.Midi.Endpoints contracts; Bluestone.Platform.CoreMidi / Windows / Alsa
 ```
 
 These are conceptual boundaries, not one assembly each. A layer gets its own project only when that
 buys something concrete: a dependency rule that must be enforced, an operating-system-specific
 build, or a framework that must stay out of testable code. Project persistence lives in
-`Cadence.Infrastructure` for the same reason: it may depend on the domain and nothing else.
+`Bluestone.Infrastructure` for the same reason: it may depend on the domain and nothing else.
 
 ### Projects and their references
 
 ```text
-Cadence.Domain            (nothing)          sequence, tracks, roles, clips, automation, events, time, MIDI values,
+Bluestone.Domain            (nothing)          sequence, tracks, roles, clips, automation, events, time, MIDI values,
                                              devices and chains, external instruments, connections, mixer
-Cadence.Midi              Domain             MIDI 1.0 encoding, SMF, SysEx dialects, endpoint contracts
-Cadence.Profiles          Domain             device profiles: what an instrument understands
-Cadence.Signal            Domain             chain runner, built-in processors, device catalog, signal graph
-Cadence.Infrastructure    Domain             project files, chain preset files, migrations
-Cadence.Playback          Domain, Midi, Signal   real-time engine, prepared plans
-Cadence.Plugins.Protocol  (nothing)          plugin control-plane frames and the shared-memory block exchange
-Cadence.Plugins           Plugins.Protocol   worker supervision, crash recovery, scanning (main process)
-Cadence.PluginWorker      Plugins.Protocol   the worker executable that hosts plugins (separate process)
-Cadence.Application       all of the above   sessions, editing commands, recording, routing resolution, plugin bridge
-Cadence.Presentation      Application        view models, no UI framework
-Cadence.Desktop           Presentation, Platform.*   Avalonia views, platform selection
-Cadence.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters
+Bluestone.Midi              Domain             MIDI 1.0 encoding, SMF, SysEx dialects, endpoint contracts
+Bluestone.Profiles          Domain             device profiles: what an instrument understands
+Bluestone.Signal            Domain             chain runner, built-in processors, device catalog, signal graph
+Bluestone.Infrastructure    Domain             project files, chain preset files, migrations
+Bluestone.Playback          Domain, Midi, Signal   real-time engine, prepared plans
+Bluestone.Plugins.Protocol  (nothing)          plugin control-plane frames and the shared-memory block exchange
+Bluestone.Plugins           Plugins.Protocol   worker supervision, crash recovery, scanning (main process)
+Bluestone.PluginWorker      Plugins.Protocol   the worker executable that hosts plugins (separate process)
+Bluestone.Application       all of the above   sessions, editing commands, recording, routing resolution, plugin bridge
+Bluestone.Presentation      Application        view models, no UI framework
+Bluestone.Desktop           Presentation, Platform.*   Avalonia views, platform selection
+Bluestone.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters
 ```
 
-`DependencyDirectionTests` enforces this. `Cadence.Midi` and `Cadence.Profiles` never reference
+`DependencyDirectionTests` enforces this. `Bluestone.Midi` and `Bluestone.Profiles` never reference
 each other, and the domain references only the base class library.
 
-Tests: `Cadence.Tests.Unit` (fast, deterministic), `Cadence.Tests.Integration` (real threads, files,
-operating-system MIDI, and plugin worker processes), and `Cadence.Tests.Ui` (Cadence's own app and
+Tests: `Bluestone.Tests.Unit` (fast, deterministic), `Bluestone.Tests.Integration` (real threads, files,
+operating-system MIDI, and plugin worker processes), and `Bluestone.Tests.Ui` (Bluestone's own app and
 main window on Avalonia's headless platform: real views, bindings, and UI thread, with no display).
 
 ### Where does this belong?
 
 | You are adding… | Put it in |
 | --------------- | --------- |
-| A musical concept or edit (a new event kind, a quantize rule) | `Cadence.Domain`, with commands in `Cadence.Application/Editing` |
-| How a channel event becomes MIDI 1.0 messages (bank and program, value resolution) | `Cadence.Midi/Wire/Midi1Encoder.cs` |
-| How MIDI 1.0 messages from files or input become channel events | `Cadence.Midi/Wire/Midi1Decoder.cs` |
-| Reading or writing `.mid` files | `Cadence.Midi/Files` |
-| Recognizing a SysEx family (Universal, XG, GS, another manufacturer) | `Cadence.Midi/SysEx` |
-| Facts about one instrument (banks, voices, drum names, setup SysEx) | a JSON profile in `/profiles`; the loader is `Cadence.Profiles` |
-| An operating-system MIDI API | `Cadence.Platform.<OS>`, implementing `IMidiEndpointProvider` |
-| The project file format or a migration | `Cadence.Infrastructure/Projects` |
-| A built-in device | its definition in `Cadence.Domain/Devices/BuiltInDevices.cs`, its processor in `Cadence.Signal/BuiltIn`, registered in `DeviceCatalog.BuiltIn` |
-| A routing rule (what may connect to what) | `Cadence.Domain/Routing/SignalRoutingValidator.cs` |
-| How processed events reach the plan | `Cadence.Signal/SignalGraph.cs`, then `Cadence.Application/Routing/PlaybackRouting.cs` |
-| An edit to chains, connections, instruments, the mixer, or roles | `Cadence.Application/Editing` (`DeviceCommands`, `RoutingCommands`, `TrackRoleCommands`) |
-| How something is shown or edited | `Cadence.Presentation` (logic), `Cadence.Desktop` (views) |
+| A musical concept or edit (a new event kind, a quantize rule) | `Bluestone.Domain`, with commands in `Bluestone.Application/Editing` |
+| How a channel event becomes MIDI 1.0 messages (bank and program, value resolution) | `Bluestone.Midi/Wire/Midi1Encoder.cs` |
+| How MIDI 1.0 messages from files or input become channel events | `Bluestone.Midi/Wire/Midi1Decoder.cs` |
+| Reading or writing `.mid` files | `Bluestone.Midi/Files` |
+| Recognizing a SysEx family (Universal, XG, GS, another manufacturer) | `Bluestone.Midi/SysEx` |
+| Facts about one instrument (banks, voices, drum names, setup SysEx) | a JSON profile in `/profiles`; the loader is `Bluestone.Profiles` |
+| An operating-system MIDI API | `Bluestone.Platform.<OS>`, implementing `IMidiEndpointProvider` |
+| The project file format or a migration | `Bluestone.Infrastructure/Projects` |
+| A built-in device | its definition in `Bluestone.Domain/Devices/BuiltInDevices.cs`, its processor in `Bluestone.Signal/BuiltIn`, registered in `DeviceCatalog.BuiltIn` |
+| A routing rule (what may connect to what) | `Bluestone.Domain/Routing/SignalRoutingValidator.cs` |
+| How processed events reach the plan | `Bluestone.Signal/SignalGraph.cs`, then `Bluestone.Application/Routing/PlaybackRouting.cs` |
+| An edit to chains, connections, instruments, the mixer, or roles | `Bluestone.Application/Editing` (`DeviceCommands`, `RoutingCommands`, `TrackRoleCommands`) |
+| How something is shown or edited | `Bluestone.Presentation` (logic), `Bluestone.Desktop` (views) |
 
 ### Abstractions
 
@@ -92,7 +92,7 @@ on the manufacturer ID, because nothing needs to swap them at run time.
 ## MIDI strategy
 
 ```text
-                         CADENCE
+                        BLUESTONE
                             │
                     Sequencer domain
                             │
@@ -128,7 +128,7 @@ on the manufacturer ID, because nothing needs to swap them at run time.
 ### MIDI 1.0: first-class
 
 MIDI 1.0 is fully supported and is not a compatibility layer. Hardware, Standard MIDI Files, and
-XG-era instruments all depend on it. Its specific concerns stay in `Cadence.Midi`:
+XG-era instruments all depend on it. Its specific concerns stay in `Bluestone.Midi`:
 
 - The domain stores channel events, not messages: `NoteEvent`, `NoteOffEvent`, `ControllerEvent`,
   `ProgramEvent`, `PitchBendEvent`, `ChannelPressureEvent`, and `PolyPressureEvent`. Controller,
@@ -150,11 +150,11 @@ XG-era instruments all depend on it. Its specific concerns stay in `Cadence.Midi
 
 ### MIDI 2.0 and UMP: planned
 
-Cadence does not send MIDI 2.0 yet. The design leaves room for it:
+Bluestone does not send MIDI 2.0 yet. The design leaves room for it:
 
 - MIDI 2.0 extends MIDI 1.0. UMP (Universal MIDI Packet) is a packet format that carries both MIDI
-  1.0 and MIDI 2.0 protocol messages. It is a wire representation, not Cadence's model.
-- A MIDI 2.0 encoder will sit beside `Midi1Encoder` (in `Cadence.Midi/Ump/`), producing UMP from the
+  1.0 and MIDI 2.0 protocol messages. It is a wire representation, not Bluestone's model.
+- A MIDI 2.0 encoder will sit beside `Midi1Encoder` (in `Bluestone.Midi/Ump/`), producing UMP from the
   same semantic operations. In MIDI 2.0 some operations become atomic: a `ProgramSelection` is one
   program change with a bank, not three messages.
 - Transport gets a separate UMP send path with its own capability flag (ADR 0005). Platform
@@ -163,13 +163,13 @@ Cadence does not send MIDI 2.0 yet. The design leaves room for it:
   encoder for each output from its capabilities.
 - The domain already holds controller, pitch bend, and pressure values at MIDI 2.0 resolution, and
   a program selection as one event. MIDI 2.0 also offers 16-bit velocity, per-note controllers, and
-  per-note pitch bend, which Cadence does not model yet. Some of this has no lossless MIDI 1.0 form.
+  per-note pitch bend, which Bluestone does not model yet. Some of this has no lossless MIDI 1.0 form.
   The MIDI 1.0 encoder already reduces values to 7 or 14 bits, and should report what was lost, in
   the same way SMF export reports today, once such data can be created.
 
 ### MIDI-CI: future
 
-MIDI Capability Inquiry (Discovery, Profiles, Property Exchange) could let Cadence ask a modern
+MIDI Capability Inquiry (Discovery, Profiles, Property Exchange) could let Bluestone ask a modern
 device for its capabilities, program lists, and controller names, instead of relying only on
 shipped profiles. It needs a paired input and output on one device, so it will sit above the
 endpoint contracts, and what it learns will feed device knowledge, not transport. Legacy
@@ -199,11 +199,11 @@ within each block, model-specific extensions such as the QY100's, and requests a
 
 **GS** (`GsDialect`) recognizes data set (DT1) messages: GS Reset, system mode, system, reverb,
 chorus, common, part (using GS's own block-to-part numbering), and drum map. It checks the Roland
-checksum. `GsDialect.Checksum` will also be used when Cadence renders GS messages.
+checksum. `GsDialect.Checksum` will also be used when Bluestone renders GS messages.
 
 XG and GS each have their own model. They share only the `SysExInterpretation` base and the
-dispatcher. To add a dialect, add a file to `Cadence.Midi/SysEx`, add a case to the dispatch, and
-add tests in `Cadence.Tests.Unit/Midi/SysEx`.
+dispatcher. To add a dialect, add a file to `Bluestone.Midi/SysEx`, add a case to the dispatch, and
+add tests in `Bluestone.Tests.Unit/Midi/SysEx`.
 
 Dialect interpreters understand a protocol family in code. Device profiles describe one instrument
 as data. A profile's `protocols: ["xg"]` declares compatibility, but the interpreter reads XG
@@ -213,9 +213,9 @@ messages whichever profile a track is routed to.
 
 | Concern | Examples | Lives in |
 | ------- | -------- | -------- |
-| Transport | CoreMIDI, WinMM, ALSA, future Windows MIDI Services | `Cadence.Platform.*` |
-| Protocol | MIDI 1.0 bytes, SMF, future UMP | `Cadence.Midi` |
-| Dialect and device semantics | Universal, XG, GS, device profiles | `Cadence.Midi/SysEx`, `Cadence.Profiles`, `/profiles` |
+| Transport | CoreMIDI, WinMM, ALSA, future Windows MIDI Services | `Bluestone.Platform.*` |
+| Protocol | MIDI 1.0 bytes, SMF, future UMP | `Bluestone.Midi` |
+| Dialect and device semantics | Universal, XG, GS, device profiles | `Bluestone.Midi/SysEx`, `Bluestone.Profiles`, `/profiles` |
 
 An adapter never interprets what it carries, and an interpreter never cares where the bytes came
 from (ADR 0005, 0007, 0008).
@@ -253,8 +253,8 @@ stable ID, parameters, bypass, and plugin state; a `DeviceChain` is an ordered l
 track or a rack (ADR 0022). Processing is sequential, and passthrough is managed by the host: a device
 is given only the event classes it handles, and everything else (SysEx, controllers it does not
 declare) goes around it and is merged back in canonical order. Only an explicit filter removes events.
-Built-in devices run in `Cadence.Signal` when the plan is compiled; plugin devices run in worker
-processes, never in Cadence's process. Presets are templates without identities: loading one creates
+Built-in devices run in `Bluestone.Signal` when the plan is compiled; plugin devices run in worker
+processes, never in Bluestone's process. Presets are templates without identities: loading one creates
 new devices.
 
 ### Routing
@@ -282,7 +282,7 @@ Lead ──► [Arpeggiator → Transpose] ──► MU2000 port B, ch 4
 available, then `SignalGraph.Evaluate` renders every track (mute and solo apply to a track's own
 content), runs every chain in dependency order, follows every event connection, and collects:
 external-instrument part feeds, software-instrument feeds (merged from every source, for a future audio
-engine), parameter feeds for devices that do not run in Cadence's process, and diagnostics. Each part
+engine), parameter feeds for devices that do not run in Bluestone's process, and diagnostics. Each part
 with an available endpoint becomes a `PlanPart`; parts sharing an endpoint share an output slot. The
 compiler encodes MIDI 1.0 at the edge and orders the plan by tick, phase, origin track, and index,
 exactly as before the routing model existed, so old projects send the same bytes. The real-time engine
@@ -308,7 +308,7 @@ feed for their worker.
 
 ### Plugin workers
 
-Third-party plugins are hosted in separate worker processes (ADR 0025), never loaded into Cadence's own
+Third-party plugins are hosted in separate worker processes (ADR 0025), never loaded into Bluestone's own
 process. Process isolation is crash isolation, not a security sandbox. When the plan is compiled, a
 plugin MIDI effect runs in its worker over the arrangement and its output joins the chain like a
 built-in device's (ADR 0028). See [docs/plugin-hosting.md](plugin-hosting.md).
@@ -353,7 +353,7 @@ Note and release velocity move to MIDI 2.0's 16 bits, the same way controller va
   the playback plan, the metronome) takes a plain 7-bit value, and `Midi1Encoder` converts.
 - A note-on is always sent to MIDI 1.0 with velocity 1 or more, because 0 there means note-off. A
   small 16-bit velocity that scales down to 0 is sent as 1.
-- Cadence notes keep requiring a velocity above zero. MIDI 2.0 allows a silent note-on at
+- Bluestone notes keep requiring a velocity above zero. MIDI 2.0 allows a silent note-on at
   velocity 0, but nothing can create one yet.
 - Editing shows and steps velocity in familiar 1–127 units (velocity lane, Alt + ↑ / ↓, event
   list, inspector, computer keyboard) and stores the exact scaled value. Nudging a
@@ -376,7 +376,7 @@ specification) in one of two ways. `stepCount` quantizes the full range into N s
 preferred method. `minMax` marks a sub-range, and is intended for legacy products. An entry uses
 only one of them.
 
-Cadence keeps events at full resolution and treats ranges and steps as profile data.
+Bluestone keeps events at full resolution and treats ranges and steps as profile data.
 `ProfileController` (number, name, default) can gain optional `steps` or `min`/`max`. These would
 be written by hand for legacy instruments or filled in from MIDI-CI later. Controller lanes would
 then snap drawing to the steps and show values in the device's own units. Nothing supplies this
@@ -390,7 +390,7 @@ Built as boundaries and tested where cheap, but not finished:
   by playback, and plugin delay compensation across the graph. Feeds, parameter feeds, and audio connections are
   produced and validated so the engine has a defined input.
 - **Third-party plugin formats** (VST3 loading, parameter enumeration) and **plugin editors** (windows, focus,
-  DPI, a worker dying with its editor open). The worker hosts Cadence's reference plugins today.
+  DPI, a worker dying with its editor open). The worker hosts Bluestone's reference plugins today.
 - **MIDI 2.0** transport and UMP, **MPE**, and per-note controllers.
 - **Visual node-graph editing** and **feedback routing** (loops are refused).
 - **Operating-system sandboxing** of plugin workers.
@@ -423,9 +423,9 @@ Built as boundaries and tested where cheap, but not finished:
 
 C# is the default for all code (ADR 0026). Rust is used for a component only when a measurement shows
 managed code cannot meet a real-time or throughput requirement after tuning, or when a native interface
-(such as plugin binaries) requires it; it replaces C or C++ for new Cadence-owned native code. C and C++
+(such as plugin binaries) requires it; it replaces C or C++ for new Bluestone-owned native code. C and C++
 appear only as third-party libraries, vendor SDK requirements, or thin ABI shims. Today there is no Rust
-and no Cadence-owned native code.
+and no Bluestone-owned native code.
 
 ## Acceptance scenarios and their tests
 

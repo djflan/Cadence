@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>
 /// A device as a template: everything that configures it and nothing that identifies it. It has no ID,

@@ -1,16 +1,16 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
-using Cadence.Profiles;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 /// <summary>
 /// Recording through loopback ports on a virtual clock. New projects are 960 PPQN at 120 BPM, so
@@ -351,13 +351,13 @@ public sealed class RecordingTests : IAsyncDisposable
     }
 
     [Fact]
-    public void DefaultInputs_LeaveOutBuiltInBusesAndBusesCadenceIsPlayingTo()
+    public void DefaultInputs_LeaveOutBuiltInBusesAndBusesBluestoneIsPlayingTo()
     {
         static EndpointDescriptor Port(string provider, string name, EndpointDirection direction, EndpointTransport transport) =>
             new(new EndpointId(provider, $"{name}/{direction}"), name, direction, transport, EndpointCapabilities.None);
         var keyboard = Port("coremidi", "Keyboard", EndpointDirection.Input, EndpointTransport.Physical);
         var iacIn = Port("coremidi", "IAC Bus 1", EndpointDirection.Input, EndpointTransport.Virtual);
-        var monitor = Port("loopback", "Cadence Monitor", EndpointDirection.Input, EndpointTransport.Test);
+        var monitor = Port("loopback", "Bluestone Monitor", EndpointDirection.Input, EndpointTransport.Test);
         var iacOut = Port("coremidi", "IAC Bus 1", EndpointDirection.Output, EndpointTransport.Virtual);
 
         Assert.Equal([keyboard.Id], PlaybackController.DefaultInputs([keyboard, iacIn, monitor], [iacOut]));

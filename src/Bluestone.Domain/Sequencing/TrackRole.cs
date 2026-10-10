@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// The workflow a track is for (ADR 0021). A role sets defaults and presentation and decides what a

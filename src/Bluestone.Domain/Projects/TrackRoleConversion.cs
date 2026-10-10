@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Projects;
+namespace Bluestone.Domain.Projects;
 
 /// <summary>What kind of content is being added to a track.</summary>
 public enum ClipContent

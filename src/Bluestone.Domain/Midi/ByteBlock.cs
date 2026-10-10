@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// An immutable, value-equal block of bytes used for SysEx and meta-event payloads.

@@ -1,6 +1,6 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>A half-open loop range: playback wraps from <see cref="End"/> back to <see cref="Start"/>.</summary>
 public sealed record LoopRegion

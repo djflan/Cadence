@@ -1,4 +1,4 @@
-namespace Cadence.Midi.Endpoints;
+namespace Bluestone.Midi.Endpoints;
 
 /// <summary>
 /// All endpoint providers available to a session, presented as one. Opening is dispatched to the

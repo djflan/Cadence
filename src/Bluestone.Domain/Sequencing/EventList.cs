@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// An immutable list of events in canonical order with unique <see cref="EventId"/>s. Every edit returns

@@ -1,19 +1,19 @@
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Files;
-using Cadence.Midi.Timing;
-using Cadence.Presentation;
-using Cadence.Profiles;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Files;
+using Bluestone.Midi.Timing;
+using Bluestone.Presentation;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Presentation;
+namespace Bluestone.Tests.Unit.Presentation;
 
 public sealed class MainViewModelTests : IAsyncLifetime
 {
-    private readonly string _directory = Directory.CreateTempSubdirectory("cadence-vm-").FullName;
+    private readonly string _directory = Directory.CreateTempSubdirectory("bluestone-vm-").FullName;
     private readonly VirtualClock _clock = new(TimeSpan.FromSeconds(5));
     private readonly FakeUi _ui = new();
     private readonly LoopbackMidiProvider _provider;
@@ -28,7 +28,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         _synth = _provider.CreatePort("Synth", "synth");
         _directoryOfEndpoints = new EndpointDirectory([_provider]);
         var catalog = ProfileCatalog.Empty.Add("gm", ProfileLoader.Load("""
-            { "format": "cadence-device-profile", "schemaVersion": 1, "id": "test.gm", "version": "1", "name": "Test GM",
+            { "format": "bluestone-device-profile", "schemaVersion": 1, "id": "test.gm", "version": "1", "name": "Test GM",
               "notices": ["Not affiliated."],
               "provenance": { "sources": ["t"], "contributors": ["t"], "license": "MIT", "redistributionConfirmed": true, "verification": "unverified" },
               "banks": [ { "id": "main", "name": "Main", "msb": 0, "lsb": 0, "programs": [ { "number": 1, "name": "Piano" } ] } ],
@@ -221,14 +221,14 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task SaveAs_WritesTheProjectAndClearsDirty()
     {
         await ImportAsync();
-        _ui.NextSavePath = Path.Combine(_directory, "song.cadence");
+        _ui.NextSavePath = Path.Combine(_directory, "song.bluestone");
 
         await _vm.SaveCommand.ExecuteAsync(null);
         await Settle();
 
         Assert.True(File.Exists(_ui.NextSavePath));
         Assert.False(_vm.IsDirty);
-        Assert.Equal("demo · Cadence", _vm.WindowTitle);
+        Assert.Equal("demo · Bluestone", _vm.WindowTitle);
     }
 
     [Fact]
@@ -381,7 +381,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("song.cadence", true)]
+    [InlineData("song.bluestone", true)]
     [InlineData("SONG.MID", true)]
     [InlineData("tune.midi", true)]
     [InlineData("notes.txt", false)]
@@ -402,7 +402,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task DroppedProject_IsOpenedAfterAskingAboutUnsavedChanges()
     {
         await ImportAsync();
-        var path = Path.Combine(_directory, "dropped.cadence");
+        var path = Path.Combine(_directory, "dropped.bluestone");
         await new ProjectSession().SaveAsync(path, TestContext.Current.CancellationToken);
 
         _ui.SaveChoice = UnsavedChangesChoice.Cancel;
@@ -421,7 +421,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         await _vm.OpenFileAsync(Path.Combine(_directory, "readme.txt"));
 
-        Assert.Contains(_vm.Messages, m => m.Severity == MessageSeverity.Warning && m.Text.Contains("not a Cadence project or MIDI file", StringComparison.Ordinal));
+        Assert.Contains(_vm.Messages, m => m.Severity == MessageSeverity.Warning && m.Text.Contains("not a Bluestone project or MIDI file", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -453,7 +453,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     private async Task<(TrackViewModel First, TrackViewModel Second)> TwoTracksAsync()
     {
         var first = await ImportAsync();
-        _session.Execute(Cadence.Application.Editing.ProjectCommands.AddTrack(Track.FromEvents(TrackId.New(), "Strings", [new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max)])));
+        _session.Execute(Bluestone.Application.Editing.ProjectCommands.AddTrack(Track.FromEvents(TrackId.New(), "Strings", [new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max)])));
         await Settle();
         _vm.Select(first);
         await Settle();
@@ -566,7 +566,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
         strip.AddDeviceCommand.Execute(null);
         await Settle();
-        _ui.NextSavePath = Path.Combine(_directory, "Arp.cadence-chain");
+        _ui.NextSavePath = Path.Combine(_directory, "Arp.bluestone-chain");
         await strip.SavePresetCommand.ExecuteAsync(null);
 
         _vm.Select(second);
@@ -589,7 +589,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         _vm.Racks.NewRackCommand.Execute(null);
         await Settle();
-        var rack = Assert.Single(_session.Project.Chains, c => c.Owner.Kind == Cadence.Domain.Devices.ChainOwnerKind.Rack);
+        var rack = Assert.Single(_session.Project.Chains, c => c.Owner.Kind == Bluestone.Domain.Devices.ChainOwnerKind.Rack);
         Assert.True(_vm.DeviceStrip.IsEditingRack);
         Assert.Equal("Rack: Rack 1", _vm.DeviceStrip.Heading);
         Assert.Equal("Rack 1 output", _vm.Connections.Sources[0].Name);

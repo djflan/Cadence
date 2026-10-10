@@ -1,16 +1,16 @@
 using System.Buffers.Binary;
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 public sealed class FrameCodecTests
 {
-    private static readonly PluginIdentity Gain = new("cadence-reference", "cadence.reference", "reference.gain", "Reference Gain", "Cadence", PluginKind.AudioEffect, "1.0.0");
+    private static readonly PluginIdentity Gain = new("bluestone-reference", "bluestone.reference", "reference.gain", "Reference Gain", "Bluestone", PluginKind.AudioEffect, "1.0.0");
     private static readonly PluginInstanceId Instance = new(Guid.Parse("5b0d3a1e-6f7c-4c55-9d1a-0123456789ab"));
-    private static readonly PluginStateData State = new("cadence.reference-state", [1, 2, 3, 250]);
+    private static readonly PluginStateData State = new("bluestone.reference-state", [1, 2, 3, 250]);
 
     public static TheoryData<ProtocolMessage> EveryMessage() =>
     [
@@ -34,8 +34,8 @@ public sealed class FrameCodecTests
         new Ack(),
         new ErrorReply(ErrorCode.PluginNotFound, "no such plugin"),
         new Shutdown(),
-        new ScanModule("/plugins/a.cadence-reference-plugin"),
-        new ScanResult("/plugins/a.cadence-reference-plugin", [Gain], null, null),
+        new ScanModule("/plugins/a.bluestone-reference-plugin"),
+        new ScanResult("/plugins/a.bluestone-reference-plugin", [Gain], null, null),
         new ScanResult("/plugins/b.txt", [], ScanFailureKind.Malformed, "not a module"),
         new InduceTestFault(TestFault.GarbageFrames),
         new RenderEvents(Gain, State, [new ParameterValue(0, 0.75)], 48_000, 512, 96_000, [new TimelineTempo(0, 120), new TimelineTempo(48_000, 90.5)], [new TimelineEvent(0, PluginEvent.NoteOn(0, 2, 60, 100)), new TimelineEvent(24_000, SysEx())], [new TimelineParameterChange(12_000, 0, 0.25)]),
@@ -293,9 +293,9 @@ public sealed class PluginIdentityTests
     [Fact]
     public void PluginIdentity_AndInstanceId_AreDifferentThings()
     {
-        var identity = new PluginIdentity("cadence-reference", "m", "p", "P", "V", PluginKind.Instrument, "1");
+        var identity = new PluginIdentity("bluestone-reference", "m", "p", "P", "V", PluginKind.Instrument, "1");
 
-        Assert.Equal(identity, new PluginIdentity("cadence-reference", "m", "p", "P", "V", PluginKind.Instrument, "1"));
+        Assert.Equal(identity, new PluginIdentity("bluestone-reference", "m", "p", "P", "V", PluginKind.Instrument, "1"));
         Assert.NotEqual(PluginInstanceId.New(), PluginInstanceId.New());
     }
 

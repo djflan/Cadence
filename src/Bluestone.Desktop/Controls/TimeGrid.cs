@@ -1,13 +1,13 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Media;
-using Cadence.Application.Editing;
-using Cadence.Desktop.Theme;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Editing;
+using Bluestone.Desktop.Theme;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Desktop.Controls;
+namespace Bluestone.Desktop.Controls;
 
 /// <summary>
 /// Shared drawing for musical time: grid lines (bars, beats, and grid steps when there is room) and

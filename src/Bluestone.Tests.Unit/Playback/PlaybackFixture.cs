@@ -1,11 +1,11 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
 
-namespace Cadence.Tests.Unit.Playback;
+namespace Bluestone.Tests.Unit.Playback;
 
 /// <summary>
 /// An engine wired to loopback outputs on a virtual clock. At 500 PPQN and 120 BPM one tick is exactly

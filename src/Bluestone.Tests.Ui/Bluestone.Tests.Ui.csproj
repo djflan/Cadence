@@ -3,16 +3,16 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Cadence.Tests.Ui</RootNamespace>
+    <RootNamespace>Bluestone.Tests.Ui</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Headless" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Desktop/Cadence.Desktop.csproj" />
+    <ProjectReference Include="../Bluestone.Desktop/Bluestone.Desktop.csproj" />
     <!-- Built and copied beside the tests so they can launch real worker processes; never loaded in the test process. -->
-    <ProjectReference Include="../Cadence.PluginWorker/Cadence.PluginWorker.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../Bluestone.PluginWorker/Bluestone.PluginWorker.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

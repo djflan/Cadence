@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>
 /// Crash isolation and recovery with real worker processes (epic scenarios 11, 12, 13). Crashes are real:
@@ -137,7 +137,7 @@ public sealed class PluginCrashRecoveryTests
     [Fact]
     public async Task AMissingWorker_FailsToStart_AndNothingRunsInTheHostProcess()
     {
-        await using var host = new PluginTestHost(o => o with { WorkerPath = Path.Combine(AppContext.BaseDirectory, "no-such-worker", "Cadence.PluginWorker") });
+        await using var host = new PluginTestHost(o => o with { WorkerPath = Path.Combine(AppContext.BaseDirectory, "no-such-worker", "Bluestone.PluginWorker") });
         var gain = await host.CreateAsync(new PluginInstanceRequest(Gain, 48_000, Frames, 1, 1));
         var driver = new BlockDriver(gain, Frames);
         Array.Fill(driver.Input, 1.0f);
@@ -150,7 +150,7 @@ public sealed class PluginCrashRecoveryTests
         Assert.All(driver.Output, s => Assert.Equal(0.0f, s));
         Assert.Null(gain.WorkerProcessId);
         Assert.Equal(1, host.Manager.WorkerLaunchCount);
-        Assert.DoesNotContain(AppDomain.CurrentDomain.GetAssemblies(), a => a.GetName().Name == "Cadence.PluginWorker");
+        Assert.DoesNotContain(AppDomain.CurrentDomain.GetAssemblies(), a => a.GetName().Name == "Bluestone.PluginWorker");
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public sealed class PluginCrashRecoveryTests
     public async Task AWorkerThatCrashesAtStartup_WithAutomaticRestart_EndsQuarantined_NotInALoop()
     {
         var policy = new RestartPolicy { AutoRestart = true, MaxRestarts = 2, Window = TimeSpan.FromMinutes(5), InitialBackoff = TimeSpan.FromMilliseconds(20), MaxBackoff = TimeSpan.FromMilliseconds(100) };
-        await using var host = new PluginTestHost(o => o with { WorkerEnvironment = new Dictionary<string, string> { ["CADENCE_PLUGINWORKER_TEST_CRASH_AT_STARTUP"] = "1" } });
+        await using var host = new PluginTestHost(o => o with { WorkerEnvironment = new Dictionary<string, string> { ["BLUESTONE_PLUGINWORKER_TEST_CRASH_AT_STARTUP"] = "1" } });
         var states = new List<PluginInstanceState>();
         var gain = await host.CreateAsync(new PluginInstanceRequest(Gain, 48_000, Frames, 1, 1) { RestartPolicy = policy });
         gain.StatusChanged += (_, e) =>
@@ -306,7 +306,7 @@ public sealed class PluginCrashRecoveryTests
     public async Task CorruptState_IsReported_AndTheInstanceRunsWithDefaults()
     {
         await using var host = new PluginTestHost();
-        var corrupt = new PluginStateSnapshot(Gain, new PluginStateData("cadence.reference-state", [0x43, 0x52, 0x50, 0x53, 0x09, 0x00, 0x00, 0x00]), [], DateTimeOffset.UnixEpoch);
+        var corrupt = new PluginStateSnapshot(Gain, new PluginStateData("bluestone.reference-state", [0x43, 0x52, 0x50, 0x53, 0x09, 0x00, 0x00, 0x00]), [], DateTimeOffset.UnixEpoch);
 
         var gain = await host.CreateRunningAsync(new PluginInstanceRequest(Gain, 48_000, Frames, 1, 1) { RestoreFrom = corrupt });
 
@@ -337,7 +337,7 @@ public sealed class PluginCrashRecoveryTests
 
         await WaitUntilAsync(() => gain.LastSnapshot?.ParameterValues.Contains(new ParameterValue(GainParameter, 0.75)) == true, StatusTimeout, "a periodic snapshot");
 
-        Assert.Equal("cadence.reference-state", gain.LastSnapshot!.State.Format);
+        Assert.Equal("bluestone.reference-state", gain.LastSnapshot!.State.Format);
     }
 
     [Fact]

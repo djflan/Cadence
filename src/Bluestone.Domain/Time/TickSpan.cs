@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>A non-negative musical duration measured in ticks.</summary>
 public readonly record struct TickSpan : IComparable<TickSpan>

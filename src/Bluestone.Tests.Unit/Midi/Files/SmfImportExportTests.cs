@@ -1,13 +1,13 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Files;
-using Cadence.Tests.Unit.Playback;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Files;
+using Bluestone.Tests.Unit.Playback;
 using CsCheck;
-using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
-using static Cadence.Tests.Unit.Midi.Files.SmfReaderTests;
+using static Bluestone.Tests.Unit.Midi.Files.SmfBytes;
+using static Bluestone.Tests.Unit.Midi.Files.SmfReaderTests;
 
-namespace Cadence.Tests.Unit.Midi.Files;
+namespace Bluestone.Tests.Unit.Midi.Files;
 
 public sealed class SmfImportExportTests
 {
@@ -37,7 +37,7 @@ public sealed class SmfImportExportTests
     [Fact]
     public void Export_ReportsDeviceAutomation_ItCannotWrite()
     {
-        var lane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(Cadence.Domain.Devices.DeviceId.New(), new Cadence.Domain.Devices.ParameterId(1)), [new AutomationPoint(Tick.Zero, ControlValue.Max)]);
+        var lane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(Bluestone.Domain.Devices.DeviceId.New(), new Bluestone.Domain.Devices.ParameterId(1)), [new AutomationPoint(Tick.Zero, ControlValue.Max)]);
         var track = Track.FromEvents(TrackId.New(), "t", [new NoteEvent(Tick.Zero, new TickSpan(10), One, NoteNumber.MiddleC, Velocity.Max)]).WithAutomation([lane]);
 
         var result = SmfExporter.Export(Sequence.CreateEmpty(new Ppqn(480)).WithTrack(track));

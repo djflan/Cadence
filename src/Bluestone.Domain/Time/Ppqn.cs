@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>
 /// Sequence resolution in pulses (ticks) per quarter note. Limited to 1-32767 so every
@@ -11,7 +11,7 @@ public readonly record struct Ppqn
 {
     public const int MaxValue = 0x7FFF;
 
-    /// <summary>Cadence's default resolution for new sequences.</summary>
+    /// <summary>Bluestone's default resolution for new sequences.</summary>
     public static readonly Ppqn Default = new(960);
 
     public Ppqn(int ticksPerQuarterNote) =>

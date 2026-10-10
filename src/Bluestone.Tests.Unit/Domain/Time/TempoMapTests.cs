@@ -1,7 +1,7 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Domain.Time;
+namespace Bluestone.Tests.Unit.Domain.Time;
 
 public sealed class TempoMapTests
 {

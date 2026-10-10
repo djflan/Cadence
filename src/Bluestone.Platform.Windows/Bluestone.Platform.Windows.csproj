@@ -2,11 +2,11 @@
   <!-- Windows platform services. Managed P/Invoke only; see docs/adr/0013-windows-playback-timing.md
        and docs/adr/0014-winmm-adapter.md. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Platform.Windows</RootNamespace>
+    <RootNamespace>Bluestone.Platform.Windows</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
   </ItemGroup>
 </Project>

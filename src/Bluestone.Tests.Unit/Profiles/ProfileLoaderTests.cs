@@ -1,23 +1,23 @@
 using System.Text;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Midi;
-using Cadence.Profiles;
+using Bluestone.Domain.Midi;
+using Bluestone.Profiles;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Profiles;
+namespace Bluestone.Tests.Unit.Profiles;
 
 public sealed class ProfileLoaderTests
 {
     private const string Minimal = """
         {
-          "format": "cadence-device-profile",
+          "format": "bluestone-device-profile",
           "schemaVersion": 1,
           "id": "test.synth",
           "version": "1.0.0",
           "name": "Test Synth",
           "provenance": {
             "sources": ["Written for tests"],
-            "contributors": ["Cadence contributors"],
+            "contributors": ["Bluestone contributors"],
             "license": "MIT",
             "redistributionConfirmed": true,
             "verification": "unverified"
@@ -64,7 +64,7 @@ public sealed class ProfileLoaderTests
 
     [Theory]
     [InlineData("format", "\"other\"", "$.format", "must be")]
-    [InlineData("schemaVersion", "2", "$.schemaVersion", "newer version of Cadence")]
+    [InlineData("schemaVersion", "2", "$.schemaVersion", "newer version of Bluestone")]
     [InlineData("schemaVersion", "0", "$.schemaVersion", "not supported")]
     [InlineData("id", "\"Not Valid\"", "$.id", "lowercase")]
     [InlineData("name", "\"\"", "$.name", "must not be empty")]

@@ -1,12 +1,12 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 internal static class ProjectSamples
 {
@@ -79,7 +79,7 @@ internal static class ProjectSamples
         };
         project = TrackOutputs.Write(project, bass.Id, new TrackOutput
         {
-            Profile = new ProfileReference("cadence.generic.xg", "Generic XG"),
+            Profile = new ProfileReference("bluestone.generic.xg", "Generic XG"),
             Endpoint = new EndpointReference("coremidi", "-12345", "QY Out", "Maker", "Model"),
             Channel = MidiChannel.FromNumber(3),
             Transpose = -12,

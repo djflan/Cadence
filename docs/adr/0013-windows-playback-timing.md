@@ -13,7 +13,7 @@ immediate-delivery endpoints (the class WinMM will fall into) were served up to 
 **Machine:** Windows 11 ARM64 in a Parallels VM on an Apple Silicon Mac, .NET 10 SDK 10.0.401,
 Release build. **These numbers are provisional:** a VM's timer and scheduler behaviour says little
 about native Windows. Re-measure on native hardware before relying on them.
-**Tool:** `src/Cadence.Benchmarks -- --jitter 10 [--timer|--promote|--realtime]`, the same probe and
+**Tool:** `src/Bluestone.Benchmarks -- --jitter 10 [--timer|--promote|--realtime]`, the same probe and
 material as ADR 0012 (3,888 messages per 10 s run).
 
 ## Measurements (immediate endpoints)
@@ -35,13 +35,13 @@ collection happened during any run.
 - **Also register the playback thread as an MMCSS "Pro Audio" task.** It made no measurable
   difference in the VM, but it is the standard priority class for audio threads and protects
   against CPU contention, which the probe does not create.
-- Both live in the new managed-only `Cadence.Platform.Windows` project, called from
+- Both live in the new managed-only `Bluestone.Platform.Windows` project, called from
   `PlatformProviders.ConfigurePlaybackThread`. No native code and no change to the platform-neutral
   `PlaybackThread`.
 
 ## Consequences
 
-- The timer request lasts for the life of the process and raises power use slightly while Cadence
+- The timer request lasts for the life of the process and raises power use slightly while Bluestone
   runs. Windows releases it when the process exits.
 - Windows 11 may ignore timer-resolution requests from processes whose windows are minimised or
   hidden. If background playback drifts, switch the long wait to a high-resolution waitable timer

@@ -2,9 +2,9 @@ using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Cadence.Presentation;
+using Bluestone.Presentation;
 
-namespace Cadence.Desktop.Views;
+namespace Bluestone.Desktop.Views;
 
 /// <summary>
 /// The menu bar, following macOS conventions: an application menu, then File, Edit, Track, MIDI,
@@ -13,7 +13,7 @@ namespace Cadence.Desktop.Views;
 /// </summary>
 internal static class AppMenu
 {
-    public const string HelpUrl = "https://github.com/djflan/Cadence#readme";
+    public const string HelpUrl = "https://github.com/djflan/Bluestone#readme";
 
     /// <summary>Gestures handled by the menu bar, so the window must not bind them again.</summary>
     public static readonly (Key Key, KeyModifiers Extra)[] MenuGestures =
@@ -30,7 +30,7 @@ internal static class AppMenu
         KeyGesture Cmd(Key key, KeyModifiers extra = KeyModifiers.None) => new(key, command | extra);
 
         // Items added to the application menu; macOS supplies Services, Hide, Hide Others, Show All, and Quit.
-        var about = Item("About Cadence", () => _ = new AboutWindow().ShowDialog(window));
+        var about = Item("About Bluestone", () => _ = new AboutWindow().ShowDialog(window));
         if (Avalonia.Application.Current is { } app)
         {
             NativeMenu.SetMenu(app, [about]);
@@ -126,7 +126,7 @@ internal static class AppMenu
                 Item("Zoom", () => window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized)),
             Submenu("Help",
                 Item("Keyboard Shortcuts", window.ShowShortcuts, Cmd(Key.OemQuestion)),
-                Item("Cadence Help", () => _ = window.Launcher.LaunchUriAsync(new Uri(HelpUrl)))),
+                Item("Bluestone Help", () => _ = window.Launcher.LaunchUriAsync(new Uri(HelpUrl)))),
         ]);
     }
 

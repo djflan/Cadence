@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Cadence.Platform.Alsa;
+namespace Bluestone.Platform.Alsa;
 
 /// <summary>ALSA sequencer and MIDI event encoder functions (alsa/seq.h, alsa/seq_midi_event.h).</summary>
 [SupportedOSPlatform("linux")]

@@ -1,19 +1,19 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using Cadence.Application.Editing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using Cadence.Signal;
-using DeviceParameter = Cadence.Domain.Devices.ParameterDescriptor;
-using WorkerParameter = Cadence.Plugins.Protocol.ParameterDescriptor;
-using WorkerParameterValue = Cadence.Plugins.Protocol.ParameterValue;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Signal;
+using DeviceParameter = Bluestone.Domain.Devices.ParameterDescriptor;
+using WorkerParameter = Bluestone.Plugins.Protocol.ParameterDescriptor;
+using WorkerParameterValue = Bluestone.Plugins.Protocol.ParameterValue;
 
-namespace Cadence.Application.Plugins;
+namespace Bluestone.Application.Plugins;
 
 /// <summary>A plugin device's run-time status, in words for the device strip.</summary>
 /// <param name="Text">"Running", "Crashed", "Not installed", …</param>
@@ -62,7 +62,7 @@ public sealed class PluginDeviceHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// A device definition for a plugin: data only, never runnable in Cadence's process. What it handles follows
+    /// A device definition for a plugin: data only, never runnable in Bluestone's process. What it handles follows
     /// its kind: an instrument takes notes, controllers, and programs and makes audio; a MIDI effect takes notes
     /// (everything else passes around it, as the host promises); an audio effect takes and makes audio.
     /// </summary>
@@ -154,7 +154,7 @@ public sealed class PluginDeviceHost : IAsyncDisposable
     /// <summary>
     /// Brings the running instances in line with <paramref name="project"/>: every plugin device whose plugin is
     /// available gets an instance, created from its saved state and parameters; instances of devices that are gone
-    /// are destroyed. Failures to start are statuses, not exceptions, and never fall back to Cadence's process.
+    /// are destroyed. Failures to start are statuses, not exceptions, and never fall back to Bluestone's process.
     /// </summary>
     public async Task SyncAsync(Project project, CancellationToken cancellationToken = default)
     {

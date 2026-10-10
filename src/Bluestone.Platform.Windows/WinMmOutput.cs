@@ -1,9 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Platform.Windows;
+namespace Bluestone.Platform.Windows;
 
 /// <summary>
 /// Sends short messages with <c>midiOutShortMsg</c> and system exclusive with <c>midiOutLongMsg</c>,

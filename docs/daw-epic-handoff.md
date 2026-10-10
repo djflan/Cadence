@@ -15,16 +15,16 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Area | State |
 | ---- | ----- |
 | Domain: roles, devices, chains, instruments, connections, mixer, device automation | Done, tested |
-| `Cadence.Signal`: chain runner, built-in devices, signal graph | Done, tested; a passthrough chain allocates 0 bytes after warm-up |
+| `Bluestone.Signal`: chain runner, built-in devices, signal graph | Done, tested; a passthrough chain allocates 0 bytes after warm-up |
 | Routing replacement (`TrackRoute`, `RoutingTable`, `ResolvedRoute`, `PlanTrackBinding` removed) | Done; format 3 fixtures send byte-identical MIDI (section 5) |
-| Format 4, 3→4 migration, chain preset files (`cadence-chain-preset` v1) | Done, tested; roles reconciled on load |
+| Format 4, 3→4 migration, chain preset files (`bluestone-chain-preset` v1) | Done, tested; roles reconciled on load |
 | Commands (devices, presets, racks, connections, instruments, mixer, roles, groups), refusal of routing errors | Done, tested |
 | UI: Track (role), Devices (strip), Connections (routing inspector), audio clips drawn, plugin status and Restart | Done; view-model tests; **the app was run on macOS** and the sections checked visually |
 | UI: Racks (new, rename, edit in the strip, remove), Mixer (channels: name, gain, pan, mute, solo, output, remove; master gain) | Done; view-model tests; run on macOS: new rack → strip edits it → back; channel added; fader drag then one Undo restored 0 dB |
 | Undo merging: same merge key within 1 s is one undo step (parameter sliders, mixer gain/pan, master gain) | Done; `EditHistory` tests with a manual `TimeProvider`, view-model tests |
-| Plugin hosting (`Cadence.Plugins.Protocol`, `Cadence.Plugins`, `Cadence.PluginWorker`) | Done, merged; real worker processes killed in tests; reference plugins only |
+| Plugin hosting (`Bluestone.Plugins.Protocol`, `Bluestone.Plugins`, `Bluestone.PluginWorker`) | Done, merged; real worker processes killed in tests; reference plugins only |
 | Application bridge (`PluginDeviceHost`): devices ↔ worker instances, state into the project, status, restart | Done, tested with real workers; wired into the desktop app |
-| Headless UI tests (`Cadence.Tests.Ui`): real window, bindings, UI thread, mouse clicks, captured frames | Done; inspector sections, rack editing, mixer fader undo, plugin recompile on worker death and restart |
+| Headless UI tests (`Bluestone.Tests.Ui`): real window, bindings, UI thread, mouse clicks, captured frames | Done; inspector sections, rack editing, mixer fader undo, plugin recompile on worker death and restart |
 | Plugin MIDI effects in the plan (ADR 0028): rendered in their worker at compile time, routed downstream | Done; `PluginMidiInThePlanTests` with real workers (transpose to a port, automation, tap, killed and hung workers) |
 | Acceptance scenarios 1–15 | All have tests: table in `docs/architecture.md` and `docs/plugin-hosting.md` |
 | Docs: ADRs 0021–0028, architecture, project format, MIDI files, plugin hosting, README | Done |
@@ -32,24 +32,24 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | CI on Ubuntu, macOS, Windows | Green on this branch at 84564bb (run 38094496608, dispatched; no PR) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
-`dotnet test src/Cadence.slnx`: 1137 total, 1124 passed, 12 skipped (other platforms' adapters), 1 failed: the
-intermittent `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder`, which also fails on the
+`dotnet test src/Bluestone.slnx`: 1137 total, 1124 passed, 12 skipped (other platforms' adapters), 1 failed: the
+intermittent `CoreMidiProviderTests.Playback_ThroughBluestoneVirtualPort_ArrivesInOrder`, which also fails on the
 untouched base (section 2). Plugin integration tests: 8 consecutive passes of 27, no workers left behind; the bridge
 and strip tests (5) pass.
 
 ## 2. Build environment
 
 Use the README commands on a machine with SDK 10.0.300 (`global.json`). One test project:
-`dotnet test --project src/Cadence.Tests.Unit/Cadence.Tests.Unit.csproj -- --filter-namespace "Cadence.Tests.Unit.Signal"`.
+`dotnet test --project src/Bluestone.Tests.Unit/Bluestone.Tests.Unit.csproj -- --filter-namespace "Bluestone.Tests.Unit.Signal"`.
 
-- `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder` fails intermittently on macOS (real
+- `CoreMidiProviderTests.Playback_ThroughBluestoneVirtualPort_ArrivesInOrder` fails intermittently on macOS (real
   CoreMIDI timing; it failed before any change). Two other CoreMIDI tests timed out occasionally under full-suite load
   during the plugin work. Not a regression; do not chase it as part of the epic.
 - Plugin tests that make a worker call `Environment.FailFast` leave macOS crash reports in
   `~/Library/Logs/DiagnosticReports` (33 after this session). Harmless; delete them if they bother you.
 - CI (`.github/workflows/ci.yml`) runs only on `main` and pull requests, so **nothing has been built on Windows or
   Linux** in this epic.
-- To look at the UI: `./src/Cadence.Desktop/bin/Debug/net10.0/Cadence.Desktop path/to/project.cadence` (the app opens a
+- To look at the UI: `./src/Bluestone.Desktop/bin/Debug/net10.0/Bluestone.Desktop path/to/project.bluestone` (the app opens a
   project or MIDI file named on the command line).
 
 ## 3. Analyzer traps already hit (warnings are errors)
@@ -60,12 +60,12 @@ Use the README commands on a machine with SDK 10.0.300 (`global.json`). One test
 - `ImmutableArray<T>` has no `FindIndex`; use a loop. With xUnit, comparing a collection expression to an `ImmutableArray` may need an explicit `Assert.Equal<T>(...)`.
 - Positional records that re-declare their properties are awkward; use an explicit constructor (as `ProfileReference` does).
 - Style: file-scoped namespaces, braces always, `_camelCase` fields, XML docs only where intent/units/ownership are not obvious, tests named `Subject_Condition_Expectation`. Keep test assertions plain; two bad tests came from over-clever expressions.
-- `Cadence.Domain` may reference only the BCL. Add every new project to `DependencyDirectionTests`.
+- `Bluestone.Domain` may reference only the BCL. Add every new project to `DependencyDirectionTests`.
 - `CA1711`: type names cannot end in `Stream` either (the feeds are `ExternalPartFeed`, `SoftwareInstrumentFeed`, `ParameterFeed`).
 - `CA1822`: a property returning a static (`=> ChannelOption.All`) must be an initialized auto-property to bind from AXAML.
-- Namespaces: in `Cadence.Tests.Unit`, `Domain.Routing.X` resolves to the test namespace; import `Cadence.Domain.Routing` instead. In `Cadence.Application.Plugins`, `Plugins.Protocol.X` resolves to the Application namespace; use `using` aliases.
+- Namespaces: in `Bluestone.Tests.Unit`, `Domain.Routing.X` resolves to the test namespace; import `Bluestone.Domain.Routing` instead. In `Bluestone.Application.Plugins`, `Plugins.Protocol.X` resolves to the Application namespace; use `using` aliases.
 - `EventOrder.Compare` boxes `EventPhase` (`Enum.CompareTo(object)`); on hot paths compare `(int)phase`.
-- `dotnet format` reorders imports after edits; run `dotnet format src/Cadence.slnx` before `--verify-no-changes`.
+- `dotnet format` reorders imports after edits; run `dotnet format src/Bluestone.slnx` before `--verify-no-changes`.
 
 ## 4. What exists, and the decisions behind it (do not re-decide these)
 
@@ -89,7 +89,7 @@ devices, and routing"). Plugin hosting: `docs/plugin-hosting.md`, including the 
 14. **The evaluator never fails on bad routing.** It leaves out every connection named in a validator error, reports it (`InvalidConnection`), and as a backstop drops any connection that still closes a loop during topological ordering (`Feedback`). Audio connections are validated and reported but not followed (no audio engine).
 15. **"Not routed"** is reported for a playing track with no outgoing event connection (from the track or a tap on its devices) and no instrument in its chain, whatever its content, like the old compiler. With an instrument but no connection, it is reported only when events remain after the chain (for example SysEx the instrument does not handle). A tap on a chain whose owning track is gone is left out and reported (it can never run).
 16. **Arpeggiator phrases are anchored at the first note** played while nothing is held, including after a gap shorter than a step; then they step every rate interval while anything is held, so every phrase sounds (a legato note, starting exactly where the last one ends, continues the phrase). Held pitches are deduplicated and played lowest first; generated notes take the source note's channel, velocities and ordering key, and an `EventId` derived from the source note's ID and the step's tick. Output, IDs included, is identical across evaluations and whether processed in one block or many (tested).
-17. **Language policy (owner clarification, 2026-10-10; overrides any "C# only, no Rust" wording in earlier task instructions or the plugin spec).** C#/.NET is the default for all code. Rust is the choice for performance-critical or native sections, and replaces C/C++ for new Cadence-owned native code; C/C++ only for third-party libraries, vendor SDK requirements, and thin ABI shims. Likely Rust candidates: the plugin worker's native VST3 hosting layer, the real-time shared-memory data plane and audio callback path, and DSP once an audio engine exists. Each needs a stated reason (a measurement or a native ABI constraint), a small versioned C ABI to .NET (prompt section 16.3), and must not become a second application language. This is the same as prompt section 16.
+17. **Language policy (owner clarification, 2026-10-10; overrides any "C# only, no Rust" wording in earlier task instructions or the plugin spec).** C#/.NET is the default for all code. Rust is the choice for performance-critical or native sections, and replaces C/C++ for new Bluestone-owned native code; C/C++ only for third-party libraries, vendor SDK requirements, and thin ABI shims. Likely Rust candidates: the plugin worker's native VST3 hosting layer, the real-time shared-memory data plane and audio callback path, and DSP once an audio engine exists. Each needs a stated reason (a measurement or a native ABI constraint), a small versioned C ABI to .NET (prompt section 16.3), and must not become a second application language. This is the same as prompt section 16.
 18. **The inspector's fields are a view of the routing model** (`TrackOutputs`): the instrument is reused per (endpoint,
     profile); the primary connection is the track's first event connection to an external instrument (its channel
     filter is kept); transposition lives in the chain's first Transpose device, added at the end when needed, and is
@@ -128,7 +128,7 @@ Asserted by `Format3EquivalenceTests` through the **new** pipeline (migration, s
 | `format3-routing-full` | `2F73C9A155441A5E` | `BAD8DAA4476B28E9` | 3 | 158 |
 | `format3-canon` | `1B5E6E6E27359652` | `6F9AA00B419CABFC` | 3 | 1407 |
 
-Hash = `PlanDump.Hash(PlanDump.PlaybackStream(plan))` / `ExportStream`. Old diagnostics for `format3-routing-full`: Orphan, Settings only, Unrouted are "not routed"; Pad has 1 clip event replaced by automation and 1 lane dropped after the channel override. `MidiOneOutputGoldenTests` and `PlanEquivalenceTests` (format 2 fixtures) must stay green unchanged. The fixtures live in `src/Cadence.Tests.Unit/Infrastructure/Fixtures/` and must never be regenerated.
+Hash = `PlanDump.Hash(PlanDump.PlaybackStream(plan))` / `ExportStream`. Old diagnostics for `format3-routing-full`: Orphan, Settings only, Unrouted are "not routed"; Pad has 1 clip event replaced by automation and 1 lane dropped after the channel override. `MidiOneOutputGoldenTests` and `PlanEquivalenceTests` (format 2 fixtures) must stay green unchanged. The fixtures live in `src/Bluestone.Tests.Unit/Infrastructure/Fixtures/` and must never be regenerated.
 
 Ordering that must be preserved: plan events sort by `(tick, EventPhase, source track index, index within source)`; initial voice events use negative indexes so they precede the track's events in the same phase; split SysEx joining is per source track.
 
@@ -142,9 +142,9 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
   and deadline handling are tested only with the reference plugins and a test clock.
 - Any third-party plugin: no VST3 or other format is loaded; claims are limited to the reference plugins.
 - The UI was run and inspected on macOS with a hand-made format 4 project (role, chain with a tap and a missing plugin,
-  audio clip), and the Racks and Mixer sections with `format3-routing-full.cadence` (synthetic clicks and drags; an
+  audio clip), and the Racks and Mixer sections with `format3-routing-full.bluestone` (synthetic clicks and drags; an
   autosave restore brought the new rack back). Clicking through every workflow was not done by hand; view-model tests
-  cover the workflows. `Cadence.Tests.Ui` covers the Devices, Racks, and Mixer sections on the headless platform
+  cover the workflows. `Bluestone.Tests.Ui` covers the Devices, Racks, and Mixer sections on the headless platform
   (frames are saved to `bin/.../frames/` for looking at); other sections have no headless tests yet.
 - Plugin MIDI rendering is tested with the reference Transpose plugin only (real workers), at the routing level and
   through the app on the headless UI thread (worker killed, then restarted).
@@ -182,14 +182,14 @@ third-party plugins (7.2), which need the engine to drive them.
 
 ### 7.3 More headless UI tests
 
-`Cadence.Tests.Ui` covers Devices, Racks, and Mixer. Add Track, Routing, Connections, the arrangement (clip drag,
+`Bluestone.Tests.Ui` covers Devices, Racks, and Mixer. Add Track, Routing, Connections, the arrangement (clip drag,
 resize, rename), the piano roll (draw, select, move notes), and keyboard shortcuts. `Avalonia.Headless.XUnit` 12.1
 targets xUnit v3 3.x while the repository uses 4.x, so the tests use `HeadlessUnitTestSession` directly
 (`HeadlessApp.RunAsync`). Cheap; also what a cloud or Linux agent needs to check UI work.
 
 ### 7.4 Smaller items
 
-- **Rescanning plugins from the UI.** The app scans `<AppData>/Cadence/plugins` once at start;
+- **Rescanning plugins from the UI.** The app scans `<AppData>/Bluestone/plugins` once at start;
   `PluginScanner.RescanAsync` and clearing quarantine are API only. Add a menu or settings view and a list of
   quarantined modules with "retry". Small.
 - **Device automation → CC/RPN/NRPN/SysEx for hardware.** Today a hardware parameter reachable only that way is

@@ -1,8 +1,8 @@
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol.Exchange;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol.Exchange;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>The data plane across a real process boundary: ordering under concurrency, and no allocation on the audio path.</summary>
 [Collection(PluginProcessTests.Name)]

@@ -1,16 +1,16 @@
 using System.Diagnostics;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.Plugins.Workers;
+namespace Bluestone.Plugins.Workers;
 
 /// <summary>
-/// Builds the start information for a worker process. The worker is the <c>Cadence.PluginWorker</c> app host beside
-/// this assembly, else <c>Cadence.PluginWorker.dll</c> run by the <c>dotnet</c> host. It is always started directly,
+/// Builds the start information for a worker process. The worker is the <c>Bluestone.PluginWorker</c> app host beside
+/// this assembly, else <c>Bluestone.PluginWorker.dll</c> run by the <c>dotnet</c> host. It is always started directly,
 /// never through a shell, with all standard streams redirected.
 /// </summary>
 internal static class WorkerLauncher
 {
-    public const string WorkerName = "Cadence.PluginWorker";
+    public const string WorkerName = "Bluestone.PluginWorker";
 
     /// <summary>Start information for a worker; <paramref name="workerPath"/> is an explicit executable or <c>.dll</c>, or null for the default.</summary>
     public static ProcessStartInfo CreateStartInfo(string? workerPath, WorkerMode mode, string pipeName, IReadOnlyDictionary<string, string>? environment)

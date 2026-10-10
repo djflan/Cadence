@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Domain.Midi;
+namespace Bluestone.Tests.Unit.Domain.Midi;
 
 public sealed class MidiValueTests
 {

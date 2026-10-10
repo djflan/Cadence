@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Infrastructure.Projects;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Infrastructure.Projects;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 public sealed class ChainPresetSerializerTests
 {
@@ -41,7 +41,7 @@ public sealed class ChainPresetSerializerTests
     {
         var text = Encoding.UTF8.GetString(ChainPresetSerializer.Serialize(Sample()));
 
-        Assert.StartsWith("{\n  \"format\": \"cadence-chain-preset\",\n  \"formatVersion\": 1,", text, StringComparison.Ordinal);
+        Assert.StartsWith("{\n  \"format\": \"bluestone-chain-preset\",\n  \"formatVersion\": 1,", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\"id\": \"0", text, StringComparison.Ordinal);
         Assert.All(JsonNode.Parse(text)!["preset"]!["devices"]!.AsArray(), d => Assert.Null(d!["id"]));
     }
@@ -58,6 +58,6 @@ public sealed class ChainPresetSerializerTests
         var error = Assert.Throws<ProjectFormatException>(() => ChainPresetSerializer.Deserialize(Encoding.UTF8.GetBytes(json.ToJsonString())));
         Assert.Equal("$.preset.devices[1].parameters", error.JsonPath);
 
-        Assert.Throws<ProjectFormatException>(() => ChainPresetSerializer.Deserialize("""{ "format": "cadence-project", "formatVersion": 1 }"""u8));
+        Assert.Throws<ProjectFormatException>(() => ChainPresetSerializer.Deserialize("""{ "format": "bluestone-project", "formatVersion": 1 }"""u8));
     }
 }

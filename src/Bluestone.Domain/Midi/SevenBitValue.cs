@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>A generic 7-bit MIDI data value (0-127), such as a controller value or pressure amount.</summary>
 public readonly record struct SevenBitValue

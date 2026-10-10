@@ -3,13 +3,13 @@
        recovery, the real-time processing API over the block exchange, and isolated scanning. Never loads a plugin
        in this process. See docs/plugin-hosting.md. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Plugins</RootNamespace>
+    <RootNamespace>Bluestone.Plugins</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
-    <InternalsVisibleTo Include="Cadence.Tests.Integration" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Integration" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Plugins.Protocol/Cadence.Plugins.Protocol.csproj" />
+    <ProjectReference Include="../Bluestone.Plugins.Protocol/Bluestone.Plugins.Protocol.csproj" />
   </ItemGroup>
 </Project>

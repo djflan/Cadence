@@ -1,4 +1,4 @@
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 public sealed record FileFilter(string Name, IReadOnlyList<string> Extensions);
 
@@ -51,7 +51,7 @@ public static class UiDispatcherExtensions
 
 public static class FileFilters
 {
-    public static readonly FileFilter Project = new("Cadence project", ["cadence"]);
+    public static readonly FileFilter Project = new("Bluestone project", ["bluestone"]);
     public static readonly FileFilter Midi = new("Standard MIDI file", ["mid", "midi", "smf"]);
-    public static readonly FileFilter ChainPreset = new("Cadence chain preset", ["cadence-chain"]);
+    public static readonly FileFilter ChainPreset = new("Bluestone chain preset", ["bluestone-chain"]);
 }

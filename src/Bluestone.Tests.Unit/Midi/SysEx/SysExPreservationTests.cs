@@ -1,14 +1,14 @@
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Infrastructure.Projects;
-using Cadence.Midi.Files;
-using Cadence.Midi.SysEx;
-using Cadence.Tests.Unit.Playback;
-using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Midi.Files;
+using Bluestone.Midi.SysEx;
+using Bluestone.Tests.Unit.Playback;
+using static Bluestone.Tests.Unit.Midi.Files.SmfBytes;
 
-namespace Cadence.Tests.Unit.Midi.SysEx;
+namespace Bluestone.Tests.Unit.Midi.SysEx;
 
-/// <summary>SysEx survives import, saving, export, and playback byte for byte, whether or not Cadence understands it.</summary>
+/// <summary>SysEx survives import, saving, export, and playback byte for byte, whether or not Bluestone understands it.</summary>
 public sealed class SysExPreservationTests
 {
     private static readonly byte[] Unknown = [0xF0, 0x00, 0x21, 0x09, 0x12, 0x34, 0x56, 0xF7];

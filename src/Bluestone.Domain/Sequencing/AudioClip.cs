@@ -1,9 +1,9 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
-/// Where an audio clip's sound comes from: a file, and what is known about it. Cadence stores the
+/// Where an audio clip's sound comes from: a file, and what is known about it. Bluestone stores the
 /// reference, not the sound, so a project stays small and a moved file can be found again.
 /// </summary>
 public sealed record AudioSource
@@ -34,7 +34,7 @@ public sealed record AudioSource
 
 /// <summary>
 /// A clip of recorded or imported audio. Content tick 0 is where the source starts; trimming only moves
-/// the window onto it, like a note clip. Cadence has no audio engine yet: the model, arrangement, and
+/// the window onto it, like a note clip. Bluestone has no audio engine yet: the model, arrangement, and
 /// project file carry audio clips, and playback does not (ADR 0021).
 /// </summary>
 public sealed record AudioClip : Clip

@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 /// <summary>
 /// The worker's side of one instance's block exchange: it creates the file and runs blocks the host submitted.

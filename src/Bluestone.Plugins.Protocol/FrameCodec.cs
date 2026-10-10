@@ -1,8 +1,8 @@
 using System.Buffers.Binary;
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 /// <summary>
 /// Encodes and decodes control-plane frames: a uint32 little-endian body length, then the body (uint16 message type,

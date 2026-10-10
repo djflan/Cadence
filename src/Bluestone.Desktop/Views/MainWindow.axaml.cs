@@ -7,10 +7,10 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Cadence.Domain.Sequencing;
-using Cadence.Presentation;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Presentation;
 
-namespace Cadence.Desktop.Views;
+namespace Bluestone.Desktop.Views;
 
 public partial class MainWindow : Window
 {
@@ -322,7 +322,7 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => PianoRoll.Focus(), DispatcherPriority.Background);
     }
 
-    /// <summary>The first dropped file Cadence can open, as a local path.</summary>
+    /// <summary>The first dropped file Bluestone can open, as a local path.</summary>
     private static string? DroppedFile(DragEventArgs e) =>
         e.DataTransfer.TryGetFiles()?
             .Select(item => item.TryGetLocalPath())
@@ -335,7 +335,7 @@ public partial class MainWindow : Window
         DropOverlay.IsVisible = path is not null;
         if (path is not null)
         {
-            var isProject = path.EndsWith(".cadence", StringComparison.OrdinalIgnoreCase);
+            var isProject = path.EndsWith(".bluestone", StringComparison.OrdinalIgnoreCase);
             DropText.Text = isProject ? "Drop to open project" : "Drop to import MIDI file";
             DropDetail.Text = System.IO.Path.GetFileName(path);
         }

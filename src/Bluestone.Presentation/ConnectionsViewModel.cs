@@ -1,13 +1,13 @@
 using System.Collections.ObjectModel;
-using Cadence.Application.Editing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>Where a new connection starts: the track's output (the end of its chain) or after one of its devices.</summary>
 public sealed record SourceOption(SignalNode Node, string Name)

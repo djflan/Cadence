@@ -2,10 +2,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Desktop.Controls;
+namespace Bluestone.Desktop.Controls;
 
 /// <summary>
 /// The bar ruler above the arrangement. Click or drag in the lower part to move the playhead; drag

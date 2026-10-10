@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Linux ALSA sequencer adapter. Managed P/Invoke only; see docs/adr/0016-alsa-adapter.md. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Platform.Alsa</RootNamespace>
+    <RootNamespace>Bluestone.Platform.Alsa</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
   </ItemGroup>
 </Project>

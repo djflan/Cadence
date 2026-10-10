@@ -1,6 +1,6 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>
 /// A span of a track's timeline that holds content. The clip's type decides what the content is; a

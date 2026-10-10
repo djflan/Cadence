@@ -1,6 +1,6 @@
-using Cadence.Plugins;
+using Bluestone.Plugins;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 public sealed class RestartGuardTests
 {

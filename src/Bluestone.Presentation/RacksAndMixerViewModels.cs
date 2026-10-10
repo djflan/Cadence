@@ -1,13 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>
 /// The project's racks: free-standing device chains that several tracks route into, such as one shared XG

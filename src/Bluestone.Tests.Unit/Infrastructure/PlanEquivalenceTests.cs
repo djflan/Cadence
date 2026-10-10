@@ -1,13 +1,13 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Infrastructure.Projects;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Infrastructure.Projects;
 using CsCheck;
-using static Cadence.Tests.Unit.Playback.PlanDump;
+using static Bluestone.Tests.Unit.Playback.PlanDump;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 /// <summary>
 /// Guards that projects saved in older formats still send and export the same MIDI 1.0 bytes once read
@@ -32,9 +32,9 @@ public sealed class PlanEquivalenceTests
 {
     public static TheoryData<string, string, string, string> Fixtures() => new()
     {
-        { "format2-full.cadence", "16195787EB3D796E", "16195787EB3D796E", "A959AF30B339DF00" },
-        { "format2-edges.cadence", "B3A0AB00DA40E3F0", "EC1E2E5597714704", "A9D37B3B99CF7FF3" },
-        { "format2-canon-gm16.cadence", "BE918A5129078D96", "C1BD096BB50430FF", "6F9AA00B419CABFC" },
+        { "format2-full.bluestone", "16195787EB3D796E", "16195787EB3D796E", "A959AF30B339DF00" },
+        { "format2-edges.bluestone", "B3A0AB00DA40E3F0", "EC1E2E5597714704", "A9D37B3B99CF7FF3" },
+        { "format2-canon-gm16.bluestone", "BE918A5129078D96", "C1BD096BB50430FF", "6F9AA00B419CABFC" },
     };
 
     [Theory]

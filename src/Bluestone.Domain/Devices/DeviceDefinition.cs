@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>Where a device's implementation runs.</summary>
 public enum DeviceOrigin
 {
-    /// <summary>Code shipped with Cadence, trusted and run in process.</summary>
+    /// <summary>Code shipped with Bluestone, trusted and run in process.</summary>
     BuiltIn,
 
     /// <summary>A third-party plugin, hosted in a separate worker process (ADR 0025).</summary>

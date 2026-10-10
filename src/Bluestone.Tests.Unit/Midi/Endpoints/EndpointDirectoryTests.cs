@@ -1,7 +1,7 @@
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
 
-namespace Cadence.Tests.Unit.Midi.Endpoints;
+namespace Bluestone.Tests.Unit.Midi.Endpoints;
 
 public sealed class EndpointDirectoryTests
 {

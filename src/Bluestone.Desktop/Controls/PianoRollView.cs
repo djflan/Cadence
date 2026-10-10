@@ -4,15 +4,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Cadence.Application.Editing;
-using Cadence.Application.Recording;
-using Cadence.Desktop.Theme;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Presentation;
-using SelectionMode = Cadence.Presentation.SelectionMode;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Recording;
+using Bluestone.Desktop.Theme;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Presentation;
+using SelectionMode = Bluestone.Presentation.SelectionMode;
 
-namespace Cadence.Desktop.Controls;
+namespace Bluestone.Desktop.Controls;
 
 /// <summary>
 /// The piano roll: a keyboard, a bar ruler, a note grid, and a controller lane (velocity or a

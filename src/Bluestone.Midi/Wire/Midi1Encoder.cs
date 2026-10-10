@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Midi.Wire;
+namespace Bluestone.Midi.Wire;
 
 /// <summary>
-/// The MIDI 1.0 encoding of Cadence's semantic operations. Anything that needs more than one MIDI 1.0
+/// The MIDI 1.0 encoding of Bluestone's semantic operations. Anything that needs more than one MIDI 1.0
 /// message, or a MIDI-1-specific convention (7- and 14-bit values, bank select pairs), is decided
 /// here rather than in the domain or profiles. <see cref="Midi1Decoder"/> is the inverse.
 /// </summary>

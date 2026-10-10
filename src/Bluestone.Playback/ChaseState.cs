@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>A message to send to <see cref="Slot"/> to bring a device up to date: before playback starts mid-sequence, or at a loop wrap.</summary>
 internal readonly record struct ChaseMessage(int Slot, ChannelMessage Message);

@@ -1,5 +1,5 @@
 {
-  "format": "cadence-project",
+  "format": "bluestone-project",
   "formatVersion": 3,
   "project": {
     "id": "00000000-0000-7000-8000-000000000001",
@@ -503,7 +503,7 @@
       {
         "track": "01a12771-7012-7fca-8f8f-fbb11652d90e",
         "profile": {
-          "id": "cadence.generic.xg",
+          "id": "bluestone.generic.xg",
           "name": "Generic XG"
         },
         "endpoint": {
@@ -523,7 +523,7 @@
       {
         "track": "01a12771-701f-7dea-8c63-8ed7007bbe6f",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {
@@ -571,7 +571,7 @@
       {
         "track": "01a12771-7029-7647-a225-9abebc084891",
         "profile": {
-          "id": "cadence.generic.xg",
+          "id": "bluestone.generic.xg",
           "name": "Generic XG"
         },
         "channel": 9,
@@ -596,7 +596,7 @@
       {
         "track": "01a12771-7029-7073-b62a-7362470f900a",
         "profile": {
-          "id": "cadence.generic.gm1",
+          "id": "bluestone.generic.gm1",
           "name": "General MIDI"
         },
         "endpoint": {

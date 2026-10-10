@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
-using Cadence.Plugins.Protocol;
-using Cadence.PluginWorker.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.PluginWorker.Plugins;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
 /// Scan mode: reads one module file and reports the plugins it declares. A module is a small JSON manifest with the
@@ -15,17 +15,17 @@ namespace Cadence.PluginWorker;
 /// </summary>
 internal static class ModuleScanner
 {
-    public const string ModuleExtension = ".cadence-reference-plugin";
-    public const string ManifestFormat = "cadence-reference-plugin";
-    public const string CrashMarker = "#cadence-test: crash-scanner";
-    public const string HangMarker = "#cadence-test: hang-scanner";
+    public const string ModuleExtension = ".bluestone-reference-plugin";
+    public const string ManifestFormat = "bluestone-reference-plugin";
+    public const string CrashMarker = "#bluestone-test: crash-scanner";
+    public const string HangMarker = "#bluestone-test: hang-scanner";
     public const int MaxModuleBytes = 64 * 1024;
 
     public static ScanResult Scan(string path)
     {
         if (!path.EndsWith(ModuleExtension, StringComparison.OrdinalIgnoreCase))
         {
-            return Malformed(path, $"Not a Cadence reference plugin module (expected a {ModuleExtension} file).");
+            return Malformed(path, $"Not a Bluestone reference plugin module (expected a {ModuleExtension} file).");
         }
 
         string text;
@@ -52,7 +52,7 @@ internal static class ModuleScanner
         var firstLine = text.Split('\n', 2)[0].TrimEnd('\r');
         if (firstLine == CrashMarker)
         {
-            Environment.FailFast("Cadence plugin scanner: crash induced by the test marker in " + path);
+            Environment.FailFast("Bluestone plugin scanner: crash induced by the test marker in " + path);
         }
 
         if (firstLine == HangMarker)

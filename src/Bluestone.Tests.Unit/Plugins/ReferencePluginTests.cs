@@ -1,12 +1,12 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.PluginWorker;
-using Cadence.PluginWorker.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.PluginWorker;
+using Bluestone.PluginWorker.Plugins;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 /// <summary>
-/// The worker's reference plugins, exercised directly. They are Cadence's own test plugins, not third-party code;
+/// The worker's reference plugins, exercised directly. They are Bluestone's own test plugins, not third-party code;
 /// the host never runs them in its process (see the integration tests for the same plugins across a process boundary).
 /// </summary>
 public sealed class ReferencePluginTests
@@ -130,9 +130,9 @@ public sealed class ReferencePluginTests
     }
 
     [Theory]
-    [InlineData("cadence.reference-state", new byte[] { 0x43, 0x52, 0x50, 0x53, 0x02, 0x00, 0x00, 0x00 })]
-    [InlineData("cadence.reference-state", new byte[] { 0x43, 0x52, 0x50, 0x53, 0x01, 0x00, 0x01, 0x00, 0x00 })]
-    [InlineData("cadence.reference-state", new byte[] { 1, 2, 3 })]
+    [InlineData("bluestone.reference-state", new byte[] { 0x43, 0x52, 0x50, 0x53, 0x02, 0x00, 0x00, 0x00 })]
+    [InlineData("bluestone.reference-state", new byte[] { 0x43, 0x52, 0x50, 0x53, 0x01, 0x00, 0x01, 0x00, 0x00 })]
+    [InlineData("bluestone.reference-state", new byte[] { 1, 2, 3 })]
     [InlineData("another-format", new byte[] { 0x43, 0x52, 0x50, 0x53, 0x01, 0x00, 0x00, 0x00 })]
     public void State_CorruptOrUnknownVersion_FailsCleanly_AndLeavesDefaults(string format, byte[] data)
     {
@@ -174,8 +174,8 @@ public sealed class ModuleScannerTests : IDisposable
     [Fact]
     public void AManifest_ListsItsPlugins()
     {
-        var path = Write("ok.cadence-reference-plugin", """
-            {"format": "cadence-reference-plugin", "version": 1, "moduleId": "acme",
+        var path = Write("ok.bluestone-reference-plugin", """
+            {"format": "bluestone-reference-plugin", "version": 1, "moduleId": "acme",
              "plugins": [{"pluginId": "acme.verb", "name": "Verb", "vendor": "Acme", "kind": "AudioEffect", "version": "2.1"}]}
             """);
 
@@ -183,15 +183,15 @@ public sealed class ModuleScannerTests : IDisposable
 
         Assert.Null(result.Failure);
         var plugin = Assert.Single(result.Plugins);
-        Assert.Equal(new PluginIdentity("cadence-reference", "acme", "acme.verb", "Verb", "Acme", PluginKind.AudioEffect, "2.1"), plugin);
+        Assert.Equal(new PluginIdentity("bluestone-reference", "acme", "acme.verb", "Verb", "Acme", PluginKind.AudioEffect, "2.1"), plugin);
     }
 
     [Theory]
     [InlineData("library.dylib", "{}")]
-    [InlineData("bad.cadence-reference-plugin", "{ not json")]
-    [InlineData("bad.cadence-reference-plugin", "{\"format\": \"other\", \"version\": 1, \"moduleId\": \"m\", \"plugins\": []}")]
-    [InlineData("bad.cadence-reference-plugin", "{\"format\": \"cadence-reference-plugin\", \"version\": 1, \"moduleId\": \"m\", \"plugins\": [{\"pluginId\": \"p\", \"name\": \"n\", \"kind\": \"Synth\"}]}")]
-    [InlineData("bad.cadence-reference-plugin", "{\"format\": \"cadence-reference-plugin\", \"version\": 1, \"moduleId\": \"m\"}")]
+    [InlineData("bad.bluestone-reference-plugin", "{ not json")]
+    [InlineData("bad.bluestone-reference-plugin", "{\"format\": \"other\", \"version\": 1, \"moduleId\": \"m\", \"plugins\": []}")]
+    [InlineData("bad.bluestone-reference-plugin", "{\"format\": \"bluestone-reference-plugin\", \"version\": 1, \"moduleId\": \"m\", \"plugins\": [{\"pluginId\": \"p\", \"name\": \"n\", \"kind\": \"Synth\"}]}")]
+    [InlineData("bad.bluestone-reference-plugin", "{\"format\": \"bluestone-reference-plugin\", \"version\": 1, \"moduleId\": \"m\"}")]
     public void AnythingElse_IsMalformed(string name, string content)
     {
         var result = ModuleScanner.Scan(Write(name, content));
@@ -202,7 +202,7 @@ public sealed class ModuleScannerTests : IDisposable
 
     [Fact]
     public void AMissingFile_IsMalformed() =>
-        Assert.Equal(ScanFailureKind.Malformed, ModuleScanner.Scan(_directory.File("gone.cadence-reference-plugin")).Failure);
+        Assert.Equal(ScanFailureKind.Malformed, ModuleScanner.Scan(_directory.File("gone.bluestone-reference-plugin")).Failure);
 
     private string Write(string name, string content)
     {

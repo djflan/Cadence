@@ -1,18 +1,18 @@
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Desktop.Services;
-using Cadence.Desktop.Views;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Scanning;
-using Cadence.Presentation;
-using Cadence.Profiles;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Desktop.Services;
+using Bluestone.Desktop.Views;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Scanning;
+using Bluestone.Presentation;
+using Bluestone.Profiles;
 
-namespace Cadence.Desktop;
+namespace Bluestone.Desktop;
 
 public partial class App : Avalonia.Application
 {
@@ -24,7 +24,7 @@ public partial class App : Avalonia.Application
         {
             var window = new MainWindow();
             var platformProviders = PlatformProviders.Create(SystemMonotonicClock.Instance).ToList();
-            var plugins = new PluginHostManager(new PluginHostOptions { DataDirectory = Path.Combine(Path.GetTempPath(), $"cadence-plugins-{Environment.ProcessId}") });
+            var plugins = new PluginHostManager(new PluginHostOptions { DataDirectory = Path.Combine(Path.GetTempPath(), $"bluestone-plugins-{Environment.ProcessId}") });
             var viewModel = Compose(window, platformProviders, plugins);
             window.Attach(viewModel);
             desktop.MainWindow = window;
@@ -47,10 +47,10 @@ public partial class App : Avalonia.Application
         ArgumentNullException.ThrowIfNull(window);
         var clock = SystemMonotonicClock.Instance;
 
-        // A built-in virtual bus whose output is shown in the MIDI monitor, so Cadence is useful
+        // A built-in virtual bus whose output is shown in the MIDI monitor, so Bluestone is useful
         // and verifiable with no hardware attached. Platform providers are added alongside it.
         var builtIn = new LoopbackMidiProvider(clock, EndpointCapabilities.ScheduledDelivery | EndpointCapabilities.SystemExclusive);
-        var monitorPort = builtIn.CreatePort("Cadence Monitor", "monitor");
+        var monitorPort = builtIn.CreatePort("Bluestone Monitor", "monitor");
         var keyboard = new ComputerKeyboardProvider(clock);
         var providers = new List<IMidiEndpointProvider> { builtIn, keyboard };
         providers.AddRange(platformProviders);
@@ -93,7 +93,7 @@ public partial class App : Avalonia.Application
 
     /// <summary>
     /// The plugins in <see cref="UserPluginDirectory"/>. Each module is scanned in its own scanner process, so a module
-    /// that crashes the scanner cannot take Cadence with it; it is reported and skipped on later scans (ADR 0025).
+    /// that crashes the scanner cannot take Bluestone with it; it is reported and skipped on later scans (ADR 0025).
     /// </summary>
     private static IReadOnlyList<PluginIdentity> ScanPlugins()
     {
@@ -102,7 +102,7 @@ public partial class App : Avalonia.Application
             return [];
         }
 
-        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cadence", "plugin-cache");
+        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bluestone", "plugin-cache");
         using var scanner = new PluginScanner(new PluginScannerOptions(cache));
         var results = Task.Run(() => scanner.ScanAsync(Directory.EnumerateFiles(UserPluginDirectory))).GetAwaiter().GetResult();
         foreach (var failure in results.Where(r => r.Failure is not null))
@@ -113,11 +113,11 @@ public partial class App : Avalonia.Application
         return [.. results.SelectMany(r => r.Plugins)];
     }
 
-    /// <summary>Where users put plugin modules, e.g. ~/Library/Application Support/Cadence/plugins on macOS.</summary>
+    /// <summary>Where users put plugin modules, e.g. ~/Library/Application Support/Bluestone/plugins on macOS.</summary>
     public static string UserPluginDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cadence", "plugins");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bluestone", "plugins");
 
-    /// <summary>Where users put their own profiles, e.g. ~/Library/Application Support/Cadence/profiles on macOS.</summary>
+    /// <summary>Where users put their own profiles, e.g. ~/Library/Application Support/Bluestone/profiles on macOS.</summary>
     public static string UserProfileDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cadence", "profiles");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bluestone", "profiles");
 }

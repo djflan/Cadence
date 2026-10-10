@@ -1,8 +1,8 @@
-using Cadence.Application.Sessions;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Integration.Sessions;
+namespace Bluestone.Tests.Integration.Sessions;
 
 /// <summary>The shipped demo must import cleanly; it is also a redistributable golden fixture.</summary>
 public sealed class SampleFileTests
@@ -52,10 +52,10 @@ public sealed class SampleFileTests
     {
         var session = new ProjectSession();
 
-        var report = await session.ImportMidiAsync(Path.Combine(RepositoryPaths.Root, "samples", "cadence-demo.mid"), TestContext.Current.CancellationToken);
+        var report = await session.ImportMidiAsync(Path.Combine(RepositoryPaths.Root, "samples", "bluestone-demo.mid"), TestContext.Current.CancellationToken);
 
         Assert.Empty(report.ImportDiagnostics);
-        Assert.Equal("Cadence Demo", session.Project.Name);
+        Assert.Equal("Bluestone Demo", session.Project.Name);
         Assert.Equal(["Drums", "Bass", "Keys", "Lead"], session.Project.Sequence.Tracks.Select(t => t.Name));
         Assert.Equal(266, session.Project.Sequence.Tracks.Sum(t => t.ArrangedEvents.OfType<NoteEvent>().Count()));
         Assert.Equal("Verse", Assert.Single(session.Project.Sequence.Markers).Name);
@@ -77,7 +77,7 @@ public sealed class SampleFileTests
              "Flute", "Drums", "Oboe", "French Horn", "Harp", "Choir", "Timpani", "Glockenspiel"],
             sequence.Tracks.Select(t => t.Name));
 
-        // Expected values come from samples/canon-gm16.py, not from Cadence.
+        // Expected values come from samples/canon-gm16.py, not from Bluestone.
         int[] notes = [97, 89, 81, 65, 29, 195, 148, 100, 33, 88, 11, 21, 166, 23, 24, 9];
         int[] programs = [40, 40, 41, 42, 43, 6, 0, 48, 73, 0, 68, 60, 46, 52, 47, 9];
         for (var i = 0; i < 16; i++)

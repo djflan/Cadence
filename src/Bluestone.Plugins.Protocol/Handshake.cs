@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 /// <summary>
 /// The Hello handshake. The worker connects and sends <see cref="Hello"/> with the per-launch token the host gave it;

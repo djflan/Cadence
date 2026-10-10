@@ -1,9 +1,9 @@
 using System.Globalization;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>Stable identity of a connection.</summary>
 public readonly record struct ConnectionId(Guid Value)

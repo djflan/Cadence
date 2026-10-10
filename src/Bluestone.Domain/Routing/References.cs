@@ -1,6 +1,6 @@
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>
 /// A reference to a device profile by its stable ID. The display name is remembered so a missing

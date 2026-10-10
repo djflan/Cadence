@@ -1,6 +1,6 @@
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>
 /// An event travelling through the signal graph, with the key that fixes its place among simultaneous

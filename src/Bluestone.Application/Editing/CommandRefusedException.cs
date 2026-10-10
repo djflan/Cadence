@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
 /// <summary>
 /// An edit that was refused because it would break the project (a feedback loop, a connection that cannot

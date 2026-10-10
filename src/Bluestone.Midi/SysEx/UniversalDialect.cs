@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Midi.SysEx;
+namespace Bluestone.Midi.SysEx;
 
 public enum UniversalMessageKind
 {
-    /// <summary>A well-formed Universal message whose sub-IDs Cadence does not name.</summary>
+    /// <summary>A well-formed Universal message whose sub-IDs Bluestone does not name.</summary>
     Other,
     IdentityRequest,
     IdentityReply,

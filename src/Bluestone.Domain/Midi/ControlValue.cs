@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A controller, pitch bend, or pressure amount at MIDI 2.0 resolution (32 bits, unsigned).

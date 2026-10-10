@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 public enum PluginEventKind : byte
 {

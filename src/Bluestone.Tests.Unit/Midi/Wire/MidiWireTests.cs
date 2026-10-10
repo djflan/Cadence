@@ -1,6 +1,6 @@
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Tests.Unit.Midi.Wire;
+namespace Bluestone.Tests.Unit.Midi.Wire;
 
 public sealed class MidiWireTests
 {

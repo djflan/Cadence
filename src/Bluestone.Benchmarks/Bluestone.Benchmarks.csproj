@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Cadence.Benchmarks</RootNamespace>
+    <RootNamespace>Bluestone.Benchmarks</RootNamespace>
     <!-- Benchmark methods must be instance members even when they touch no state (CA1822),
          and BenchmarkDotNet owns disposal of benchmark instances (CA1001). -->
     <NoWarn>$(NoWarn);CA1822;CA1001</NoWarn>
@@ -12,11 +12,11 @@
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Application/Cadence.Application.csproj" />
-    <ProjectReference Include="../Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
-    <ProjectReference Include="../Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
-    <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
-    <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
-    <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
+    <ProjectReference Include="../Bluestone.Application/Bluestone.Application.csproj" />
+    <ProjectReference Include="../Bluestone.Infrastructure/Bluestone.Infrastructure.csproj" />
+    <ProjectReference Include="../Bluestone.Platform.CoreMidi/Bluestone.Platform.CoreMidi.csproj" />
+    <ProjectReference Include="../Bluestone.Platform.Windows/Bluestone.Platform.Windows.csproj" />
+    <ProjectReference Include="../Bluestone.Playback/Bluestone.Playback.csproj" />
+    <ProjectReference Include="../Bluestone.Profiles/Bluestone.Profiles.csproj" />
   </ItemGroup>
 </Project>

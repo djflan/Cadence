@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 /// <summary>Stable identity of an external instrument within a project.</summary>
 public readonly record struct ExternalInstrumentId(Guid Value)

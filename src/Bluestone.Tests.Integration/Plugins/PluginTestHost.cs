@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>
 /// One test's plugin-hosting sandbox: a unique directory under the test binaries, a manager whose worker processes
@@ -46,7 +46,7 @@ internal sealed class PluginTestHost : IAsyncDisposable
     public static PluginIdentity Transpose { get; } = Reference("reference.transpose", "Reference Transpose", PluginKind.MidiEffect);
 
     public static PluginIdentity Reference(string pluginId, string name, PluginKind kind) =>
-        new("cadence-reference", "cadence.reference", pluginId, name, "Cadence", kind, "1.0.0");
+        new("bluestone-reference", "bluestone.reference", pluginId, name, "Bluestone", kind, "1.0.0");
 
     public static bool IsRunning(int processId)
     {

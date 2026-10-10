@@ -1,11 +1,11 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Wire;
-using Cadence.Playback;
-using static Cadence.Tests.Unit.Playback.PlaybackFixture;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Wire;
+using Bluestone.Playback;
+using static Bluestone.Tests.Unit.Playback.PlaybackFixture;
 
-namespace Cadence.Tests.Unit.Playback;
+namespace Bluestone.Tests.Unit.Playback;
 
 /// <summary>Metronome, count-in, immediate sends, and mapping input timestamps to song positions.</summary>
 public sealed class MetronomeAndInputTimingTests

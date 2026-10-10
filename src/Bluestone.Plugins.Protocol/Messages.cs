@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 public enum MessageType : ushort
 {

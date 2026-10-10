@@ -1,11 +1,11 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using static Cadence.Tests.Unit.Domain.Routing.RoutingFixture;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using static Bluestone.Tests.Unit.Domain.Routing.RoutingFixture;
 
-namespace Cadence.Tests.Unit.Domain.Sequencing;
+namespace Bluestone.Tests.Unit.Domain.Sequencing;
 
 public sealed class TrackRoleTests
 {

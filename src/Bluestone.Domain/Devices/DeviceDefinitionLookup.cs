@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>
 /// Finds the definition behind a device reference, or null when it is not available (a plugin that is

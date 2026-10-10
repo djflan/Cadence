@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>Sees the signal at points inside a chain, for routing taps and instrument inputs.</summary>
 public interface IChainObserver
@@ -31,7 +31,7 @@ public enum StageKind
     Transparent,
 
     /// <summary>
-    /// Run out of Cadence's process by the catalog's <see cref="IOutOfProcessRenderer"/> (a plugin MIDI effect in its
+    /// Run out of Bluestone's process by the catalog's <see cref="IOutOfProcessRenderer"/> (a plugin MIDI effect in its
     /// worker). If that fails, its events pass through unchanged and the failure is reported.
     /// </summary>
     OutOfProcess,
@@ -331,7 +331,7 @@ public sealed class ChainRunner
         {
             var message = definition.Origin == DeviceOrigin.Plugin
                 ? $"{device.DisplayName} is not running in a plugin worker, so plan compilation cannot use it; events pass through it unchanged."
-                : $"{device.DisplayName} has no processor in this version of Cadence; events pass through it unchanged.";
+                : $"{device.DisplayName} has no processor in this version of Bluestone; events pass through it unchanged.";
             diagnostics.Add(new SignalDiagnostic(SignalDiagnosticCode.NotProcessedHere, message) { Device = device.Id });
         }
 

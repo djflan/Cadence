@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>A tempo change taking effect at a tick.</summary>
 public readonly record struct TempoChange(Tick Position, Tempo Tempo);

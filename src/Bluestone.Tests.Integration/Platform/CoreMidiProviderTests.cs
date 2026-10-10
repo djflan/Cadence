@@ -1,15 +1,15 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Platform.CoreMidi;
-using Cadence.Playback;
-using Cadence.Signal;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Platform.CoreMidi;
+using Bluestone.Playback;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Integration.Platform;
+namespace Bluestone.Tests.Integration.Platform;
 
 /// <summary>
 /// Exercises the real CoreMIDI stack on macOS using only virtual ports and, when enabled, the IAC
@@ -51,7 +51,7 @@ public sealed class CoreMidiProviderTests
     public void Provider_EnumeratesWithoutHardware()
     {
         RequireMacOS();
-        using var provider = new CoreMidiProvider(Clock, "Cadence Tests");
+        using var provider = new CoreMidiProvider(Clock, "Bluestone Tests");
 
         var endpoints = provider.GetEndpoints();
 
@@ -63,9 +63,9 @@ public sealed class CoreMidiProviderTests
     public async Task VirtualOutput_IsReceivedByAnotherClient()
     {
         RequireMacOS();
-        var name = $"Cadence Test {Guid.NewGuid():N}"[..24];
-        using var publisher = new CoreMidiProvider(Clock, "Cadence Test Publisher");
-        using var listener = new CoreMidiProvider(Clock, "Cadence Test Listener");
+        var name = $"Bluestone Test {Guid.NewGuid():N}"[..24];
+        using var publisher = new CoreMidiProvider(Clock, "Bluestone Test Publisher");
+        using var listener = new CoreMidiProvider(Clock, "Bluestone Test Listener");
 
         var outputId = publisher.CreateVirtualOutput(name);
         Assert.Contains(publisher.GetEndpoints(), e => e.Id == outputId && e.Direction == EndpointDirection.Output && e.Transport == EndpointTransport.Virtual);
@@ -88,13 +88,13 @@ public sealed class CoreMidiProviderTests
     public async Task RemovedVirtualPort_DisconnectsListeners()
     {
         RequireMacOS();
-        var name = $"Cadence Test {Guid.NewGuid():N}"[..24];
-        using var listener = new CoreMidiProvider(Clock, "Cadence Test Listener");
+        var name = $"Bluestone Test {Guid.NewGuid():N}"[..24];
+        using var listener = new CoreMidiProvider(Clock, "Bluestone Test Listener");
         var changes = 0;
         listener.EndpointsChanged += (_, _) => Interlocked.Increment(ref changes);
         IMidiInput input;
 
-        using (var publisher = new CoreMidiProvider(Clock, "Cadence Test Publisher"))
+        using (var publisher = new CoreMidiProvider(Clock, "Bluestone Test Publisher"))
         {
             publisher.CreateVirtualOutput(name);
             var source = await EventuallyAsync(() => listener.GetEndpoints().FirstOrDefault(e => e.DisplayName == name), "the virtual source");
@@ -110,18 +110,18 @@ public sealed class CoreMidiProviderTests
     }
 
     [Fact]
-    public async Task Playback_ThroughCadenceVirtualPort_ArrivesInOrder()
+    public async Task Playback_ThroughBluestoneVirtualPort_ArrivesInOrder()
     {
         RequireMacOS();
-        var name = $"Cadence Test {Guid.NewGuid():N}"[..24];
-        using var cadence = new CoreMidiProvider(Clock, "Cadence Test Player");
-        using var synth = new CoreMidiProvider(Clock, "Cadence Test Synth");
-        var outputId = cadence.CreateVirtualOutput(name);
+        var name = $"Bluestone Test {Guid.NewGuid():N}"[..24];
+        using var bluestone = new CoreMidiProvider(Clock, "Bluestone Test Player");
+        using var synth = new CoreMidiProvider(Clock, "Bluestone Test Synth");
+        var outputId = bluestone.CreateVirtualOutput(name);
         var source = await EventuallyAsync(() => synth.GetEndpoints().FirstOrDefault(e => e.Direction == EndpointDirection.Input && e.DisplayName == name), "the virtual source");
         using var input = await synth.OpenInputAsync(source.Id, Ct);
         var received = new ConcurrentQueue<byte[]>();
         input.SetReceiver((message, _) => received.Enqueue(message.ToArray()));
-        using var output = await cadence.OpenOutputAsync(outputId, Ct);
+        using var output = await bluestone.OpenOutputAsync(outputId, Ct);
 
         var channel = MidiChannel.FromIndex(0);
         var track = Track.FromEvents(TrackId.New(), "t", Enumerable.Range(0, 16)
@@ -152,7 +152,7 @@ public sealed class CoreMidiProviderTests
     public async Task IacBus_DeliversScheduledMessagesOnTime()
     {
         RequireMacOS();
-        using var provider = new CoreMidiProvider(Clock, "Cadence Test IAC");
+        using var provider = new CoreMidiProvider(Clock, "Bluestone Test IAC");
         var endpoints = provider.GetEndpoints();
         var iacOut = endpoints.FirstOrDefault(e => e.Direction == EndpointDirection.Output && e.DisplayName.Contains("IAC", StringComparison.OrdinalIgnoreCase));
         var iacIn = iacOut is null ? null : endpoints.FirstOrDefault(e => e.Direction == EndpointDirection.Input && e.DisplayName == iacOut.DisplayName);

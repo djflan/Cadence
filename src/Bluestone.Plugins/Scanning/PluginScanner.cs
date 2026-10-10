@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Workers;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Workers;
 
-namespace Cadence.Plugins.Scanning;
+namespace Bluestone.Plugins.Scanning;
 
 public enum ModuleScanStatus
 {

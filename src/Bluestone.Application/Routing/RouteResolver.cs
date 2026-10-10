@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Midi.Endpoints;
-using Cadence.Profiles;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Profiles;
 
-namespace Cadence.Application.Routing;
+namespace Bluestone.Application.Routing;
 
 public enum EndpointBindingKind
 {

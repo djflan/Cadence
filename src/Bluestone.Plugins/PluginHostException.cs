@@ -1,6 +1,6 @@
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 /// <summary>A plugin-hosting operation failed: the worker refused a request, or it is not available.</summary>
 public class PluginHostException : Exception

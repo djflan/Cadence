@@ -1,12 +1,12 @@
-using Cadence.Application.Editing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 public sealed class EditHistoryTests
 {

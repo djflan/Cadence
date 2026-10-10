@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 /// <summary>Settings for a <see cref="PluginHostManager"/>.</summary>
 public sealed record PluginHostOptions
 {
-    /// <summary>The worker to launch; null finds <c>Cadence.PluginWorker</c> beside this assembly.</summary>
+    /// <summary>The worker to launch; null finds <c>Bluestone.PluginWorker</c> beside this assembly.</summary>
     public string? WorkerPath { get; init; }
 
     /// <summary>Where data-plane files go; null uses a fresh directory under the system temporary directory.</summary>

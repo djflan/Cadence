@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 public enum ArpeggiatorPattern
 {
@@ -13,7 +13,7 @@ public enum ArpeggiatorPattern
 }
 
 /// <summary>
-/// The devices that ship with Cadence, as definitions: what they are, which events they handle, and their
+/// The devices that ship with Bluestone, as definitions: what they are, which events they handle, and their
 /// parameters. They are data like any other definition; the processors that run them live in the signal
 /// layer (ADR 0022). Their IDs and parameter IDs are stable and are stored in projects.
 /// </summary>
@@ -37,10 +37,10 @@ public static class BuiltInDevices
     /// <summary>Moves notes by -48 to 48 semitones; notes leaving 0-127 are dropped and reported.</summary>
     public static DeviceDefinition Transpose { get; } = new()
     {
-        Id = new DeviceDefinitionId("cadence.midi.transpose"),
+        Id = new DeviceDefinitionId("bluestone.midi.transpose"),
         Name = "Transpose",
         Origin = DeviceOrigin.BuiltIn,
-        Vendor = "Cadence",
+        Vendor = "Bluestone",
         Version = "1",
         Consumes = SignalKinds.Events,
         Produces = SignalKinds.Events,
@@ -51,10 +51,10 @@ public static class BuiltInDevices
     /// <summary>Removes whole classes of events. The explicit way to drop events; each switch passes its class when on.</summary>
     public static DeviceDefinition EventFilter { get; } = new()
     {
-        Id = new DeviceDefinitionId("cadence.midi.event-filter"),
+        Id = new DeviceDefinitionId("bluestone.midi.event-filter"),
         Name = "Event Filter",
         Origin = DeviceOrigin.BuiltIn,
-        Vendor = "Cadence",
+        Vendor = "Bluestone",
         Version = "1",
         Consumes = SignalKinds.Events,
         Produces = SignalKinds.Events,
@@ -71,10 +71,10 @@ public static class BuiltInDevices
     /// <summary>Plays held notes one at a time. Rate 0 to 3 is quarters, eighths, sixteenths, thirty-seconds.</summary>
     public static DeviceDefinition Arpeggiator { get; } = new()
     {
-        Id = new DeviceDefinitionId("cadence.midi.arpeggiator"),
+        Id = new DeviceDefinitionId("bluestone.midi.arpeggiator"),
         Name = "Arpeggiator",
         Origin = DeviceOrigin.BuiltIn,
-        Vendor = "Cadence",
+        Vendor = "Bluestone",
         Version = "1",
         Consumes = SignalKinds.Events,
         Produces = SignalKinds.Events,

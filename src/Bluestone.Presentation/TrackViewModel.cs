@@ -1,15 +1,15 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Application.Routing;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Midi.Endpoints;
-using Cadence.Profiles;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Profiles;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>
 /// One row in the track list: name, mute/solo, routing status, and automation lanes. Routing is edited

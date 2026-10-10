@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
 
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 /// <summary>Reads JSON values while collecting path-qualified diagnostics instead of throwing.</summary>
 internal sealed class JsonWalker

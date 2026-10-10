@@ -1,4 +1,4 @@
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 /// <summary>
 /// Raised for any malformed, truncated, oversized, unknown, or out-of-contract data on the plugin control plane or

@@ -1,6 +1,6 @@
-using Cadence.Domain.Projects;
+using Bluestone.Domain.Projects;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
 /// <summary>A named, reversible change to a project.</summary>
 public interface IProjectCommand

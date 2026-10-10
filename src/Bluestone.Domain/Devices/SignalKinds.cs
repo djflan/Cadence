@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>What a connection carries.</summary>
 public enum SignalKind

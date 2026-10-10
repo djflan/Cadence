@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>Strict JSON accessors that throw <see cref="ProjectFormatException"/> with the failing path.</summary>
 internal static class NodeReader

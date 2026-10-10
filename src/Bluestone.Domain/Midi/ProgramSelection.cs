@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// Selects a program, optionally within a bank addressed by bank MSB and LSB. This is the musical

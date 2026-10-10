@@ -1,4 +1,4 @@
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 /// <summary>
 /// Byte layout of a block-exchange file. All values are native-endian, which is little-endian on every supported

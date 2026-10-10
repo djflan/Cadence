@@ -1,18 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Use cases and orchestration: routing resolution, playback preparation, editing commands. UI-free. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Application</RootNamespace>
+    <RootNamespace>Bluestone.Application</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
-    <ProjectReference Include="../Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
-    <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
-    <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
-    <ProjectReference Include="../Cadence.Plugins/Cadence.Plugins.csproj" />
-    <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
-    <ProjectReference Include="../Cadence.Signal/Cadence.Signal.csproj" />
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
+    <ProjectReference Include="../Bluestone.Infrastructure/Bluestone.Infrastructure.csproj" />
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
+    <ProjectReference Include="../Bluestone.Playback/Bluestone.Playback.csproj" />
+    <ProjectReference Include="../Bluestone.Plugins/Bluestone.Plugins.csproj" />
+    <ProjectReference Include="../Bluestone.Profiles/Bluestone.Profiles.csproj" />
+    <ProjectReference Include="../Bluestone.Signal/Bluestone.Signal.csproj" />
   </ItemGroup>
 </Project>

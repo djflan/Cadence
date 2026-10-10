@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 /// <summary>
 /// A SysEx message with named 7-bit placeholders, written in profiles as space-separated tokens such

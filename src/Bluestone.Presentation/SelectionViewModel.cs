@@ -1,14 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Routing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Profiles;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Profiles;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>
 /// The inspector for the selected tracks. Values shared by every selected track are shown as-is;

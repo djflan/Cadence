@@ -1,18 +1,18 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Sequencing;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Presentation;
-using Cadence.Profiles;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Presentation;
+using Bluestone.Profiles;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>
 /// Scenario 11 as the musician sees it: a plugin added from the device strip runs in a real worker; when the
-/// worker is killed, Cadence keeps running, the strip shows the device as crashed with a restart action, and
+/// worker is killed, Bluestone keeps running, the strip shows the device as crashed with a restart action, and
 /// restarting brings it back. Nothing is mocked.
 /// </summary>
 [Collection(PluginProcessTests.Name)]

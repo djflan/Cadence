@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.Plugins.Workers;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Workers;
 
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 /// <summary>
 /// Creates, supervises, recovers, and destroys plugin instances, each hosted in a worker process chosen by its
@@ -31,7 +31,7 @@ public sealed class PluginHostManager : IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfGreaterThan(_options.PipelineDepth, _options.SlotCount);
         _ownsDataDirectory = _options.DataDirectory is null;
         DataDirectory = Path.GetFullPath(_options.DataDirectory
-            ?? Path.Combine(Path.GetTempPath(), "cadence-plugins", $"{Environment.ProcessId}-{Guid.NewGuid():N}"));
+            ?? Path.Combine(Path.GetTempPath(), "bluestone-plugins", $"{Environment.ProcessId}-{Guid.NewGuid():N}"));
         Directory.CreateDirectory(DataDirectory);
     }
 

@@ -1,15 +1,15 @@
 using System.Diagnostics;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Platform.CoreMidi;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Platform.CoreMidi;
 
-namespace Cadence.Desktop.Services;
+namespace Bluestone.Desktop.Services;
 
 /// <summary>Creates the operating system's MIDI providers available on this machine.</summary>
 internal static class PlatformProviders
 {
-    /// <summary>The virtual port Cadence publishes so other applications can receive from it.</summary>
-    public const string VirtualOutputName = "Cadence Out";
+    /// <summary>The virtual port Bluestone publishes so other applications can receive from it.</summary>
+    public const string VirtualOutputName = "Bluestone Out";
 
     public static IEnumerable<IMidiEndpointProvider> Create(IMonotonicClock clock)
     {
@@ -23,20 +23,20 @@ internal static class PlatformProviders
             }
             catch (EndpointUnavailableException ex)
             {
-                // Cadence still works with its built-in monitor; the reason is visible in diagnostics.
+                // Bluestone still works with its built-in monitor; the reason is visible in diagnostics.
                 Trace.TraceWarning($"CoreMIDI is unavailable: {ex.Message}");
             }
         }
         else if (OperatingSystem.IsWindows())
         {
             // Windows MIDI Services is the planned primary adapter; WinMM works on every Windows version.
-            return [new Cadence.Platform.Windows.WinMmProvider()];
+            return [new Bluestone.Platform.Windows.WinMmProvider()];
         }
         else if (OperatingSystem.IsLinux())
         {
             try
             {
-                var alsa = new Cadence.Platform.Alsa.AlsaProvider();
+                var alsa = new Bluestone.Platform.Alsa.AlsaProvider();
                 alsa.CreateVirtualOutput(VirtualOutputName);
                 return [alsa];
             }
@@ -62,8 +62,8 @@ internal static class PlatformProviders
         }
         else if (OperatingSystem.IsWindows())
         {
-            Cadence.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
-            Cadence.Platform.Windows.ThreadScheduling.JoinProAudioTask();
+            Bluestone.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
+            Bluestone.Platform.Windows.ThreadScheduling.JoinProAudioTask();
         }
     }
 }

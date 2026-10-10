@@ -1,8 +1,8 @@
 using Avalonia.Media;
 
-namespace Cadence.Desktop.Theme;
+namespace Bluestone.Desktop.Theme;
 
-/// <summary>Colours used by custom-drawn controls. Kept in step with Theme/Cadence.axaml.</summary>
+/// <summary>Colours used by custom-drawn controls. Kept in step with Theme/Bluestone.axaml.</summary>
 internal static class Palette
 {
     public static readonly Color Base = Color.Parse("#1C1C1E");

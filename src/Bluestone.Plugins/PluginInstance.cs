@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.Plugins.Workers;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Workers;
 
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 /// <summary>What one <see cref="PluginInstance.ProcessBlock"/> call delivered.</summary>
 public enum ProcessOutcome

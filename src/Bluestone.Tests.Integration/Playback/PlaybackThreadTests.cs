@@ -1,12 +1,12 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
-using Cadence.Signal;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
+using Bluestone.Signal;
 
-namespace Cadence.Tests.Integration.Playback;
+namespace Bluestone.Tests.Integration.Playback;
 
 public sealed class PlaybackThreadTests
 {

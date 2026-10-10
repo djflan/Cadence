@@ -1,13 +1,13 @@
 using System.Globalization;
 
-namespace Cadence.Midi.Endpoints;
+namespace Bluestone.Midi.Endpoints;
 
 public enum EndpointDirection
 {
-    /// <summary>Cadence sends to this endpoint.</summary>
+    /// <summary>Bluestone sends to this endpoint.</summary>
     Output,
 
-    /// <summary>Cadence receives from this endpoint.</summary>
+    /// <summary>Bluestone receives from this endpoint.</summary>
     Input,
 }
 
@@ -26,7 +26,7 @@ public enum EndpointCapabilities
 {
     None = 0,
 
-    /// <summary>The endpoint accepts future timestamps and delivers on time without Cadence waiting.</summary>
+    /// <summary>The endpoint accepts future timestamps and delivers on time without Bluestone waiting.</summary>
     ScheduledDelivery = 1,
 
     /// <summary>System exclusive messages are passed through.</summary>

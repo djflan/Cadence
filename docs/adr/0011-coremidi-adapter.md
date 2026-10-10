@@ -11,18 +11,18 @@ is introduced.
 
 ## Decision
 
-- Implement `Cadence.Platform.CoreMidi` in C# with source-generated P/Invoke (`LibraryImport`) and
+- Implement `Bluestone.Platform.CoreMidi` in C# with source-generated P/Invoke (`LibraryImport`) and
   `[UnmanagedCallersOnly]` callbacks. No native library is built or shipped. Nothing has been
   measured that would justify one.
 - **Identity.** Endpoint IDs are CoreMIDI unique IDs. Display name, manufacturer, and model are
   reported as hints. Offline endpoints are hidden.
 - **Classification.** Endpoints without an entity are virtual (application) ports; IAC is virtual;
   RTP/network drivers are network; everything else is physical.
-- **Output.** `MIDISend` with timestamps converted from Cadence's clock to host time, relative to
+- **Output.** `MIDISend` with timestamps converted from Bluestone's clock to host time, relative to
   "now" on both clocks. Destinations therefore advertise `ScheduledDelivery`, and the playback
   engine hands messages over 20 ms early. Packet lists are built on the stack (or a pooled buffer
   for large SysEx), so sending does not allocate. Messages are validated before they reach CoreMIDI.
-- **Virtual output.** Cadence publishes a virtual source ("Cadence Out") with a stable unique ID, so
+- **Virtual output.** Bluestone publishes a virtual source ("Bluestone Out") with a stable unique ID, so
   software synths and DAWs can receive from it. `MIDIReceived` delivers immediately, so the port does
   not claim scheduled delivery.
 - **Input.** `MIDIInputPortCreate` read callbacks parse packets (honouring arm64 packet alignment)

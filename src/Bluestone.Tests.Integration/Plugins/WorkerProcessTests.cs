@@ -1,9 +1,9 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.Plugins.Workers;
-using static Cadence.Tests.Integration.Plugins.PluginTestHost;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Workers;
+using static Bluestone.Tests.Integration.Plugins.PluginTestHost;
 
-namespace Cadence.Tests.Integration.Plugins;
+namespace Bluestone.Tests.Integration.Plugins;
 
 /// <summary>The worker process on its own: launch, handshake, and its exit when the host goes away.</summary>
 [Collection(PluginProcessTests.Name)]

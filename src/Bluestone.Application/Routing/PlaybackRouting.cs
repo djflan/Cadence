@@ -1,16 +1,16 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 
-namespace Cadence.Application.Routing;
+namespace Bluestone.Application.Routing;
 
 /// <summary>Everything playback needs from a project's routing, worked out against what is available now.</summary>
 /// <param name="Slots">One endpoint per output slot; parts sending to the same endpoint share a slot.</param>

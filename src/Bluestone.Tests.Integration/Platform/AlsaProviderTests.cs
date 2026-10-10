@@ -1,11 +1,11 @@
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Platform.Alsa;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Platform.Alsa;
 
-namespace Cadence.Tests.Integration.Platform;
+namespace Bluestone.Tests.Integration.Platform;
 
 /// <summary>
-/// Exercises the real ALSA sequencer on Linux using only Cadence's own virtual port and the kernel's
+/// Exercises the real ALSA sequencer on Linux using only Bluestone's own virtual port and the kernel's
 /// "Midi Through" loopback port. These tests never send to physical hardware.
 /// </summary>
 [SupportedOSPlatform("linux")]
@@ -22,7 +22,7 @@ public sealed class AlsaProviderTests
 
         try
         {
-            return new AlsaProvider("Cadence Tests");
+            return new AlsaProvider("Bluestone Tests");
         }
         catch (EndpointUnavailableException ex)
         {
@@ -57,7 +57,7 @@ public sealed class AlsaProviderTests
     {
         using var provider = CreateProvider();
 
-        var id = provider.CreateVirtualOutput("Cadence Test Out");
+        var id = provider.CreateVirtualOutput("Bluestone Test Out");
         using var output = await provider.OpenOutputAsync(id, Ct);
 
         Assert.Contains(provider.GetEndpoints(), e => e.Id == id && e.Transport == EndpointTransport.Virtual);
@@ -101,7 +101,7 @@ public sealed class AlsaProviderTests
     public async Task DisposingProvider_ClosesOpenOutputs()
     {
         var provider = CreateProvider();
-        var output = await provider.OpenOutputAsync(provider.CreateVirtualOutput("Cadence Test Out"), Ct);
+        var output = await provider.OpenOutputAsync(provider.CreateVirtualOutput("Bluestone Test Out"), Ct);
 
         provider.Dispose();
 

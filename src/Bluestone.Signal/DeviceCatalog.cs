@@ -1,15 +1,15 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Time;
-using Cadence.Signal.BuiltIn;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Time;
+using Bluestone.Signal.BuiltIn;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>Creates the processor for one device instance, at the sequence's resolution.</summary>
 public delegate ISignalProcessor SignalProcessorFactory(Ppqn ppqn);
 
 /// <summary>
-/// The device definitions Cadence knows about, and, for built-in devices, how to run them. Plugin
+/// The device definitions Bluestone knows about, and, for built-in devices, how to run them. Plugin
 /// definitions (from a scan) are data only: a plugin never gets an in-process factory, because plugins
 /// run in worker processes (ADR 0025). An <see cref="IOutOfProcessRenderer"/> can be attached to run them there
 /// at plan-compile time. Immutable; <see cref="With"/> and <see cref="WithRenderer"/> return a new catalog.
@@ -28,7 +28,7 @@ public sealed class DeviceCatalog
 
     public static DeviceCatalog Empty { get; } = new(ImmutableDictionary<DeviceDefinitionId, DeviceDefinition>.Empty, ImmutableDictionary<DeviceDefinitionId, SignalProcessorFactory>.Empty, null);
 
-    /// <summary>The devices that ship with Cadence: Transpose, Event Filter, and Arpeggiator.</summary>
+    /// <summary>The devices that ship with Bluestone: Transpose, Event Filter, and Arpeggiator.</summary>
     public static DeviceCatalog BuiltIn { get; } = Empty
         .With(BuiltInDevices.Transpose, _ => new TransposeProcessor())
         .With(BuiltInDevices.EventFilter, _ => new EventFilterProcessor())
@@ -47,7 +47,7 @@ public sealed class DeviceCatalog
         ArgumentNullException.ThrowIfNull(definition);
         if (factory is not null && definition.Origin != DeviceOrigin.BuiltIn)
         {
-            throw new ArgumentException($"{definition.Name} is a plugin; plugins run in worker processes, never in Cadence's own process.", nameof(factory));
+            throw new ArgumentException($"{definition.Name} is a plugin; plugins run in worker processes, never in Bluestone's own process.", nameof(factory));
         }
 
         var factories = factory is null ? _factories.Remove(definition.Id) : _factories.SetItem(definition.Id, factory);

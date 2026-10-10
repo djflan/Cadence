@@ -1,20 +1,20 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Devices;
-using static Cadence.Infrastructure.Projects.NodeReader;
+using Bluestone.Domain.Devices;
+using static Bluestone.Infrastructure.Projects.NodeReader;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>
-/// Reads and writes device chain presets (<c>.cadence-chain</c>): a named, ordered list of device templates
+/// Reads and writes device chain presets (<c>.bluestone-chain</c>): a named, ordered list of device templates
 /// with their parameters, bypass state, and plugin state, but no identities and no connections (ADR 0022).
 /// Loading a preset always creates new device instances, so two tracks loaded from one preset share no
 /// state. Hardware references are not part of a preset, so a preset moves between machines unchanged.
 /// </summary>
 public static class ChainPresetSerializer
 {
-    public const string FormatName = "cadence-chain-preset";
+    public const string FormatName = "bluestone-chain-preset";
     public const int CurrentFormatVersion = 1;
     public const int MaxBytes = 256 * 1024 * 1024;
 
@@ -70,7 +70,7 @@ public static class ChainPresetSerializer
             var root = Object(node, "$");
             if (root["format"] is not JsonValue format || !format.TryGetValue(out string? name) || name != FormatName)
             {
-                throw new ProjectFormatException("$.format", $"must be \"{FormatName}\"; this is not a Cadence chain preset.");
+                throw new ProjectFormatException("$.format", $"must be \"{FormatName}\"; this is not a Bluestone chain preset.");
             }
 
             var version = Int(root, "formatVersion", "$", 0, int.MaxValue);

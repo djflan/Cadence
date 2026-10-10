@@ -1,6 +1,6 @@
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
-/// <summary>Stable diagnostic codes. See docs/midi-files.md for what each means and what Cadence does.</summary>
+/// <summary>Stable diagnostic codes. See docs/midi-files.md for what each means and what Bluestone does.</summary>
 public static class SmfDiagnosticCodes
 {
     // Reading

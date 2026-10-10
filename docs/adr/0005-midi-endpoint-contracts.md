@@ -5,7 +5,7 @@
 
 ## Context
 
-Cadence must send to CoreMIDI, Windows MIDI Services, ALSA, network sessions, and test doubles
+Bluestone must send to CoreMIDI, Windows MIDI Services, ALSA, network sessions, and test doubles
 behind one contract, from a playback thread that must never block or allocate. Endpoints appear,
 disappear, and get renamed while a project is open. Device knowledge must never leak into endpoints.
 

@@ -1,19 +1,19 @@
 using System.Collections.Immutable;
-using Cadence.Application.Editing;
-using Cadence.Application.Recording;
-using Cadence.Application.Routing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Midi.Wire;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Recording;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Midi.Wire;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 
-namespace Cadence.Application.Sessions;
+namespace Bluestone.Application.Sessions;
 
 /// <summary>When the metronome clicks. Count-ins always click when a metronome output is available.</summary>
 public enum MetronomeMode
@@ -191,7 +191,7 @@ public sealed class PlaybackController : IAsyncDisposable
         Engine.Play(from);
     }
 
-    // Whether compiling the plan will ask a device outside Cadence's process (a plugin MIDI effect in its worker).
+    // Whether compiling the plan will ask a device outside Bluestone's process (a plugin MIDI effect in its worker).
     private static bool NeedsRendering(Project project, DeviceCatalog devices) =>
         devices.Renderer is { } renderer
         && project.Chains.Any(chain => chain.Devices.Any(device =>
@@ -210,7 +210,7 @@ public sealed class PlaybackController : IAsyncDisposable
 
     /// <summary>
     /// Chooses which inputs to listen to; <see langword="null"/> listens to every input except
-    /// Cadence's built-in test and monitor buses (which would echo Cadence's own output back).
+    /// Bluestone's built-in test and monitor buses (which would echo Bluestone's own output back).
     /// Takes effect on the next <see cref="RefreshAsync"/>.
     /// </summary>
     public void SelectInputs(IReadOnlyCollection<EndpointId>? inputs) => _inputSelection = inputs;
@@ -439,9 +439,9 @@ public sealed class PlaybackController : IAsyncDisposable
     }
 
     /// <summary>
-    /// The chosen inputs, or by default every input except Cadence's built-in buses and inputs that
-    /// share a name with an output Cadence is playing to (an IAC bus used both ways would record
-    /// Cadence's own playback).
+    /// The chosen inputs, or by default every input except Bluestone's built-in buses and inputs that
+    /// share a name with an output Bluestone is playing to (an IAC bus used both ways would record
+    /// Bluestone's own playback).
     /// </summary>
     private IReadOnlyCollection<EndpointId> WantedInputs()
     {
@@ -455,8 +455,8 @@ public sealed class PlaybackController : IAsyncDisposable
     }
 
     /// <summary>
-    /// Every input except Cadence's built-in buses and inputs that share a provider and name with an
-    /// output being played to (an IAC bus used both ways would record Cadence's own playback).
+    /// Every input except Bluestone's built-in buses and inputs that share a provider and name with an
+    /// output being played to (an IAC bus used both ways would record Bluestone's own playback).
     /// </summary>
     internal static IReadOnlyCollection<EndpointId> DefaultInputs(IEnumerable<EndpointDescriptor> inputs, IReadOnlyCollection<EndpointDescriptor> playing) =>
         [.. inputs

@@ -1,6 +1,6 @@
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
 /// <summary>Edits to a track's automation lanes, as undoable commands.</summary>
 public static class AutomationCommands

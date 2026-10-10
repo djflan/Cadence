@@ -1,7 +1,7 @@
-using Cadence.Midi.Timing;
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Timing;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.Endpoints;
+namespace Bluestone.Midi.Endpoints;
 
 /// <summary>A message captured by a <see cref="LoopbackPort"/>.</summary>
 public sealed record RecordedMessage(byte[] Bytes, MidiTimestamp Requested, TimeSpan SentAt);
@@ -236,7 +236,7 @@ public sealed class LoopbackPort
         }
     }
 
-    /// <summary>Simulates the device transmitting a message to Cadence through the port's input.</summary>
+    /// <summary>Simulates the device transmitting a message to Bluestone through the port's input.</summary>
     public void Inject(ReadOnlySpan<byte> message) => Deliver(message, _provider.Clock.Now);
 
     internal IMidiOutput OpenOutput() => Register(new OutputHandle(this, OutputDescriptor));

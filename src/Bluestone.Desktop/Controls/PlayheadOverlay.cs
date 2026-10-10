@@ -1,9 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Cadence.Desktop.Theme;
+using Bluestone.Desktop.Theme;
 
-namespace Cadence.Desktop.Controls;
+namespace Bluestone.Desktop.Controls;
 
 /// <summary>The playhead line, drawn above the lanes so moving it never redraws the notes. Red while recording.</summary>
 public sealed class PlayheadOverlay : Control

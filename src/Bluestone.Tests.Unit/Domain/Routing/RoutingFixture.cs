@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Domain.Routing;
+namespace Bluestone.Tests.Unit.Domain.Routing;
 
 /// <summary>Builds small projects for routing tests: instrument tracks with a chain each, racks, hardware, and mixer channels.</summary>
 internal static class RoutingFixture

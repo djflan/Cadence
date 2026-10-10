@@ -1,11 +1,11 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Midi.Wire;
+namespace Bluestone.Midi.Wire;
 
 /// <summary>
-/// Turns MIDI 1.0 channel messages, from files or live input, into Cadence's channel events. The
+/// Turns MIDI 1.0 channel messages, from files or live input, into Bluestone's channel events. The
 /// inverse of <see cref="Midi1Encoder"/>: decoding then encoding gives back the same messages, except
 /// that a note-on with velocity 0 comes back as the equivalent note-off.
 /// </summary>

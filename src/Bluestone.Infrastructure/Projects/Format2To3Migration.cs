@@ -1,8 +1,8 @@
 using System.Text.Json.Nodes;
-using Cadence.Domain.Sequencing;
-using static Cadence.Infrastructure.Projects.NodeReader;
+using Bluestone.Domain.Sequencing;
+using static Bluestone.Infrastructure.Projects.NodeReader;
 
-namespace Cadence.Infrastructure.Projects;
+namespace Bluestone.Infrastructure.Projects;
 
 /// <summary>
 /// Format 3 puts a track's events in clips (ADR 0020). Each format 2 track's events move into one note

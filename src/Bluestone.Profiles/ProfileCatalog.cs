@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 /// <summary>A profile file that could not be used, and why.</summary>
 public sealed record ProfileLoadFailure(string Source, IReadOnlyList<ProfileDiagnostic> Diagnostics);
@@ -26,7 +26,7 @@ public sealed class ProfileCatalog
 
     public ImmutableArray<ProfileLoadFailure> Failures { get; }
 
-    /// <summary>Loads every <c>*.cadence-profile.json</c> file directly inside <paramref name="directory"/>.</summary>
+    /// <summary>Loads every <c>*.bluestone-profile.json</c> file directly inside <paramref name="directory"/>.</summary>
     public static ProfileCatalog LoadDirectory(string directory, ProfileLoadOptions? options = null) => Empty.AddDirectory(directory, options);
 
     /// <summary>Adds every profile file in <paramref name="directory"/>; a missing directory adds nothing.</summary>

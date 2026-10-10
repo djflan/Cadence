@@ -1,8 +1,8 @@
-using Cadence.Midi.Files;
+using Bluestone.Midi.Files;
 using CsCheck;
-using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
+using static Bluestone.Tests.Unit.Midi.Files.SmfBytes;
 
-namespace Cadence.Tests.Unit.Midi.Files;
+namespace Bluestone.Tests.Unit.Midi.Files;
 
 /// <summary>Malformed input must produce diagnostics or <see cref="SmfFormatException"/>, never another failure.</summary>
 public sealed class SmfFuzzTests

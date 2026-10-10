@@ -1,6 +1,6 @@
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Tests.Unit.Domain.Midi;
+namespace Bluestone.Tests.Unit.Domain.Midi;
 
 public sealed class ControlValueTests
 {

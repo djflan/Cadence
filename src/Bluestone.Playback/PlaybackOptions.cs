@@ -1,4 +1,4 @@
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 public sealed record PlaybackOptions
 {

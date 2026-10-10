@@ -1,15 +1,15 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Routing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Profiles;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Routing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 public sealed class PlaybackControllerTests : IAsyncDisposable
 {
@@ -100,7 +100,7 @@ public sealed class PlaybackControllerTests : IAsyncDisposable
         var port = _provider.CreatePort("Synth", "s");
         var track = AddRoutedTrack(port);
         var catalog = ProfileCatalog.Empty.Add("p", ProfileLoader.Load("""
-            { "format": "cadence-device-profile", "schemaVersion": 1, "id": "p.one", "version": "1", "name": "P",
+            { "format": "bluestone-device-profile", "schemaVersion": 1, "id": "p.one", "version": "1", "name": "P",
               "provenance": { "sources": ["t"], "contributors": ["t"], "license": "MIT", "redistributionConfirmed": true, "verification": "unverified" },
               "sysex": [ { "id": "on", "name": "System On", "effect": "reset", "bytes": "F0 7E 7F 09 01 F7" } ],
               "initialization": [ { "sysex": "on" } ] }

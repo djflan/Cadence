@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Event processing through device chains and the signal graph (ADR 0022, 0023). Domain only: no MIDI wire format, no playback, no plugins. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Signal</RootNamespace>
+    <RootNamespace>Bluestone.Signal</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
   </ItemGroup>
 </Project>

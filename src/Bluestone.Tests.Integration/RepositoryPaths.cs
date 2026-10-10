@@ -1,4 +1,4 @@
-namespace Cadence.Tests.Integration;
+namespace Bluestone.Tests.Integration;
 
 internal static class RepositoryPaths
 {

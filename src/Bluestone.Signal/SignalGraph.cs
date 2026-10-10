@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Signal;
+namespace Bluestone.Signal;
 
 /// <summary>The events one connection delivers to a part of an external instrument, channel mapping applied.</summary>
 /// <param name="Connection">The connection that delivers them.</param>
@@ -22,11 +22,11 @@ public sealed record ExternalPartFeed(ConnectionId Connection, ExternalInstrumen
 
 /// <summary>
 /// The events a software instrument takes in: everything that reaches it from every track routed into its
-/// chain, merged in canonical order. Cadence has no audio engine yet, so nothing plays them (ADR 0022).
+/// chain, merged in canonical order. Bluestone has no audio engine yet, so nothing plays them (ADR 0022).
 /// </summary>
 public sealed record SoftwareInstrumentFeed(DeviceId Device, DeviceChainId Chain, ImmutableArray<SignalEvent> Events);
 
-/// <summary>Device automation for a device that is not processed in Cadence's process (a plugin or a software instrument).</summary>
+/// <summary>Device automation for a device that is not processed in Bluestone's process (a plugin or a software instrument).</summary>
 public sealed record ParameterFeed(DeviceId Device, ImmutableArray<ParameterChange> Changes);
 
 /// <summary>Everything the signal graph sends, for the playback plan and, later, the audio engine and plugin workers.</summary>
@@ -167,7 +167,7 @@ public static class SignalGraph
             if (!events.IsEmpty)
             {
                 var name = project.FindDevice(device)?.Device.DisplayName ?? "A software instrument";
-                _diagnostics.Add(new SignalDiagnostic(SignalDiagnosticCode.NotAudible, $"{name} receives events, but Cadence has no audio engine yet, so it does not sound.") { Device = device });
+                _diagnostics.Add(new SignalDiagnostic(SignalDiagnosticCode.NotAudible, $"{name} receives events, but Bluestone has no audio engine yet, so it does not sound.") { Device = device });
             }
         }
 

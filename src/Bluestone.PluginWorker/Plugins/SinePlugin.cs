@@ -1,7 +1,7 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>
 /// <c>reference.sine</c>: a deterministic polyphonic sine instrument with <see cref="Polyphony"/> voices, a linear

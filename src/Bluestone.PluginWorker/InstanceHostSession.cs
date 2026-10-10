@@ -1,8 +1,8 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.PluginWorker.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.PluginWorker.Plugins;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
 /// Instance-host mode: serves control requests one at a time until the host sends Shutdown or the pipe closes.
@@ -103,7 +103,7 @@ internal sealed class InstanceHostSession(Stream pipe)
         WorkerBlockExchange exchange;
         try
         {
-            var path = Path.Combine(request.DataPlaneDirectory, $"{request.InstanceId}-g{request.Generation}.cadence-exchange");
+            var path = Path.Combine(request.DataPlaneDirectory, $"{request.InstanceId}-g{request.Generation}.bluestone-exchange");
             exchange = WorkerBlockExchange.Create(path, options, request.Generation);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

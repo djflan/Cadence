@@ -1,7 +1,7 @@
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Application.Editing;
+namespace Bluestone.Application.Editing;
 
 /// <summary>Arrangement operations on clips, as undoable commands. Placed clips make room (see <see cref="Track.PlaceClip"/>).</summary>
 public static class ClipCommands

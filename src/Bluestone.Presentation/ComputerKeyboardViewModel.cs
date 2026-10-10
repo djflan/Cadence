@@ -1,9 +1,9 @@
 using System.Globalization;
-using Cadence.Midi.Endpoints;
+using Bluestone.Midi.Endpoints;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>
 /// Plays notes from the computer keyboard, like Bitwig and Reason. The view maps physical keys to

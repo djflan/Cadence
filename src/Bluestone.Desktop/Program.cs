@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace Cadence.Desktop;
+namespace Bluestone.Desktop;
 
 internal static class Program
 {

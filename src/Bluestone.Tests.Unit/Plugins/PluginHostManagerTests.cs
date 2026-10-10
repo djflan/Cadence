@@ -1,13 +1,13 @@
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 /// <summary>Host-manager rules that need no worker process.</summary>
 public sealed class PluginHostManagerTests : IDisposable
 {
-    private static readonly PluginIdentity Gain = new("cadence-reference", "cadence.reference", "reference.gain", "Gain", "Cadence", PluginKind.AudioEffect, "1");
-    private static readonly PluginIdentity Sine = new("cadence-reference", "cadence.reference", "reference.sine", "Sine", "Cadence", PluginKind.Instrument, "1");
+    private static readonly PluginIdentity Gain = new("bluestone-reference", "bluestone.reference", "reference.gain", "Gain", "Bluestone", PluginKind.AudioEffect, "1");
+    private static readonly PluginIdentity Sine = new("bluestone-reference", "bluestone.reference", "reference.sine", "Sine", "Bluestone", PluginKind.Instrument, "1");
 
     private readonly TestDirectory _directory = new();
 

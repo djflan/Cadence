@@ -1,23 +1,23 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Tests.Unit.Domain.Routing;
+namespace Bluestone.Tests.Unit.Domain.Routing;
 
 public sealed class TrackOutputsTests
 {
     private static readonly EndpointReference Qy = new("coremidi", "1", "QY Out");
     private static readonly EndpointReference Module = new("coremidi", "2", "Module");
-    private static readonly ProfileReference Xg = new("cadence.generic.xg", "Generic XG");
-    private static readonly ProfileReference Gm = new("cadence.generic.gm1", "General MIDI");
+    private static readonly ProfileReference Xg = new("bluestone.generic.xg", "Generic XG");
+    private static readonly ProfileReference Gm = new("bluestone.generic.gm1", "General MIDI");
 
     private static (Project Project, Track A, Track B) TwoTracks()
     {
         var a = Track.Create("a");
         var b = Track.Create("b");
-        return (Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Cadence.Domain.Time.Ppqn.Default).WithTrack(a).WithTrack(b) }, a, b);
+        return (Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Bluestone.Domain.Time.Ppqn.Default).WithTrack(a).WithTrack(b) }, a, b);
     }
 
     [Fact]

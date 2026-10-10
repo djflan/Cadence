@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Playback;
+namespace Bluestone.Playback;
 
 /// <summary>
 /// Dispatch timing counters, written by the playback thread without locks or allocation and read

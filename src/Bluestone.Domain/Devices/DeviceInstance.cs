@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>A parameter and the value stored for it, normalized from 0 to 1 (see <see cref="ControlValue.FromFraction"/>).</summary>
 public readonly record struct ParameterValue(ParameterId Id, ControlValue Value);
 
 /// <summary>
 /// A plugin's saved state as the worker last reported it: opaque bytes and the format they are in.
-/// Cadence stores it, never interprets it, and hands it back when it re-creates the instance (ADR 0025).
+/// Bluestone stores it, never interprets it, and hands it back when it re-creates the instance (ADR 0025).
 /// </summary>
 public sealed record PluginState
 {

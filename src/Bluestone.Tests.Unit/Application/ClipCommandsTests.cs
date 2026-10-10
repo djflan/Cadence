@@ -1,10 +1,10 @@
-using Cadence.Application.Editing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 /// <summary>Commands that put events into clips, record takes as clips, and move or copy clips.</summary>
 public sealed class ClipCommandsTests
@@ -244,7 +244,7 @@ public sealed class ClipCommandsTests
         Assert.Equal("Verse", TrackOf(named).Clips[0].Name);
         Assert.Equal("Rename Clip", ClipCommands.RenameClip(id, clip.Id, "x").Label);
         Assert.Same(named, ClipCommands.RenameClip(id, clip.Id, "Verse").Apply(named));
-        Assert.Equal(Cadence.Domain.Sequencing.Clip.MaxNameLength, TrackOf(ClipCommands.RenameClip(id, clip.Id, new string('a', 300)).Apply(project)).Clips[0].Name.Length);
+        Assert.Equal(Bluestone.Domain.Sequencing.Clip.MaxNameLength, TrackOf(ClipCommands.RenameClip(id, clip.Id, new string('a', 300)).Apply(project)).Clips[0].Name.Length);
         Assert.Empty(TrackOf(ClipCommands.RenameClip(id, clip.Id, " ").Apply(named)).Clips[0].Name);
     }
 

@@ -1,17 +1,17 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Plugins;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.Signal;
-using ParameterChange = Cadence.Domain.Sequencing.ParameterChange;
-using WorkerParameterValue = Cadence.Plugins.Protocol.ParameterValue;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.Signal;
+using ParameterChange = Bluestone.Domain.Sequencing.ParameterChange;
+using WorkerParameterValue = Bluestone.Plugins.Protocol.ParameterValue;
 
-namespace Cadence.Application.Plugins;
+namespace Bluestone.Application.Plugins;
 
 /// <summary>
 /// Runs plugin MIDI effects in their workers when the plan is compiled, so what they put out is routed downstream like

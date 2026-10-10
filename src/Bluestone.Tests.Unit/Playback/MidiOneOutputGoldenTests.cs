@@ -1,7 +1,7 @@
-using Cadence.Midi.Files;
-using static Cadence.Tests.Unit.Playback.PlanDump;
+using Bluestone.Midi.Files;
+using static Bluestone.Tests.Unit.Playback.PlanDump;
 
-namespace Cadence.Tests.Unit.Playback;
+namespace Bluestone.Tests.Unit.Playback;
 
 /// <summary>
 /// Guards what a MIDI 1.0 device receives from the shipped samples, for playback and for SMF export.
@@ -15,7 +15,7 @@ public sealed class MidiOneOutputGoldenTests
 {
     public static TheoryData<string, string, string> Samples() => new()
     {
-        { "cadence-demo.mid", "52C43EEE4CD69D64", "042D601A18B616FE" },
+        { "bluestone-demo.mid", "52C43EEE4CD69D64", "042D601A18B616FE" },
         { "canon-gm16.mid", "BE918A5129078D96", "6F9AA00B419CABFC" },
         { "canon-gm16-format0.mid", "83140E7057B59333", "D2D4EDA101A8027E" },
     };

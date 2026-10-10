@@ -1,6 +1,6 @@
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.Tests.Unit.Plugins;
+namespace Bluestone.Tests.Unit.Plugins;
 
 public sealed class PluginEventTests
 {

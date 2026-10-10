@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 public enum SmfDiagnosticSeverity
 {

@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Globalization;
 
-namespace Cadence.Midi.SysEx;
+namespace Bluestone.Midi.SysEx;
 
-/// <summary>The parameter blocks of the XG address map that Cadence distinguishes.</summary>
+/// <summary>The parameter blocks of the XG address map that Bluestone distinguishes.</summary>
 public enum XgArea
 {
     /// <summary><c>00 00 xx</c>: master tune, volume, transpose, System On, and resets.</summary>

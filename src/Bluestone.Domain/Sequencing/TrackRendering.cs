@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>A value to set on a device parameter at a position, rendered from a device automation lane.</summary>
 public readonly record struct ParameterChange(Tick Position, DeviceId Device, ParameterId Parameter, ControlValue Value);

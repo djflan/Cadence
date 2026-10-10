@@ -1,7 +1,7 @@
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Wire;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Midi.Wire;
+namespace Bluestone.Tests.Unit.Midi.Wire;
 
 public sealed class MidiStreamParserTests
 {

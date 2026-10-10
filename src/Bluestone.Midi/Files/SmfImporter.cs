@@ -1,17 +1,17 @@
 using System.Globalization;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 /// <summary>The imported sequence, the file's title if it had one, and everything that was repaired or not carried over.</summary>
 public sealed record SmfImportResult(Sequence Sequence, string? Title, IReadOnlyList<SmfDiagnostic> Diagnostics);
 
 /// <summary>
-/// Converts a parsed MIDI file into a Cadence <see cref="Sequence"/>. Tempo, meter, markers, and track
-/// names become first-class model data; notes are paired; everything else Cadence does not model is
+/// Converts a parsed MIDI file into a Bluestone <see cref="Sequence"/>. Tempo, meter, markers, and track
+/// names become first-class model data; notes are paired; everything else Bluestone does not model is
 /// preserved as raw events so it can be exported again. Nothing is silently discarded.
 /// </summary>
 public static class SmfImporter

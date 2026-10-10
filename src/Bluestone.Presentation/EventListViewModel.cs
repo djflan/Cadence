@@ -1,13 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.SysEx;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.SysEx;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>Which events the list shows.</summary>
 public sealed record EventFilter(string Name, Func<TrackEvent, bool> Includes)

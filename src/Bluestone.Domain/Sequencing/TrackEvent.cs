@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>An event placed at a tick on a track. Concrete events are immutable records.</summary>
 public abstract record TrackEvent
@@ -231,7 +231,7 @@ public sealed record RawMidiEvent : TrackEvent
 }
 
 /// <summary>
-/// A meta event that Cadence does not model directly (text, lyrics, cue points, sequencer-specific
+/// A meta event that Bluestone does not model directly (text, lyrics, cue points, sequencer-specific
 /// data, or unknown types), preserved for round-trip fidelity. Tempo and time signature live in the
 /// sequence's <see cref="TempoMap"/> and <see cref="MeterMap"/>, not here.
 /// </summary>

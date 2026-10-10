@@ -1,7 +1,7 @@
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>
 /// <c>reference.transpose</c>: a MIDI effect. Semitones (id 0) maps [0, 1] to -24..+24 in 48 steps (default 0.5 is no

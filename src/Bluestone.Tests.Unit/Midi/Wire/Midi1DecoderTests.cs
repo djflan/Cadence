@@ -1,9 +1,9 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Wire;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Tests.Unit.Midi.Wire;
+namespace Bluestone.Tests.Unit.Midi.Wire;
 
 public sealed class Midi1DecoderTests
 {

@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Running;
-using Cadence.Benchmarks;
-using Cadence.Midi.Endpoints;
+using Bluestone.Benchmarks;
+using Bluestone.Midi.Endpoints;
 
 if (args is ["--jitter", ..])
 {
@@ -20,12 +20,12 @@ static void Realtime()
 {
     if (OperatingSystem.IsMacOS())
     {
-        Cadence.Platform.CoreMidi.ThreadScheduling.MakeCurrentThreadRealtime(TimeSpan.FromMilliseconds(2), TimeSpan.FromMilliseconds(5));
+        Bluestone.Platform.CoreMidi.ThreadScheduling.MakeCurrentThreadRealtime(TimeSpan.FromMilliseconds(2), TimeSpan.FromMilliseconds(5));
     }
     else if (OperatingSystem.IsWindows())
     {
-        Cadence.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
-        Cadence.Platform.Windows.ThreadScheduling.JoinProAudioTask();
+        Bluestone.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
+        Bluestone.Platform.Windows.ThreadScheduling.JoinProAudioTask();
     }
 }
 
@@ -33,11 +33,11 @@ static void Promote()
 {
     if (OperatingSystem.IsMacOS())
     {
-        Cadence.Platform.CoreMidi.ThreadScheduling.PromoteCurrentThread();
+        Bluestone.Platform.CoreMidi.ThreadScheduling.PromoteCurrentThread();
     }
     else if (OperatingSystem.IsWindows())
     {
-        Cadence.Platform.Windows.ThreadScheduling.JoinProAudioTask();
+        Bluestone.Platform.Windows.ThreadScheduling.JoinProAudioTask();
     }
 }
 
@@ -45,6 +45,6 @@ static void Timer()
 {
     if (OperatingSystem.IsWindows())
     {
-        Cadence.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
+        Bluestone.Platform.Windows.ThreadScheduling.RequestHighTimerResolution();
     }
 }

@@ -1,9 +1,9 @@
 using System.Globalization;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Signal.BuiltIn;
+namespace Bluestone.Signal.BuiltIn;
 
 /// <summary>
 /// Runs <see cref="BuiltInDevices.Transpose"/>: moves notes by a number of semitones. Notes that would

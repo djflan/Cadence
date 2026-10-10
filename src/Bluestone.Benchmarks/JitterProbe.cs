@@ -1,10 +1,10 @@
 using System.Globalization;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Playback;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Playback;
 
-namespace Cadence.Benchmarks;
+namespace Bluestone.Benchmarks;
 
 /// <summary>
 /// Plays dense material for real on the playback thread with the system clock and reports dispatch

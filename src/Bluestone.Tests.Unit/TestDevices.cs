@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Tests.Unit;
+namespace Bluestone.Tests.Unit;
 
 /// <summary>
 /// Device definitions for tests: a MIDI effect, an instrument, and two audio effects. They are only data;

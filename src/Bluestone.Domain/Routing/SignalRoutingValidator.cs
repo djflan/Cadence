@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Mixing;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Mixing;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Routing;
+namespace Bluestone.Domain.Routing;
 
 public enum RoutingSeverity
 {

@@ -11,22 +11,22 @@ the main branch, then connected to the project by `PluginDeviceHost`. The result
 
 ## Rules that apply to everything below
 
-- New projects only, plus the wiring listed at the end. Do not touch `Cadence.Domain`, `Application`,
+- New projects only, plus the wiring listed at the end. Do not touch `Bluestone.Domain`, `Application`,
   `Presentation`, `Desktop`, `Playback`, `Infrastructure`, `Midi`, `Profiles`, `Platform.*`, any ADR, `README.md`,
   or `global.json`.
 - Language policy (owner clarification, 2026-10-10; see `docs/daw-epic-handoff.md` section 4, decision 17): C# is
   the default for everything here (protocol, host, supervision, scanner, tests). Rust is allowed, and preferred over
   C or C++, for a performance-critical or native part such as the worker's VST3 hosting layer or the real-time
-  data-plane path, when the reason is stated and measured or forced by a native ABI. No new Cadence-owned C or C++
+  data-plane path, when the reason is stated and measured or forced by a native ABI. No new Bluestone-owned C or C++
   beyond thin vendor/ABI shims. No VST3 loading and **no VST3 support claims** until loading, processing, state, and
   recovery are demonstrated by tests. Process isolation is crash isolation only; never call it a security sandbox.
 - Build environment, analyzer rules, and test-running quirks are in `docs/daw-epic-handoff.md` section 2 and 4.
 - Style: file-scoped namespaces, braces always, sparse comments that explain why, tests named `Subject_Condition_Expectation`.
 - Everything builds with 0 warnings; the whole existing suite still passes; format check passes.
 
-## Projects (under `src/`, each added to `src/Cadence.slnx`)
+## Projects (under `src/`, each added to `src/Bluestone.slnx`)
 
-### 1. `Cadence.Plugins.Protocol` (library, BCL only)
+### 1. `Bluestone.Plugins.Protocol` (library, BCL only)
 
 Shared by host and worker.
 
@@ -56,9 +56,9 @@ Shared by host and worker.
   without touching mapped memory beyond the header flag. Generation numbers make a stale handle detectable if a new worker
   recreates the file. Disposal is idempotent and safe in any state.
 
-### 2. `Cadence.Plugins` (library, references Protocol only; runs in the main process)
+### 2. `Bluestone.Plugins` (library, references Protocol only; runs in the main process)
 
-- **Worker launching**: resolve the worker (apphost `Cadence.PluginWorker` beside the host assembly, else `dotnet Cadence.PluginWorker.dll`);
+- **Worker launching**: resolve the worker (apphost `Bluestone.PluginWorker` beside the host assembly, else `dotnet Bluestone.PluginWorker.dll`);
   never a shell; pass a pipe name and random per-launch token; redirect and drain standard streams.
 - **`WorkerProcess`**: owns one `Process` and one `NamedPipeServerStream`; handshake with timeout; correlated requests with
   per-request timeouts; heartbeat monitor (missed pings beyond a threshold means hung, so kill it); detect exit from both
@@ -83,7 +83,7 @@ Shared by host and worker.
   ordinary failure, not a crash, and are not quarantined as crashes. Scanning never throws because of a bad plugin. The test hook for a real scanner crash is a module file whose first line is a
   documented marker, on which the scanner calls `Environment.FailFast`; docs must say the crash is induced by the marker, not by a native binary.
 
-### 3. `Cadence.PluginWorker` (Exe, references Protocol only)
+### 3. `Bluestone.PluginWorker` (Exe, references Protocol only)
 
 One executable with instance-host and scan modes. Hosts **reference plugins** behind a small internal `IHostedPlugin`
 (describe parameters, process block with events and timestamped parameter changes, save/load state bytes, report latency):
@@ -91,11 +91,11 @@ One executable with instance-host and scan modes. Hosts **reference plugins** be
 (instrument, polyphony >= 4, short attack/release, deterministic), `reference.transpose` (MIDI effect that transposes notes and **passes
 controllers and SysEx through unchanged**), and test-only failure behaviours (`FailFast`, hang, garbage frames) reachable only through an explicit test message.
 State is versioned parameter values; corrupt or unknown-version state fails cleanly (reported, instance still usable with defaults). The worker exits promptly when its control pipe closes.
-In scan mode, files ending `.cadence-reference-plugin` (a small manifest) are modules; everything else is `Malformed`. Never `dlopen` arbitrary libraries.
+In scan mode, files ending `.bluestone-reference-plugin` (a small manifest) are modules; everything else is `Malformed`. Never `dlopen` arbitrary libraries.
 
 ## Tests (meaningful, passing)
 
-Fast tests in `src/Cadence.Tests.Unit/Plugins/`; process-spawning tests in `src/Cadence.Tests.Integration/Plugins/`
+Fast tests in `src/Bluestone.Tests.Unit/Plugins/`; process-spawning tests in `src/Bluestone.Tests.Integration/Plugins/`
 (the integration project references the worker with `ReferenceOutputAssembly="false"` so it is built and copied; verify with a clean build).
 
 - Protocol: round-trip every message; CsCheck fuzz that arbitrary bytes, truncations, and oversize lengths throw only `ProtocolException`; version mismatch rejected.
@@ -113,13 +113,13 @@ Fast tests in `src/Cadence.Tests.Unit/Plugins/`; process-spawning tests in `src/
 
 ## Wiring (only shared files that may change)
 
-`src/Cadence.slnx`; the two test csproj files; `DependencyDirectionTests` (Protocol references nothing, Plugins references Protocol, PluginWorker references Protocol; none reference other Cadence assemblies);
+`src/Bluestone.slnx`; the two test csproj files; `DependencyDirectionTests` (Protocol references nothing, Plugins references Protocol, PluginWorker references Protocol; none reference other Bluestone assemblies);
 `.github/workflows/ci.yml` only if the integration tests need it to find the worker.
 
 ## Documentation
 
 `docs/plugin-hosting.md`: process model, control versus data plane, the exchange state machine, pipelining and a **latency trade-off table** (at least depth - 1 blocks plus scheduling jitter; no zero-latency claims),
-failure policies, supervision and recovery sequence, state persistence rules, isolation policies and which are implemented, scanning and quarantine, **security limitations** (same OS permissions as Cadence; no filesystem or network sandboxing),
+failure policies, supervision and recovery sequence, state persistence rules, isolation policies and which are implemented, scanning and quarantine, **security limitations** (same OS permissions as Bluestone; no filesystem or network sandboxing),
 threading, platform notes (file-backed mappings, Unix-socket pipes, x64 versus ARM64 plugin binaries cannot mix), what is implemented and tested (naming the test), and what is deferred (real VST3 loading and parameter enumeration, plugin editors and their focus/DPI/worker-termination issues,
 delay compensation across a graph, OS sandboxing, wake-up primitives, MIDI 2.0).
 

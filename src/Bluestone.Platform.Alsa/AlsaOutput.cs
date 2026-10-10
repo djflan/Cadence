@@ -1,12 +1,12 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Wire;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Wire;
 
-namespace Cadence.Platform.Alsa;
+namespace Bluestone.Platform.Alsa;
 
 /// <summary>
-/// Sends to an ALSA sequencer port, or to the subscribers of a Cadence virtual port, with
+/// Sends to an ALSA sequencer port, or to the subscribers of a Bluestone virtual port, with
 /// <c>snd_seq_event_output_direct</c>, which delivers immediately. Bytes are converted to a sequencer
 /// event by ALSA's own encoder, so system exclusive needs no special path. Nothing is allocated per send.
 /// </summary>

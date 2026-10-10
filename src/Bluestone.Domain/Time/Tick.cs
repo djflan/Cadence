@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>A non-negative musical position measured in ticks from the start of a sequence.</summary>
 /// <remarks>Ticks are only meaningful relative to a <see cref="Ppqn"/> resolution.</remarks>

@@ -1,22 +1,22 @@
 using System.Text;
 using System.Text.Json.Nodes;
-using Cadence.Application.Routing;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Infrastructure.Projects;
-using Cadence.Signal;
-using static Cadence.Tests.Unit.Playback.PlanDump;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Signal;
+using static Bluestone.Tests.Unit.Playback.PlanDump;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 /// <summary>Format 3 routes become instruments, connections, and Transpose devices (ADR 0027).</summary>
 public sealed class Format3To4MigrationTests
 {
     private static Project RoutingFull() =>
-        ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", "format3-routing-full.cadence"))).Project;
+        ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", "format3-routing-full.bluestone"))).Project;
 
     private static Track TrackNamed(Project project, string name) => project.Sequence.Tracks.Single(t => t.Name == name);
 
@@ -42,7 +42,7 @@ public sealed class Format3To4MigrationTests
 
         var output = TrackOutputs.Read(project, bass.Id);
 
-        Assert.Equal("cadence.generic.xg", output.Profile!.ProfileId);
+        Assert.Equal("bluestone.generic.xg", output.Profile!.ProfileId);
         Assert.Equal(("coremidi", "-12345", "QY Out", "Maker", "Model"), (output.Endpoint!.ProviderId, output.Endpoint.EndpointKey, output.Endpoint.DisplayName, output.Endpoint.Manufacturer, output.Endpoint.Model));
         Assert.Equal(3, output.Channel!.Value.Number);
         Assert.Equal(-12, output.Transpose);
@@ -69,7 +69,7 @@ public sealed class Format3To4MigrationTests
         var output = TrackOutputs.Read(project, track.Id);
 
         Assert.Null(output.Endpoint);
-        Assert.Equal(("cadence.generic.xg", 9, 5), (output.Profile!.ProfileId, output.Channel!.Value.Number, output.Transpose));
+        Assert.Equal(("bluestone.generic.xg", 9, 5), (output.Profile!.ProfileId, output.Channel!.Value.Number, output.Transpose));
         var resolved = RouteResolver.ResolveTrack(project, track.Id, RouteResolver.ResolveInstruments(project, Format3EquivalenceTests.Profiles, Format3EquivalenceTests.Endpoints));
         Assert.False(resolved.CanPlay);
     }
@@ -104,7 +104,7 @@ public sealed class Format3To4MigrationTests
     public void AFormat3ProjectWithoutRoutes_GetsEmptyRoutingAndAnEmptyMixer()
     {
         var json = $$"""
-            { "format": "cadence-project", "formatVersion": 3,
+            { "format": "bluestone-project", "formatVersion": 3,
               "project": { "id": "{{Guid.NewGuid()}}", "name": "p",
                 "sequence": { "ppqn": 480, "tempo": [], "meter": [], "markers": [],
                   "tracks": [ { "id": "{{Guid.NewGuid()}}", "name": "t", "muted": false, "soloed": false, "clips": [] } ] },

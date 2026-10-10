@@ -2,9 +2,9 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Cadence.Domain.Midi;
+using Bluestone.Domain.Midi;
 
-namespace Cadence.Profiles;
+namespace Bluestone.Profiles;
 
 /// <summary>
 /// Loads and validates device profiles (schema version 1). Every problem is reported with its JSON
@@ -14,8 +14,8 @@ namespace Cadence.Profiles;
 /// </summary>
 public static partial class ProfileLoader
 {
-    public const string FormatName = "cadence-device-profile";
-    public const string FileExtension = ".cadence-profile.json";
+    public const string FormatName = "bluestone-device-profile";
+    public const string FileExtension = ".bluestone-profile.json";
 
     private const int MaxDepth = 32;
 
@@ -121,7 +121,7 @@ public static partial class ProfileLoader
         if (schemaVersion is { } version && version != DeviceProfile.CurrentSchemaVersion)
         {
             w.Error("$.schemaVersion", version > DeviceProfile.CurrentSchemaVersion
-                ? string.Create(CultureInfo.InvariantCulture, $"version {version} needs a newer version of Cadence (this version reads {DeviceProfile.CurrentSchemaVersion}).")
+                ? string.Create(CultureInfo.InvariantCulture, $"version {version} needs a newer version of Bluestone (this version reads {DeviceProfile.CurrentSchemaVersion}).")
                 : string.Create(CultureInfo.InvariantCulture, $"version {version} is not supported."));
             return null;
         }

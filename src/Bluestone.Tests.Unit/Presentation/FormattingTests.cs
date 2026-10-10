@@ -1,8 +1,8 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Time;
-using Cadence.Presentation;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Time;
+using Bluestone.Presentation;
 
-namespace Cadence.Tests.Unit.Presentation;
+namespace Bluestone.Tests.Unit.Presentation;
 
 public sealed class FormattingTests
 {

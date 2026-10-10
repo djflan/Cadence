@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
-/// <summary>A MIDI 1.0 control change number (0-127), with names for the defined controllers Cadence relies on.</summary>
+/// <summary>A MIDI 1.0 control change number (0-127), with names for the defined controllers Bluestone relies on.</summary>
 public readonly record struct ControllerNumber
 {
     public static readonly ControllerNumber BankSelectMsb = new(0);

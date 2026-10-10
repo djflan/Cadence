@@ -1,7 +1,7 @@
 {
-  "format": "cadence-device-profile",
+  "format": "bluestone-device-profile",
   "schemaVersion": 1,
-  "id": "cadence.generic.gm1",
+  "id": "bluestone.generic.gm1",
   "version": "1.0.0",
   "name": "General MIDI (Level 1)",
   "description": "Any instrument that implements the General MIDI Level 1 sound set and percussion map. Use this profile for GM-compatible hardware and software when no more specific profile exists.",
@@ -11,7 +11,7 @@
       "MIDI 1.0 Detailed Specification: universal System Exclusive message formats."
     ],
     "contributors": [
-      "Cadence contributors"
+      "Bluestone contributors"
     ],
     "license": "MIT",
     "redistributionConfirmed": true,

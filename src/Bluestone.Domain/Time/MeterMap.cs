@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>A time signature change taking effect at a tick.</summary>
 public readonly record struct MeterChange(Tick Position, TimeSignature Signature);

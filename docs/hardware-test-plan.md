@@ -5,20 +5,20 @@ ports, the built-in monitor, and (when enabled) the IAC bus. This checklist cove
 real instrument. The first target is a Yamaha QY100 or another XG module on a USB-MIDI interface.
 Record the date, macOS version, interface, and results for each run.
 
-> Yamaha, XG, and QY100 are trademarks of Yamaha Corporation; Cadence is not affiliated with Yamaha.
+> Yamaha, XG, and QY100 are trademarks of Yamaha Corporation; Bluestone is not affiliated with Yamaha.
 
 ## Setup
 
 1. Connect the interface's MIDI OUT to the instrument's MIDI IN (and MIDI OUT to MIDI IN for input tests).
 2. Confirm the interface appears in **Audio MIDI Setup → MIDI Studio**.
-3. Start Cadence: `dotnet run --project src/Cadence.Desktop`.
+3. Start Bluestone: `dotnet run --project src/Bluestone.Desktop`.
 
 ## Checks
 
 | # | Step | Expected |
 | - | ---- | -------- |
-| 1 | Open the inspector's **Output** list | The interface port is listed as *Hardware* with its name; Cadence Monitor and Cadence Out are also listed |
-| 2 | Import `samples/cadence-demo.mid`, route all tracks to the interface (**Use this output for all tracks**) | All tracks show **Ready** |
+| 1 | Open the inspector's **Output** list | The interface port is listed as *Hardware* with its name; Bluestone Monitor and Bluestone Out are also listed |
+| 2 | Import `samples/bluestone-demo.mid`, route all tracks to the interface (**Use this output for all tracks**) | All tracks show **Ready** |
 | 3 | Press Space | The instrument plays drums, bass, keys, and lead in time; the status bar shows 0 late, 0 dropped |
 | 4 | Select *Bass*, choose profile **Generic XG**, voice bank *Normal voices (MSB 0)*, any program; play from the start | The bass voice changes at the start of playback |
 | 5 | Select a track with an XG profile and press **Initialize Instrument…** | A confirmation names *XG System On*; **Cancel** sends nothing; **Send** resets the instrument (check its display) |

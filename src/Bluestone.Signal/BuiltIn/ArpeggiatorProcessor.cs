@@ -1,10 +1,10 @@
 using System.Globalization;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Signal.BuiltIn;
+namespace Bluestone.Signal.BuiltIn;
 
 /// <summary>
 /// Runs <see cref="BuiltInDevices.Arpeggiator"/>: plays the notes held at each step one at a time, in a pattern, across one or more octaves. Three notes

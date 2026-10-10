@@ -1,12 +1,12 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Playback;
-using static Cadence.Tests.Unit.Playback.PlaybackFixture;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Playback;
+using static Bluestone.Tests.Unit.Playback.PlaybackFixture;
 
-namespace Cadence.Tests.Unit.Playback;
+namespace Bluestone.Tests.Unit.Playback;
 
 public sealed class PlaybackPlanCompilerTests
 {

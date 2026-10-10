@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.PluginWorker.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.PluginWorker.Plugins;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
 /// Serves <see cref="RenderEvents"/>: a fresh copy of the plugin, given the request's state and parameters, runs over

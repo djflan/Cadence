@@ -1,4 +1,4 @@
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 /// <summary>Canonical ordering rules for simultaneous events.</summary>
 public static class EventOrder

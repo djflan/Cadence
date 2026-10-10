@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Persistence and shared adapters: the Cadence project file format and its storage. -->
+  <!-- Persistence and shared adapters: the Bluestone project file format and its storage. -->
   <PropertyGroup>
-    <RootNamespace>Cadence.Infrastructure</RootNamespace>
+    <RootNamespace>Bluestone.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
-    <InternalsVisibleTo Include="Cadence.Tests.Integration" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Integration" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Cadence.Domain/Cadence.Domain.csproj" />
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
   </ItemGroup>
 </Project>

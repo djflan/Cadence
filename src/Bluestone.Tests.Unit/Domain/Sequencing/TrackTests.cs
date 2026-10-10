@@ -1,8 +1,8 @@
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Domain.Sequencing;
+namespace Bluestone.Tests.Unit.Domain.Sequencing;
 
 public sealed class TrackTests
 {

@@ -1,4 +1,4 @@
-namespace Cadence.Domain;
+namespace Bluestone.Domain;
 
 internal static class Guard
 {

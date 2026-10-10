@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>
 /// A plugin as the worker hosts it. Only the built-in reference plugins implement this; the worker never loads

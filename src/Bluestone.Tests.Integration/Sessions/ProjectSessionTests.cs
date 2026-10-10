@@ -1,15 +1,15 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Files;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Files;
 
-namespace Cadence.Tests.Integration.Sessions;
+namespace Bluestone.Tests.Integration.Sessions;
 
 public sealed class ProjectSessionTests : IDisposable
 {
-    private readonly string _directory = Directory.CreateTempSubdirectory("cadence-session-").FullName;
+    private readonly string _directory = Directory.CreateTempSubdirectory("bluestone-session-").FullName;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -26,11 +26,11 @@ public sealed class ProjectSessionTests : IDisposable
         session.Execute(ProjectCommands.RenameProject("Song"));
         Assert.True(session.IsDirty);
 
-        await session.SaveAsync(PathOf("song.cadence"), Ct);
+        await session.SaveAsync(PathOf("song.bluestone"), Ct);
         Assert.False(session.IsDirty);
 
         var reopened = new ProjectSession();
-        var report = await reopened.OpenAsync(PathOf("song.cadence"), Ct);
+        var report = await reopened.OpenAsync(PathOf("song.bluestone"), Ct);
         Assert.Equal("Song", reopened.Project.Name);
         Assert.False(reopened.IsDirty);
         Assert.False(report.RecoveredFromBackup);
@@ -76,18 +76,18 @@ public sealed class ProjectSessionTests : IDisposable
     public async Task Autosave_CanBeRestoredAndIsClearedBySaving()
     {
         var session = new ProjectSession();
-        await session.SaveAsync(PathOf("song.cadence"), Ct);
+        await session.SaveAsync(PathOf("song.bluestone"), Ct);
         session.Execute(ProjectCommands.RenameProject("Unsaved idea"));
         await session.AutosaveAsync(Ct);
 
         var crashed = new ProjectSession();
-        var report = await crashed.OpenAsync(PathOf("song.cadence"), Ct);
+        var report = await crashed.OpenAsync(PathOf("song.bluestone"), Ct);
         Assert.True(report.RecoveryAvailable);
         await crashed.RestoreRecoveryAsync(Ct);
         Assert.Equal("Unsaved idea", crashed.Project.Name);
         Assert.True(crashed.IsDirty);
 
         await crashed.SaveAsync(cancellationToken: Ct);
-        Assert.False((await new ProjectSession().OpenAsync(PathOf("song.cadence"), Ct)).RecoveryAvailable);
+        Assert.False((await new ProjectSession().OpenAsync(PathOf("song.bluestone"), Ct)).RecoveryAvailable);
     }
 }

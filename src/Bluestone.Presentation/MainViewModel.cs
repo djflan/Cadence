@@ -1,24 +1,24 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Cadence.Application.Editing;
-using Cadence.Application.Plugins;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Infrastructure.Projects;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Files;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Plugins;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Infrastructure.Projects;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Files;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 public enum MessageSeverity
 {
@@ -209,7 +209,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     // Starts workers for plugin devices that need one and stops those whose device is gone. A failure is a message,
-    // never a crash and never a fall-back to Cadence's own process.
+    // never a crash and never a fall-back to Bluestone's own process.
     private async Task SyncPluginsAsync()
     {
         if (_plugins is null)
@@ -284,7 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
     public partial bool IsDirty { get; private set; }
 
-    public string WindowTitle => $"{ProjectName}{(IsDirty ? " — edited" : string.Empty)} · Cadence";
+    public string WindowTitle => $"{ProjectName}{(IsDirty ? " — edited" : string.Empty)} · Bluestone";
 
     [ObservableProperty]
     public partial bool IsPlaying { get; private set; }
@@ -681,7 +681,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    /// <summary>True for files Cadence can open by dropping them on the window: projects and MIDI files.</summary>
+    /// <summary>True for files Bluestone can open by dropping them on the window: projects and MIDI files.</summary>
     public static bool CanOpenFile(string path) => IsProject(path) || IsMidi(path);
 
     /// <summary>
@@ -692,7 +692,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if (!CanOpenFile(path))
         {
-            AddMessage(MessageSeverity.Warning, "Open", $"{Path.GetFileName(path)} is not a Cadence project or MIDI file.");
+            AddMessage(MessageSeverity.Warning, "Open", $"{Path.GetFileName(path)} is not a Bluestone project or MIDI file.");
             return;
         }
 
@@ -724,10 +724,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var report = await _session.OpenAsync(path);
         if (report.RecoveredFromBackup)
         {
-            AddMessage(MessageSeverity.Warning, "Open", $"The project file was damaged ({report.Problem}). Cadence opened the backup copy; save to repair the file.");
+            AddMessage(MessageSeverity.Warning, "Open", $"The project file was damaged ({report.Problem}). Bluestone opened the backup copy; save to repair the file.");
         }
 
-        if (report.RecoveryAvailable && await _ui.ConfirmAsync("Restore unsaved work?", "Cadence found autosaved changes newer than this project. Restore them?", "Restore", destructive: false))
+        if (report.RecoveryAvailable && await _ui.ConfirmAsync("Restore unsaved work?", "Bluestone found autosaved changes newer than this project. Restore them?", "Restore", destructive: false))
         {
             await _session.RestoreRecoveryAsync();
             AddMessage(MessageSeverity.Info, "Open", "Restored autosaved changes. Save to keep them.");
@@ -747,7 +747,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task SaveAsAsync()
     {
-        if (await _ui.PickSaveFileAsync("Save Project", ProjectName + ".cadence", FileFilters.Project) is { } path)
+        if (await _ui.PickSaveFileAsync("Save Project", ProjectName + ".bluestone", FileFilters.Project) is { } path)
         {
             await RunAsync("Save", async () =>
             {

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A 14-bit MIDI value (0-16383) carried as two 7-bit bytes, used by pitch bend and

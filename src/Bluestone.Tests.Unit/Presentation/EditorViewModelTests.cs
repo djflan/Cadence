@@ -1,15 +1,15 @@
-using Cadence.Application.Editing;
-using Cadence.Application.Sessions;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Presentation;
-using Cadence.Profiles;
+using Bluestone.Application.Editing;
+using Bluestone.Application.Sessions;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Presentation;
+using Bluestone.Profiles;
 
-namespace Cadence.Tests.Unit.Presentation;
+namespace Bluestone.Tests.Unit.Presentation;
 
 /// <summary>The piano roll and event list view models, and the transport's recording controls.</summary>
 public sealed class EditorViewModelTests : IAsyncLifetime

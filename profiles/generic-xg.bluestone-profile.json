@@ -1,12 +1,12 @@
 {
-  "format": "cadence-device-profile",
+  "format": "bluestone-device-profile",
   "schemaVersion": 1,
-  "id": "cadence.generic.xg",
+  "id": "bluestone.generic.xg",
   "version": "1.0.0",
   "name": "Generic XG",
   "description": "Instruments compatible with the XG format: bank select layout, XG System On, and XG parameter change messages. Voice names are intentionally not included; programs are shown by number.",
   "notices": [
-    "XG is a trademark of Yamaha Corporation. Cadence is an independent project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. The name is used only to describe compatibility."
+    "XG is a trademark of Yamaha Corporation. Bluestone is an independent project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. The name is used only to describe compatibility."
   ],
   "provenance": {
     "sources": [
@@ -14,7 +14,7 @@
       "MIDI 1.0 Detailed Specification: controller numbers, registered parameters, and universal System Exclusive formats."
     ],
     "contributors": [
-      "Cadence contributors"
+      "Bluestone contributors"
     ],
     "license": "MIT",
     "redistributionConfirmed": true,

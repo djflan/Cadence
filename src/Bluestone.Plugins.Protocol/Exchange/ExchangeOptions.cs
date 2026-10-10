@@ -1,4 +1,4 @@
-namespace Cadence.Plugins.Protocol.Exchange;
+namespace Bluestone.Plugins.Protocol.Exchange;
 
 /// <summary>Size of one plugin instance's block exchange. Fixed when the instance is created.</summary>
 public sealed record ExchangeOptions

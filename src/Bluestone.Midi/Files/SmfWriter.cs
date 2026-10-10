@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Text;
 
-namespace Cadence.Midi.Files;
+namespace Bluestone.Midi.Files;
 
 public sealed record SmfWriteOptions
 {

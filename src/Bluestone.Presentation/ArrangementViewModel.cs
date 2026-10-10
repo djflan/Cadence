@@ -1,9 +1,9 @@
-using Cadence.Application.Editing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
+using Bluestone.Application.Editing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>
 /// The arrangement's clip selection and the edits made to clips there: moving and copying (also to

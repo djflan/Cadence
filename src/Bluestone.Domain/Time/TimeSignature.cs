@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 
-namespace Cadence.Domain.Time;
+namespace Bluestone.Domain.Time;
 
 /// <summary>A time signature such as 4/4 or 6/8. The denominator is a power of two from 1 to 128.</summary>
 /// <remarks><c>default(TimeSignature)</c> is invalid; use <see cref="CommonTime"/>.</remarks>

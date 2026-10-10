@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using Cadence.Plugins.Protocol;
-using Cadence.Plugins.Protocol.Exchange;
-using Cadence.PluginWorker.Plugins;
+using Bluestone.Plugins.Protocol;
+using Bluestone.Plugins.Protocol.Exchange;
+using Bluestone.PluginWorker.Plugins;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
 /// One plugin instance in the worker: the plugin, its exchange, and a dedicated processing thread that runs submitted

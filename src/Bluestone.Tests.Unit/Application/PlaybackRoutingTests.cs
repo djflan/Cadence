@@ -1,18 +1,18 @@
-using Cadence.Application.Routing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Midi.Timing;
-using Cadence.Midi.Wire;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
-using static Cadence.Tests.Unit.Application.RouteResolverTests;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Midi.Timing;
+using Bluestone.Midi.Wire;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
+using static Bluestone.Tests.Unit.Application.RouteResolverTests;
 
-namespace Cadence.Tests.Unit.Application;
+namespace Bluestone.Tests.Unit.Application;
 
 public sealed class PlaybackRoutingTests
 {

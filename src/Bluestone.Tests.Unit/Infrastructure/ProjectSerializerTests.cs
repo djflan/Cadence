@@ -1,11 +1,11 @@
 using System.Text;
 using System.Text.Json.Nodes;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Sequencing;
-using Cadence.Infrastructure.Projects;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Infrastructure.Projects;
 using CsCheck;
 
-namespace Cadence.Tests.Unit.Infrastructure;
+namespace Bluestone.Tests.Unit.Infrastructure;
 
 public sealed class ProjectSerializerTests
 {
@@ -34,7 +34,7 @@ public sealed class ProjectSerializerTests
         var text = Encoding.UTF8.GetString(first);
 
         Assert.Equal(first, Serializer.Serialize(document));
-        Assert.StartsWith("{\n  \"format\": \"cadence-project\",\n  \"formatVersion\": 4,", text, StringComparison.Ordinal);
+        Assert.StartsWith("{\n  \"format\": \"bluestone-project\",\n  \"formatVersion\": 4,", text, StringComparison.Ordinal);
         Assert.Contains("\"bytes\": \"F0 43 10 4C 00 00 7E 00 F7\"", text, StringComparison.Ordinal);
         Assert.Contains("\"channel\": 2", text, StringComparison.Ordinal);
         Assert.EndsWith("}\n", text, StringComparison.Ordinal);
@@ -63,7 +63,7 @@ public sealed class ProjectSerializerTests
         var error = Assert.Throws<ProjectVersionException>(() => FromJson(json));
 
         Assert.Equal(9, error.FileVersion);
-        Assert.Contains("newer version of Cadence", error.Message, StringComparison.Ordinal);
+        Assert.Contains("newer version of Bluestone", error.Message, StringComparison.Ordinal);
     }
 
     private sealed class RenameTitleMigration : IProjectMigration
@@ -150,7 +150,7 @@ public sealed class ProjectSerializerTests
 
     [Fact]
     public void DuplicatePropertyNames_AreFormatErrors() =>
-        Assert.Throws<ProjectFormatException>(() => Serializer.Deserialize("{ \"format\": \"cadence-project\", \"format\": \"x\" }"u8));
+        Assert.Throws<ProjectFormatException>(() => Serializer.Deserialize("{ \"format\": \"bluestone-project\", \"format\": \"x\" }"u8));
 
     [Fact]
     public void DuplicateIds_AreRejected()
@@ -213,7 +213,7 @@ public sealed class ProjectSerializerTests
         const string track = "0199b0f2-0000-7000-8000-000000000001";
         const string empty = "0199b0f2-0000-7000-8000-000000000002";
         var json = $$"""
-            { "format": "cadence-project", "formatVersion": 2,
+            { "format": "bluestone-project", "formatVersion": 2,
               "project": { "id": "0199b0f2-0000-7000-8000-0000000000ff", "name": "Old",
                 "sequence": { "ppqn": 480, "tempo": [], "markers": [],
                   "meter": [ { "tick": 0, "numerator": 4, "denominator": 4 } ],
@@ -241,7 +241,7 @@ public sealed class ProjectSerializerTests
     public void Format2_BadEventTicks_AreReportedWithTheirPath()
     {
         var json = """
-            { "format": "cadence-project", "formatVersion": 2,
+            { "format": "bluestone-project", "formatVersion": 2,
               "project": { "id": "0199b0f2-0000-7000-8000-0000000000ff", "name": "Old",
                 "sequence": { "ppqn": 480, "tempo": [], "markers": [], "meter": [],
                   "tracks": [ { "id": "0199b0f2-0000-7000-8000-000000000001", "name": "t", "events": [
@@ -258,8 +258,8 @@ public sealed class ProjectSerializerTests
     [InlineData("")]
     [InlineData("[]")]
     [InlineData("{}")]
-    [InlineData("{ \"format\": \"cadence-device-profile\", \"formatVersion\": 1 }")]
-    [InlineData("{ \"format\": \"cadence-project\" }")]
+    [InlineData("{ \"format\": \"bluestone-device-profile\", \"formatVersion\": 1 }")]
+    [InlineData("{ \"format\": \"bluestone-project\" }")]
     public void NonProjects_AreRejected(string text) =>
         Assert.Throws<ProjectFormatException>(() => Serializer.Deserialize(Encoding.UTF8.GetBytes(text)));
 

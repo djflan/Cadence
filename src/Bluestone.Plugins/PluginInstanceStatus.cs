@@ -1,4 +1,4 @@
-namespace Cadence.Plugins;
+namespace Bluestone.Plugins;
 
 public enum PluginInstanceState
 {
@@ -108,7 +108,7 @@ public enum IsolationPolicy
     SharedTrusted,
 
     /// <summary>
-    /// Hosting inside the Cadence process. Not implemented: refused unless explicitly allowed by
+    /// Hosting inside the Bluestone process. Not implemented: refused unless explicitly allowed by
     /// <see cref="PluginHostOptions.AllowInProcessTrusted"/>, and even then it throws <see cref="NotSupportedException"/>.
     /// </summary>
     InProcessTrusted,

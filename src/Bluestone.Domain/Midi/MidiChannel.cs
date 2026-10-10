@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Midi;
+namespace Bluestone.Domain.Midi;
 
 /// <summary>
 /// A MIDI 1.0 voice channel. <see cref="Index"/> is the zero-based wire value (0-15);

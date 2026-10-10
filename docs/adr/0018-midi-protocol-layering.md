@@ -5,13 +5,13 @@
 
 ## Context
 
-Cadence must work very well with MIDI 1.0 hardware, Standard MIDI Files, and XG-era instruments,
+Bluestone must work very well with MIDI 1.0 hardware, Standard MIDI Files, and XG-era instruments,
 and must later reach MIDI 2.0 devices over UMP. The two protocols differ in more than byte layout:
 MIDI 2.0 has higher resolution and per-note expression, and makes some multi-message MIDI 1.0
 operations atomic (bank and program selection is one message). Some MIDI 2.0 data has no lossless
 MIDI 1.0 form.
 
-Encoding had leaked upward. `DeviceProfile.SelectionMessages` in `Cadence.Profiles` built the CC 0,
+Encoding had leaked upward. `DeviceProfile.SelectionMessages` in `Bluestone.Profiles` built the CC 0,
 CC 32, and program change messages for a voice, and `NoteEvent` produced its own note-on and note-off
 messages. Neither profiles nor domain notes should know how they travel.
 
@@ -21,8 +21,8 @@ messages. Neither profiles nor domain notes should know how they travel.
   optional bank MSB and LSB) and `NoteEvent` (a note with a duration) do not encode themselves.
   `ProfileBank.Select` returns a `ProgramSelection`. It no longer returns messages.
 - MIDI 1.0 is a first-class protocol, not a compatibility layer. Its encoding lives in
-  `Cadence.Midi/Wire`: `Midi1Encoder` for semantic operations, `MidiWire` and `MidiStreamParser` for
-  bytes. Standard MIDI File support lives in `Cadence.Midi/Files`.
+  `Bluestone.Midi/Wire`: `Midi1Encoder` for semantic operations, `MidiWire` and `MidiStreamParser` for
+  bytes. Standard MIDI File support lives in `Bluestone.Midi/Files`.
 - MIDI 2.0 is a planned protocol target. Its encoder will sit beside `Midi1Encoder` and produce UMP
   from the same semantic operations. Transport gets a separate UMP path with its own capability
   (ADR 0005). UMP is a wire representation and never becomes the domain model, and neither do
@@ -36,9 +36,9 @@ messages. Neither profiles nor domain notes should know how they travel.
   `ChannelPressureEvent`, `PolyPressureEvent`, `NoteOffEvent`, and `NoteEvent`), not MIDI 1.0
   messages. Their values are `ControlValue`s at MIDI 2.0 resolution (32 bits), scaled from MIDI 1.0
   with the MIDI 2.0 min-center-max rule so they scale back down exactly. `ChannelMessage` moves to
-  `Cadence.Midi/Wire`. `Midi1Decoder` turns messages into events. It folds bank selects into a
+  `Bluestone.Midi/Wire`. `Midi1Decoder` turns messages into events. It folds bank selects into a
   program change only on the same channel and tick, so MIDI 1.0 output does not change. Project
-  files store the events (format version 2). Format 1 files are not migrated, because Cadence has
+  files store the events (format version 2). Format 1 files are not migrated, because Bluestone has
   no users with saved projects yet.
 - RPN and NRPN stay controller sequences, because folding them cannot always reproduce the
   original messages.

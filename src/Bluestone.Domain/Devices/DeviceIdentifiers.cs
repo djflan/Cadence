@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 /// <summary>
 /// Stable identity of one device instance in a project. Automation, routing taps, and plugin state all
@@ -31,7 +31,7 @@ public readonly record struct ParameterId(uint Value)
 }
 
 /// <summary>
-/// Names the implementation behind a device: a built-in processor (<c>cadence.midi.transpose</c>) or a
+/// Names the implementation behind a device: a built-in processor (<c>bluestone.midi.transpose</c>) or a
 /// plugin (<c>vst3:&lt;class id&gt;</c>). It identifies what to load, never one occurrence of it.
 /// </summary>
 public readonly record struct DeviceDefinitionId

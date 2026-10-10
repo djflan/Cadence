@@ -1,15 +1,15 @@
-using Cadence.Application.Routing;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Projects;
-using Cadence.Domain.Routing;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using Cadence.Midi.Endpoints;
-using Cadence.Playback;
-using Cadence.Profiles;
-using Cadence.Signal;
+using Bluestone.Application.Routing;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Projects;
+using Bluestone.Domain.Routing;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using Bluestone.Midi.Endpoints;
+using Bluestone.Playback;
+using Bluestone.Profiles;
+using Bluestone.Signal;
 
-namespace Cadence.Benchmarks;
+namespace Bluestone.Benchmarks;
 
 /// <summary>Deterministic synthetic material for measurements.</summary>
 internal static class Workloads
@@ -55,7 +55,7 @@ internal static class Workloads
         PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, ProfileCatalog.Empty, [Sink]).Compile(project.Sequence);
 }
 
-/// <summary>An output that accepts everything and only counts, so measurements see Cadence's own cost.</summary>
+/// <summary>An output that accepts everything and only counts, so measurements see Bluestone's own cost.</summary>
 internal sealed class CountingOutput(EndpointCapabilities capabilities) : IMidiOutput
 {
     public long Count;

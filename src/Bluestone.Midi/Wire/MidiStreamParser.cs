@@ -1,4 +1,4 @@
-namespace Cadence.Midi.Wire;
+namespace Bluestone.Midi.Wire;
 
 /// <summary>Receives one complete message. The span is only valid during the call.</summary>
 public delegate void MidiMessageHandler(ReadOnlySpan<byte> message);

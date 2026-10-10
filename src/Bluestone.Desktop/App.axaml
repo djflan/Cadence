@@ -1,8 +1,8 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Cadence.Desktop.App"
+             x:Class="Bluestone.Desktop.App"
              RequestedThemeVariant="Dark"
-             Name="Cadence">
+             Name="Bluestone">
   <Application.Styles>
     <FluentTheme>
       <FluentTheme.Palettes>
@@ -29,6 +29,6 @@
                                ErrorText="#E5484D" />
       </FluentTheme.Palettes>
     </FluentTheme>
-    <StyleInclude Source="avares://Cadence.Desktop/Theme/Cadence.axaml" />
+    <StyleInclude Source="avares://Bluestone.Desktop/Theme/Bluestone.axaml" />
   </Application.Styles>
 </Application>

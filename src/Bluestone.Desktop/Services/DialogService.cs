@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
-using Cadence.Presentation;
+using Bluestone.Presentation;
 
-namespace Cadence.Desktop.Services;
+namespace Bluestone.Desktop.Services;
 
 /// <summary>File pickers and confirmation dialogs for the view models.</summary>
 internal sealed class DialogService(Window owner) : IUserInteraction

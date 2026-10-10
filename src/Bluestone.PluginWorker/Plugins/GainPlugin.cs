@@ -1,6 +1,6 @@
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.PluginWorker.Plugins;
+namespace Bluestone.PluginWorker.Plugins;
 
 /// <summary>
 /// <c>reference.gain</c>: an audio effect. Gain (id 0) maps [0, 1] linearly to x0..x2, so the default 0.5 is unity

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Writes format-1 and format-0 16-channel General MIDI import fixtures for Cadence.
+"""Writes format-1 and format-0 16-channel General MIDI import fixtures for Bluestone.
 
 An original arrangement of Pachelbel's Canon in D (public domain), released under the repository's
 MIT licence. It deliberately exercises every MIDI channel and the parts of a Standard MIDI File that
-Cadence imports: GM System On SysEx, bank select and program changes, mixer controllers, an RPN
+Bluestone imports: GM System On SysEx, bank select and program changes, mixer controllers, an RPN
 pitch-bend range, pitch bend, channel pressure, sustain pedal, expression, lyrics, key signature,
 copyright and text meta events, tempo and meter changes, markers, running status, both note-off
 styles (0x80 and note-on velocity 0), and same-note retriggers on the tick of the previous release.
 
-The file is written byte by byte with the standard library only, independent of Cadence's own
+The file is written byte by byte with the standard library only, independent of Bluestone's own
 writer. Usage: python3 samples/canon-gm16.py  (writes both MIDI files next to this script)
 """
 
@@ -169,7 +169,7 @@ def build():
     violin1, mix = part(1, "Violin I", 40, 100, 40, 60, 10)
     violin1.sysex(0, bytes([0x7E, 0x7F, 0x09, 0x01, 0xF7]))
     violin1.meta(0, 0x59, bytes([2, 0]))
-    violin1.meta(0, 0x02, text("Arrangement © Cadence contributors, MIT licence"))
+    violin1.meta(0, 0x02, text("Arrangement © Bluestone contributors, MIT licence"))
     violin1.meta(0, 0x01, text("Pachelbel, Canon in D (public domain), arranged for 16 GM channels."))
     violin1.setup(*mix)
     for i, variation in enumerate(VARIATIONS):

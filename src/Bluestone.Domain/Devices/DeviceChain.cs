@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Sequencing;
+using Bluestone.Domain.Sequencing;
 
-namespace Cadence.Domain.Devices;
+namespace Bluestone.Domain.Devices;
 
 public enum ChainOwnerKind
 {

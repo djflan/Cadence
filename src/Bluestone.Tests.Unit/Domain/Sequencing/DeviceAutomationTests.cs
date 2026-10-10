@@ -1,10 +1,10 @@
-using Cadence.Domain.Devices;
-using Cadence.Domain.Midi;
-using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
-using static Cadence.Tests.Unit.Domain.Routing.RoutingFixture;
+using Bluestone.Domain.Devices;
+using Bluestone.Domain.Midi;
+using Bluestone.Domain.Sequencing;
+using Bluestone.Domain.Time;
+using static Bluestone.Tests.Unit.Domain.Routing.RoutingFixture;
 
-namespace Cadence.Tests.Unit.Domain.Sequencing;
+namespace Bluestone.Tests.Unit.Domain.Sequencing;
 
 /// <summary>Scenario 5: automation targets device parameters, independent of order and of MIDI.</summary>
 public sealed class DeviceAutomationTests

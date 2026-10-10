@@ -1,7 +1,7 @@
-using Cadence.Domain.Midi;
-using Cadence.Midi.Endpoints;
+using Bluestone.Domain.Midi;
+using Bluestone.Midi.Endpoints;
 
-namespace Cadence.Presentation;
+namespace Bluestone.Presentation;
 
 /// <summary>An output choice. A remembered but disconnected endpoint is listed so the route stays visible.</summary>
 public sealed record OutputOption(EndpointId? Id, string Name, string Detail, bool IsAvailable)

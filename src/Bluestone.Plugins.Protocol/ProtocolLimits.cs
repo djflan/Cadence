@@ -1,4 +1,4 @@
-namespace Cadence.Plugins.Protocol;
+namespace Bluestone.Plugins.Protocol;
 
 /// <summary>Hard limits of the plugin protocol. Every length read from the wire is checked against these before anything is allocated.</summary>
 public static class ProtocolLimits

@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Domain.Sequencing;
+namespace Bluestone.Domain.Sequencing;
 
 internal static class Search
 {

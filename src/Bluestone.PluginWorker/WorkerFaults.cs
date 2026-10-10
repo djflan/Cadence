@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using Cadence.Plugins.Protocol;
+using Bluestone.Plugins.Protocol;
 
-namespace Cadence.PluginWorker;
+namespace Bluestone.PluginWorker;
 
 /// <summary>
 /// Test-only failure behaviours, reachable only through an <see cref="InduceTestFault"/> message (and, for a crash at
@@ -10,7 +10,7 @@ namespace Cadence.PluginWorker;
 /// </summary>
 internal static class WorkerFaults
 {
-    public const string CrashAtStartupVariable = "CADENCE_PLUGINWORKER_TEST_CRASH_AT_STARTUP";
+    public const string CrashAtStartupVariable = "BLUESTONE_PLUGINWORKER_TEST_CRASH_AT_STARTUP";
 
     private static volatile bool _hung;
 
@@ -36,7 +36,7 @@ internal static class WorkerFaults
         switch (fault)
         {
             case TestFault.FailFast:
-                Environment.FailFast("Cadence plugin worker: FailFast induced by a test message.");
+                Environment.FailFast("Bluestone plugin worker: FailFast induced by a test message.");
                 break;
             case TestFault.Hang:
                 _hung = true;

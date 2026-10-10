@@ -1,6 +1,6 @@
-using Cadence.Domain.Time;
+using Bluestone.Domain.Time;
 
-namespace Cadence.Tests.Unit.Domain.Time;
+namespace Bluestone.Tests.Unit.Domain.Time;
 
 public sealed class TimePrimitiveTests
 {

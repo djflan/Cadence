@@ -1,5 +1,5 @@
 {
-  "format": "cadence-project",
+  "format": "bluestone-project",
   "formatVersion": 2,
   "project": {
     "id": "01a1260e-1f73-7750-bf7d-486ff7ce66ca",
@@ -136,7 +136,7 @@
       {
         "track": "01a1260e-1f69-75c5-b5be-7238115d5dcc",
         "profile": {
-          "id": "cadence.generic.xg",
+          "id": "bluestone.generic.xg",
           "name": "Generic XG"
         },
         "endpoint": {
