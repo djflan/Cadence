@@ -271,7 +271,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         _playback.Engine.Pump();
         _clock.Advance(TimeSpan.FromMilliseconds(500));
         _playback.Engine.Pump();
-        Editor.Audition(72, 90);
+        Editor.PlayKey(72, 90);
         _playback.Engine.Pump();
         _clock.Advance(TimeSpan.FromMilliseconds(250));
         _playback.Engine.Pump();

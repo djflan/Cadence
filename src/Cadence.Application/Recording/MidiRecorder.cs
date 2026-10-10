@@ -217,12 +217,8 @@ public sealed class MidiRecorder : IDisposable
     /// Takes a message played on Cadence's own on-screen keyboard (the piano roll's keys) as input: it is
     /// echoed through MIDI thru and, while recording, captured in the take at <paramref name="timestamp"/>.
     /// </summary>
-    /// <returns>False when there is no thru target, so the caller must sound it some other way.</returns>
-    public bool PlayOnScreen(ChannelMessage message, TimeSpan timestamp)
-    {
-        Receive(OnScreenKey, null, message, timestamp);
-        return Volatile.Read(ref _thru) is not null;
-    }
+    /// <returns>False when thru did not send it (thru is off, or it cannot be transposed), so the caller must sound it some other way.</returns>
+    public bool PlayOnScreen(ChannelMessage message, TimeSpan timestamp) => Receive(OnScreenKey, null, message, timestamp);
 
     private void Receive(OpenInput input, ReadOnlySpan<byte> bytes, TimeSpan timestamp)
     {
@@ -232,24 +228,28 @@ public sealed class MidiRecorder : IDisposable
             return;
         }
 
+        // Only real inputs count as input activity; the on-screen keyboard is not one.
+        Interlocked.Increment(ref _received);
         Receive(input.Key, input.Input.Endpoint, message, timestamp);
     }
 
-    private void Receive(int inputKey, EndpointDescriptor? source, ChannelMessage message, TimeSpan timestamp)
+    /// <returns>Whether thru sent the message.</returns>
+    private bool Receive(int inputKey, EndpointDescriptor? source, ChannelMessage message, TimeSpan timestamp)
     {
-        Interlocked.Increment(ref _received);
         TrackHeld(inputKey, message);
-        Echo(inputKey, source, message);
+        var echoed = Echo(inputKey, source, message);
         if (_recording && _engine.TryGetTickAt(timestamp, out var tick))
         {
             lock (_gate)
             {
                 if (_recording)
                 {
-                    _captured.Add(new Captured(tick.Value, _captured.Count, message));
+                    _captured.Add(new Captured(tick.Value, _captured.Count, inputKey, message));
                 }
             }
         }
+
+        return echoed;
     }
 
     private void TrackHeld(int inputKey, ChannelMessage message)
@@ -273,7 +273,7 @@ public sealed class MidiRecorder : IDisposable
         }
     }
 
-    private void Echo(int inputKey, EndpointDescriptor? source, ChannelMessage message)
+    private bool Echo(int inputKey, EndpointDescriptor? source, ChannelMessage message)
     {
         var key = (inputKey, message.Channel.Index, message.Data1);
         if (message.IsNoteOff)
@@ -291,12 +291,12 @@ public sealed class MidiRecorder : IDisposable
                 _engine.SendNow(held.Output, held.Off);
             }
 
-            return;
+            return found;
         }
 
         if (Volatile.Read(ref _thru) is not { } target || (source is not null && IsFeedback(source, target.Output.Endpoint)))
         {
-            return;
+            return false;
         }
 
         var echoed = target.Channel is { } channel ? message.WithChannel(channel) : message;
@@ -304,7 +304,7 @@ public sealed class MidiRecorder : IDisposable
         {
             if (!message.Note.TryTranspose(target.Transpose, out var note))
             {
-                return;
+                return false;
             }
 
             ChannelMessage.TryCreate(echoed.Status, note.Value, echoed.Data2, out echoed);
@@ -320,6 +320,7 @@ public sealed class MidiRecorder : IDisposable
         }
 
         _engine.SendNow(target.Output, echoed);
+        return true;
     }
 
     /// <summary>
@@ -359,13 +360,14 @@ public sealed class MidiRecorder : IDisposable
     {
         var events = ImmutableArray.CreateBuilder<TrackEvent>();
         var preview = new List<RecordingNote>();
-        var open = new Dictionary<(byte Channel, byte Note), Queue<Captured>>();
+        // Per input, so a note clicked on screen never takes the release of one held on a keyboard.
+        var open = new Dictionary<(int Input, byte Channel, byte Note), Queue<Captured>>();
         var loopEnd = loop?.End.Value;
 
         foreach (var c in captured)
         {
             var message = c.Message;
-            var key = (message.Channel.Index, message.Data1);
+            var key = (c.Input, message.Channel.Index, message.Data1);
             if (message.IsNoteOn)
             {
                 if (!open.TryGetValue(key, out var queue))
@@ -413,7 +415,7 @@ public sealed class MidiRecorder : IDisposable
         }
     }
 
-    private readonly record struct Captured(long Tick, int Order, ChannelMessage Message);
+    private readonly record struct Captured(long Tick, int Order, int Input, ChannelMessage Message);
 
     private sealed record OpenInput(IMidiInput Input, int Key);
 }

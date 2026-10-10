@@ -56,8 +56,7 @@ public sealed class PlaybackController : IAsyncDisposable
     private TrackId? _thruTrack;
     private IReadOnlyCollection<EndpointId>? _inputSelection;
     private RecordOptions _recordOptions = new();
-    // A held piano key: the release to send to an output, and the release to play into the take.
-    private (IMidiOutput? Output, ChannelMessage? OutputOff, ChannelMessage? RecordedOff)? _audition;
+    private HeldKey? _audition;
     private readonly IMonotonicClock _clock;
     private long _takeWraps;
 
@@ -259,34 +258,34 @@ public sealed class PlaybackController : IAsyncDisposable
         ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel
         ?? MidiChannel.FromIndex(0);
 
-    /// <summary>
-    /// Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking a
-    /// piano key. While recording, the note is played into the take instead, like a note from a MIDI
-    /// input: it sounds on the recording track (through MIDI thru) and is recorded.
-    /// </summary>
+    /// <summary>Sounds a note on <paramref name="track"/>'s output until <see cref="EndAudition"/>, e.g. while clicking or dragging a note.</summary>
     public void Audition(TrackId track, NoteNumber note, Velocity velocity)
     {
         EndAudition();
-        if (Recorder.RecordingTrack is { } recording)
+        if (SoundOn(track, note, velocity) is { } sounded)
         {
-            var channel = ChannelFor(recording);
-            var off = ChannelMessage.NoteOff(channel, note, Velocity.DefaultRelease);
-            if (Recorder.PlayOnScreen(ChannelMessage.NoteOn(channel, note, velocity), _clock.Now))
-            {
-                _audition = (null, null, off);
-                return;
-            }
+            _audition = new HeldKey(sounded, null);
+        }
+    }
 
-            // No thru target (thru is off): it is still recorded, so sound it on the recording track directly.
-            var direct = SoundOn(recording, note, velocity);
-            _audition = (direct?.Output, direct?.Off, off);
+    /// <summary>
+    /// Plays a key of the on-screen keyboard until <see cref="EndAudition"/>. When <paramref name="track"/> is
+    /// being recorded, the key is input like a note from a MIDI keyboard: it sounds through MIDI thru (or
+    /// directly, with thru off) and is recorded. Otherwise it is auditioned.
+    /// </summary>
+    public void PlayKey(TrackId track, NoteNumber note, Velocity velocity)
+    {
+        if (Recorder.RecordingTrack != track)
+        {
+            Audition(track, note, velocity);
             return;
         }
 
-        if (SoundOn(track, note, velocity) is { } sounded)
-        {
-            _audition = (sounded.Output, sounded.Off, null);
-        }
+        EndAudition();
+        var channel = ChannelFor(track);
+        var recordedOff = ChannelMessage.NoteOff(channel, note, Velocity.DefaultRelease);
+        var echoed = Recorder.PlayOnScreen(ChannelMessage.NoteOn(channel, note, velocity), _clock.Now);
+        _audition = new HeldKey(echoed ? null : SoundOn(track, note, velocity), recordedOff);
     }
 
     public void EndAudition()
@@ -297,15 +296,15 @@ public sealed class PlaybackController : IAsyncDisposable
         }
 
         _audition = null;
-        if (held.RecordedOff is { } recorded)
+        if (held.Recorded is { } recorded)
         {
             // The release is input too, so the recorded note gets its length and thru releases it.
             Recorder.PlayOnScreen(recorded, _clock.Now);
         }
 
-        if (held is { Output: { } output, OutputOff: { } off })
+        if (held.Sounded is { } sounded)
         {
-            Engine.SendNow(output, off);
+            Engine.SendNow(sounded.Output, sounded.Off);
         }
     }
 
@@ -313,17 +312,13 @@ public sealed class PlaybackController : IAsyncDisposable
     private (IMidiOutput Output, ChannelMessage Off)? SoundOn(TrackId track, NoteNumber note, Velocity velocity)
     {
         if (Routes.FirstOrDefault(r => r.Track == track) is not { CanPlay: true } route
-            || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output))
+            || !Volatile.Read(ref _published).TryGetValue(route.Endpoint.Endpoint!.Id, out var output)
+            || !note.TryTranspose(route.Route!.Transpose, out var sounding))
         {
             return null;
         }
 
-        var channel = route.Route!.Channel ?? _session.Project.Sequence.FindTrack(track)?.FirstChannel ?? MidiChannel.FromIndex(0);
-        if (!note.TryTranspose(route.Route.Transpose, out var sounding))
-        {
-            return null;
-        }
-
+        var channel = ChannelFor(track);
         Engine.SendNow(output, ChannelMessage.NoteOn(channel, sounding, velocity));
         return (output, ChannelMessage.NoteOff(channel, sounding, Velocity.DefaultRelease));
     }
@@ -499,4 +494,7 @@ public sealed class PlaybackController : IAsyncDisposable
             _open.Remove(id);
         }
     }
+
+    /// <summary>A held audition or key: the release to send to an output, and the release to play into the take.</summary>
+    private sealed record HeldKey((IMidiOutput Output, ChannelMessage Off)? Sounded, ChannelMessage? Recorded);
 }

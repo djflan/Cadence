@@ -386,7 +386,7 @@ public sealed class PianoRollView : Control
         if (x < KeyboardWidth)
         {
             _gesture = Gesture.Keyboard;
-            Audition(PitchAt(y));
+            Audition(PitchAt(y), key: true);
             return;
         }
 
@@ -474,7 +474,7 @@ public sealed class PianoRollView : Control
             case Gesture.Keyboard:
                 if (PitchAt(position.Y) != _auditionPitch)
                 {
-                    Audition(PitchAt(position.Y));
+                    Audition(PitchAt(position.Y), key: true);
                 }
 
                 break;
@@ -1059,7 +1059,8 @@ public sealed class PianoRollView : Control
         };
     }
 
-    private void Audition(int pitch, int velocity = 100)
+    // A key on the keyboard is played (and recorded while recording); a note being edited is only heard.
+    private void Audition(int pitch, int velocity = 100, bool key = false)
     {
         if (_auditionPitch == pitch)
         {
@@ -1067,7 +1068,15 @@ public sealed class PianoRollView : Control
         }
 
         _auditionPitch = pitch;
-        _editor?.Audition(pitch, velocity);
+        if (key)
+        {
+            _editor?.PlayKey(pitch, velocity);
+        }
+        else
+        {
+            _editor?.Audition(pitch, velocity);
+        }
+
         InvalidateVisual();
     }
 
