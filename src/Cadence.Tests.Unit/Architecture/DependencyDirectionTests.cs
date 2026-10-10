@@ -16,6 +16,7 @@ public sealed class DependencyDirectionTests
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
         { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
         { "Cadence.Plugins.Protocol", [] },
+        { "Cadence.PluginWorker", ["Cadence.Plugins.Protocol"] },
     };
 
     [Theory]

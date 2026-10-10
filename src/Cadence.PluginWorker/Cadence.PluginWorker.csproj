@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Out-of-process plugin worker: hosts plugin instances or scans one module, talking to Cadence over
+       Cadence.Plugins.Protocol. It hosts only the built-in reference plugins; it never loads native libraries.
+       See docs/plugin-hosting.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Cadence.PluginWorker</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadence.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cadence.Plugins.Protocol/Cadence.Plugins.Protocol.csproj" />
+  </ItemGroup>
+</Project>
