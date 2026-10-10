@@ -190,7 +190,8 @@ public static class ProjectCommands
     public static IProjectCommand SetSoloed(IReadOnlyCollection<TrackId> tracks, bool soloed) =>
         Batch(soloed ? "Solo Tracks" : "Unsolo Tracks", tracks.Select(t => SetSoloed(t, soloed)));
 
-    private static ProjectCommand EditTrack(string label, TrackId id, Func<Track, Track> edit) =>
+    /// <summary>A command that edits one track, or does nothing if the track is gone or the edit changes nothing.</summary>
+    internal static ProjectCommand EditTrack(string label, TrackId id, Func<Track, Track> edit) =>
         EditTrack(label, id, (track, _) => edit(track));
 
     private static ProjectCommand EditTrack(string label, TrackId id, Func<Track, MeterMap, Track> edit) =>

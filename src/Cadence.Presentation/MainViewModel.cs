@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
 using Cadence.Application.Sessions;
+using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
@@ -134,6 +135,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The clip selection and clip edits in the arrangement.</summary>
     public ArrangementViewModel Arrangement { get; }
+
+    /// <summary>The tracks whose automation lanes are shown, so the arrangement can lay out its rows.</summary>
+    [ObservableProperty]
+    public partial IReadOnlySet<TrackId> ExpandedTracks { get; private set; } = new HashSet<TrackId>();
 
     /// <summary>The event list for the first selected track.</summary>
     public EventListViewModel EventList { get; }
@@ -341,6 +346,31 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public Task InitializeAsync() => SyncAndRefreshAsync();
 
     internal void Execute(IProjectCommand command) => _session.Execute(command);
+
+    /// <summary>The channel a track's route sends on, when it overrides the track's own.</summary>
+    internal MidiChannel? RouteChannel(TrackId track) => Project.Routing.Find(track)?.Channel;
+
+    internal void OnTrackLayoutChanged()
+    {
+        var expanded = Tracks.Where(t => t.IsAutomationExpanded && t.Lanes.Count > 0).Select(t => t.Id).ToHashSet();
+        if (!expanded.SetEquals(ExpandedTracks))
+        {
+            ExpandedTracks = expanded;
+        }
+    }
+
+    /// <summary>Replaces an automation lane's points as one undo step, e.g. after a point is dragged in the arrangement.</summary>
+    public void SetAutomationPoints(TrackId track, AutomationLaneId lane, string label, IReadOnlyCollection<AutomationPoint> points) =>
+        Execute(AutomationCommands.SetPoints(track, lane, label, points));
+
+    /// <summary>Adds an automation lane to a track, on its route's channel or else its first channel, and shows its lanes.</summary>
+    internal void AddAutomationLane(TrackViewModel track, AutomationOption option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+        var channel = track.Route?.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
+        Execute(AutomationCommands.AddLane(track.Id, AutomationLane.Create(option.On(channel))));
+        track.IsAutomationExpanded = true;
+    }
 
     internal EndpointDescriptor? FindEndpoint(EndpointId id) => _outputDescriptors.FirstOrDefault(e => e.Id == id);
 

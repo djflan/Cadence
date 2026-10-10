@@ -15,6 +15,7 @@ internal static class Palette
     public static readonly Color LaneAlt = Color.Parse("#252528");
     public static readonly Color LaneSelected = Color.Parse("#2D2E33");
     public static readonly Color LaneDivider = Color.Parse("#19191B");
+    public static readonly Color AutomationLane = Color.Parse("#1D1D1F");
     public static readonly Color Ruler = Color.Parse("#2B2B2E");
     public static readonly Color RulerEdge = Color.Parse("#3A3A3E");
     public static readonly Color GridBar = Color.Parse("#3C3C41");

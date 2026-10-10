@@ -52,6 +52,13 @@ public partial class MainWindow : Window
         };
         Timeline.ClipsDragged += (_, drag) => viewModel.Arrangement.MoveSelection(drag.DeltaTicks, drag.LaneDelta, drag.Copy);
         Timeline.ClipResized += (_, resize) => viewModel.Arrangement.ResizeClip(resize.Clip, resize.Start, resize.End);
+        Timeline.AutomationEdited += (_, edit) =>
+        {
+            if (edit.Lane < viewModel.Tracks.Count)
+            {
+                viewModel.SetAutomationPoints(viewModel.Tracks[edit.Lane].Id, edit.Automation, edit.Label, edit.Points);
+            }
+        };
         viewModel.Arrangement.Changed += (_, _) => Timeline.SelectedClips = viewModel.Arrangement.SelectedClips.ToHashSet();
         TimelineScroller.ScrollChanged += (_, _) => SyncTimelineViewport();
         TimelineScroller.SizeChanged += (_, _) => SyncTimelineViewport();

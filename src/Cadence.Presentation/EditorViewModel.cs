@@ -229,7 +229,26 @@ public sealed partial class EditorViewModel : ObservableObject
     [ObservableProperty]
     public partial ControllerLane Lane { get; set; } = ControllerLane.Velocity;
 
-    partial void OnLaneChanged(ControllerLane value) => RaiseChanged();
+    partial void OnLaneChanged(ControllerLane value)
+    {
+        OnPropertyChanged(nameof(IsLaneOverridden));
+        RaiseChanged();
+    }
+
+    /// <summary>
+    /// True when a track automation lane controls what the current controller lane shows, on the track's
+    /// channel as its route sends it. Automation wins, so these clip events do not play (ADR 0020).
+    /// </summary>
+    public bool IsLaneOverridden => Track is { } track && Lane.Kind != ControllerLaneKind.Velocity && track.Automation.Any(l =>
+        !l.Points.IsEmpty
+        && (_owner.RouteChannel(track.Id) ?? l.Target.Channel) == (_owner.RouteChannel(track.Id) ?? DefaultChannel(track))
+        && (Lane.Kind, l.Target.Parameter) switch
+        {
+            (ControllerLaneKind.Controller, AutomationParameter.Controller) => l.Target.Controller.Value == Lane.Controller,
+            (ControllerLaneKind.PitchBend, AutomationParameter.PitchBend) => true,
+            (ControllerLaneKind.ChannelPressure, AutomationParameter.ChannelPressure) => true,
+            _ => false,
+        });
 
     /// <summary>Keep the playhead in view while playing.</summary>
     [ObservableProperty]
@@ -334,6 +353,7 @@ public sealed partial class EditorViewModel : ObservableObject
         }
 
         SyncInfo();
+        OnPropertyChanged(nameof(IsLaneOverridden));
         RaiseChanged();
     }
 

@@ -400,6 +400,83 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Automation_LanesAreAddedOnTheTrackChannelAndShown()
+    {
+        var row = _vm.Tracks[0];
+
+        row.AddLaneCommand.Execute(AutomationOption.Volume);
+        row.AddLaneCommand.Execute(AutomationOption.Volume);
+        row.AddLaneCommand.Execute(AutomationOption.PitchBend);
+
+        Assert.Equal(["Volume (CC 7) · ch 1", "Pitch Bend · ch 1"], row.Lanes.Select(l => l.Name));
+        Assert.Equal(2, Track.Automation.Length);
+        Assert.True(row.IsAutomationExpanded);
+        Assert.Equal(50 + (2 * 36), row.RowHeight);
+        Assert.Contains(Track.Id, _vm.ExpandedTracks);
+        Assert.Equal("Add Automation Lane", _session.History.UndoLabel);
+
+        row.IsAutomationExpanded = false;
+        Assert.Empty(_vm.ExpandedTracks);
+        Assert.Equal(50, row.RowHeight);
+
+        row.RemoveLaneCommand.Execute(row.Lanes[0]);
+        Assert.Equal(["Pitch Bend · ch 1"], row.Lanes.Select(l => l.Name));
+        Assert.Equal("Delete Automation Lane", _session.History.UndoLabel);
+    }
+
+    [Fact]
+    public void Automation_PointsAreSetAsOneStep()
+    {
+        _vm.Tracks[0].AddLaneCommand.Execute(AutomationOption.Pan);
+        var lane = Track.Automation[0];
+        AutomationPoint[] points = [new(Tick.Zero, ControlValue.Min), new(new Tick(960), ControlValue.Max, AutomationCurve.Hold)];
+
+        _vm.SetAutomationPoints(Track.Id, lane.Id, "Add Automation Point", points);
+
+        Assert.Equal(points, Track.Automation[0].Points);
+        Assert.Equal("Add Automation Point", _session.History.UndoLabel);
+        Assert.False(_session.History.Execute(AutomationCommands.SetPoints(Track.Id, lane.Id, "Again", points)));
+    }
+
+    [Fact]
+    public void Editor_SaysWhenItsControllerLaneIsOverridden()
+    {
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Controller == 7 && l.Kind == ControllerLaneKind.Controller);
+        Assert.False(Editor.IsLaneOverridden);
+
+        _vm.Tracks[0].AddLaneCommand.Execute(AutomationOption.Volume);
+        Assert.False(Editor.IsLaneOverridden);
+
+        _vm.SetAutomationPoints(Track.Id, Track.Automation[0].Id, "Add Automation Point", [new(Tick.Zero, ControlValue.Max)]);
+        Assert.True(Editor.IsLaneOverridden);
+
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Kind == ControllerLaneKind.PitchBend);
+        Assert.False(Editor.IsLaneOverridden);
+    }
+
+    [Fact]
+    public void Editor_ComparesOverriddenLanesOnTheRouteChannel()
+    {
+        // The route sends everything on channel 2, so a lane on channel 2 replaces the clip's channel 1 CC 7.
+        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(Track.Id)! with { Channel = MidiChannel.FromNumber(2) }));
+        _session.Execute(AutomationCommands.AddLane(Track.Id, new AutomationLane(
+            AutomationLaneId.New(),
+            AutomationTarget.ForController(MidiChannel.FromNumber(2), ControllerNumber.ChannelVolume),
+            [new AutomationPoint(Tick.Zero, ControlValue.Max)])));
+
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Controller == 7 && l.Kind == ControllerLaneKind.Controller);
+
+        Assert.True(Editor.IsLaneOverridden);
+    }
+
+    [Fact]
+    public void AutomationOptions_ShowTheirControllerInMenus()
+    {
+        Assert.Equal("Volume (CC 7)", AutomationOption.Volume.ToString());
+        Assert.Equal("Pitch Bend", AutomationOption.PitchBend.ToString());
+    }
+
+    [Fact]
     public void Arrangement_SelectingAnotherTrack_DropsClipsFromTheSelection()
     {
         _session.Execute(ProjectCommands.AddTrack(Track.Create("Other")));

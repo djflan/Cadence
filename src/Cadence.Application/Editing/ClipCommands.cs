@@ -23,11 +23,11 @@ public static class ClipCommands
         });
 
     public static IProjectCommand DeleteClips(TrackId track, IReadOnlyCollection<ClipId> clips) =>
-        EditTrack(clips.Count == 1 ? "Delete Clip" : "Delete Clips", track, t => clips.Aggregate(t, (acc, id) => acc.RemoveClip(id)));
+        ProjectCommands.EditTrack(clips.Count == 1 ? "Delete Clip" : "Delete Clips", track, t => clips.Aggregate(t, (acc, id) => acc.RemoveClip(id)));
 
     /// <summary>Splits each of <paramref name="clips"/> that <paramref name="at"/> falls strictly inside.</summary>
     public static IProjectCommand SplitClips(TrackId track, IReadOnlyCollection<ClipId> clips, Tick at) =>
-        EditTrack(clips.Count == 1 ? "Split Clip" : "Split Clips", track, t =>
+        ProjectCommands.EditTrack(clips.Count == 1 ? "Split Clip" : "Split Clips", track, t =>
         {
             var split = t.Clips.SelectMany<Clip, Clip>(c =>
             {
@@ -47,7 +47,7 @@ public static class ClipCommands
     /// its neighbours rather than covering them.
     /// </summary>
     public static IProjectCommand ResizeClip(TrackId track, ClipId clip, Tick start, Tick until) =>
-        EditTrack("Resize Clip", track, t =>
+        ProjectCommands.EditTrack("Resize Clip", track, t =>
         {
             if (t.FindClip(clip) is not { } target)
             {
@@ -63,7 +63,7 @@ public static class ClipCommands
 
     /// <summary>Adds an empty note clip, within the free space around its start.</summary>
     public static IProjectCommand CreateClip(TrackId track, NoteClip clip) =>
-        EditTrack("Create Clip", track, t =>
+        ProjectCommands.EditTrack("Create Clip", track, t =>
         {
             if (t.ClipAt(clip.Start) is not null)
             {
@@ -101,17 +101,5 @@ public static class ClipCommands
 
             var sequence = p.Sequence.WithTrack(ReferenceEquals(destination, track) ? target : source);
             return p with { Sequence = ReferenceEquals(destination, track) ? sequence : sequence.WithTrack(target) };
-        });
-
-    private static ProjectCommand EditTrack(string label, TrackId id, Func<Track, Track> edit) =>
-        new(label, p =>
-        {
-            if (p.Sequence.FindTrack(id) is not { } track)
-            {
-                return p;
-            }
-
-            var edited = edit(track);
-            return ReferenceEquals(edited, track) ? p : p with { Sequence = p.Sequence.WithTrack(edited) };
         });
 }
