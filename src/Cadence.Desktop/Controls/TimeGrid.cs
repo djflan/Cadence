@@ -58,7 +58,7 @@ internal static class TimeGrid
         {
             var signature = meter.SignatureAt(bar);
             var beat = signature.TryGetTicksPerBeat(sequence.Ppqn, out var span) ? span.Value : sequence.Ppqn.TicksPerQuarterNote;
-            var next = NextBar(meter, bar);
+            var next = meter.NextBarStart(bar);
             var beatPixels = TickToX(beat, sequence, pixelsPerQuarter);
 
             if (step is { } division && division != GridDivision.Bar)
@@ -115,7 +115,7 @@ internal static class TimeGrid
         var firstTick = XToTick(Math.Max(0, scroll - 40), sequence, pixelsPerQuarter);
         var lastTick = XToTick(scroll + bounds.Width + 2, sequence, pixelsPerQuarter);
         var bar = meter.BarStart(new Tick(firstTick));
-        var firstBarLength = NextBar(meter, bar).Value - bar.Value;
+        var firstBarLength = meter.NextBarStart(bar).Value - bar.Value;
         var barPixels = TickToX(firstBarLength > 0 ? firstBarLength : 4L * sequence.Ppqn.TicksPerQuarterNote, sequence, pixelsPerQuarter);
         var labelEvery = barPixels switch
         {
@@ -133,7 +133,7 @@ internal static class TimeGrid
             var number = meter.ToBarBeatTick(bar).Bar;
             var signature = meter.SignatureAt(bar);
             var beat = signature.TryGetTicksPerBeat(sequence.Ppqn, out var span) ? span.Value : sequence.Ppqn.TicksPerQuarterNote;
-            var next = NextBar(meter, bar);
+            var next = meter.NextBarStart(bar);
             var x = Snap(TickToX(bar.Value, sequence, pixelsPerQuarter) - scroll);
             var labelled = (number - 1) % labelEvery == 0;
             context.DrawLine(RulerTickPen, new Point(x, labelled ? bounds.Top + CycleStripHeight : baseline - 6), new Point(x, baseline));
@@ -181,8 +181,6 @@ internal static class TimeGrid
             context.FillRectangle(CycleShade, new Rect(x0, area.Top, x1 - x0, area.Height));
         }
     }
-
-    public static Tick NextBar(MeterMap meter, Tick bar) => meter.NextBarStart(bar);
 
     /// <summary>Aligns a vertical line to the pixel grid so it stays one pixel wide.</summary>
     public static double Snap(double x) => Math.Round(x) + 0.5;

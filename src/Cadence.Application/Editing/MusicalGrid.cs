@@ -73,7 +73,7 @@ public static class MusicalGrid
         ArgumentNullException.ThrowIfNull(meter);
         var position = new Tick(Math.Max(0, tick));
         var bar = meter.BarStart(position).Value;
-        var next = meter.TryGetTick(new BarBeatTick(meter.ToBarBeatTick(new Tick(bar)).Bar + 1, 1, 0), out var nextBar) ? nextBar.Value : long.MaxValue;
+        var next = meter.NextBarStart(position).Value;
         var step = StepTicks(division, meter, position);
         var delay = division == GridDivision.Bar ? 0 : swing;
         var index = (long)Math.Floor((position.Value - bar) / step);

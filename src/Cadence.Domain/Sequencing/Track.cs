@@ -46,7 +46,21 @@ public sealed class Track
     public Tick EndPosition => _events.EndPosition;
 
     /// <summary>The channel of the first channel event, which is the track's channel unless its route overrides it.</summary>
-    public MidiChannel? FirstChannel => Events.OfType<ChannelEvent>().FirstOrDefault()?.Channel;
+    public MidiChannel? FirstChannel
+    {
+        get
+        {
+            foreach (var e in Events)
+            {
+                if (e is ChannelEvent channelEvent)
+                {
+                    return channelEvent.Channel;
+                }
+            }
+
+            return null;
+        }
+    }
 
     public Track WithName(string name) => new(Id, ValidateName(name), _events, IsMuted, IsSoloed);
 
