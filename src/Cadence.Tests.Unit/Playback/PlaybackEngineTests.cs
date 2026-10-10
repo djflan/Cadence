@@ -2,6 +2,7 @@ using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
+using Cadence.Midi.Wire;
 using Cadence.Playback;
 using static Cadence.Tests.Unit.Playback.PlaybackFixture;
 
@@ -166,6 +167,74 @@ public sealed class PlaybackEngineTests
             ["903C64@0", "903E64@50", "803E40@60", "803C40@100", "903C64@100", "903E64@150", "803E40@160", "803C40@200", "903C64@200", "903E64@250"],
             f.Sent());
         Assert.Equal(new Tick(50), f.Engine.Position);
+    }
+
+    [Fact]
+    public void Loop_ResendsHeldControllersThatChangedInsideTheLoop()
+    {
+        using var f = new PlaybackFixture(null, Immediate);
+        f.Load(Cc(0, 7, 10), Cc(100, 7, 90), Cc(0, 10, 64), Note(60, 10));
+        f.Engine.SetLoop(new LoopRegion(new Tick(50), new Tick(150)));
+        f.Engine.Play(new Tick(50));
+
+        foreach (var ms in new[] { 0, 10, 20, 50, 100, 110, 120, 150 })
+        {
+            f.PumpAt(ms);
+        }
+
+        // Volume returns to 10 at each wrap; pan never changed inside the loop, so it is not resent.
+        Assert.Equal(
+            ["903C64@10", "803C40@20", "B0075A@50", "B0070A@100", "903C64@110", "803C40@120", "B0075A@150"],
+            f.Sent().Where(m => !m.EndsWith("@0", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Loop_WrapChase_SendsBankAndProgramTogether()
+    {
+        var plan = Plan(Cc(0, 0, 1), Program(0, 5), Program(100, 6));
+
+        var wrap = ChaseState.AtWrap(plan, new LoopRegion(new Tick(50), new Tick(150)));
+
+        Assert.Equal(["B00001", "C005"], wrap.Select(m => $"{m.Message.Status:X2}{m.Message.Data1:X2}{(m.Message.Kind == ChannelMessageKind.ProgramChange ? string.Empty : m.Message.Data2.ToString("X2", System.Globalization.CultureInfo.InvariantCulture))}"));
+        Assert.Empty(ChaseState.AtWrap(Plan(Cc(0, 7, 1)), new LoopRegion(new Tick(50), new Tick(150))));
+    }
+
+    [Fact]
+    public void Loop_WrapChase_ResetsWhatTheLoopFirstSetsWhereThereIsAResetValue()
+    {
+        // Modulation first appears inside the loop and resets to 0; volume has no reset value.
+        var plan = Plan(Cc(100, 1, 64), Cc(100, 7, 90));
+
+        var wrap = ChaseState.AtWrap(plan, new LoopRegion(new Tick(50), new Tick(150)));
+
+        Assert.Equal(["B00100"], wrap.Select(m => $"{m.Message.Status:X2}{m.Message.Data1:X2}{m.Message.Data2:X2}"));
+    }
+
+    [Fact]
+    public void Loop_WrapChase_LeavesEventsAtTheLoopStartToTheCursor()
+    {
+        var plan = Plan(Program(0, 5), Program(50, 6), Program(100, 7), Cc(50, 7, 1), Cc(100, 7, 2));
+
+        Assert.Empty(ChaseState.AtWrap(plan, new LoopRegion(new Tick(50), new Tick(150))));
+    }
+
+    [Fact]
+    public void Loop_SustainPutDownAtTheWrap_IsLiftedOnStop()
+    {
+        using var f = new PlaybackFixture(null, Immediate);
+        f.Load(Cc(0, 64, 127), Cc(100, 64, 0));
+        f.Engine.SetLoop(new LoopRegion(new Tick(50), new Tick(150)));
+        f.Engine.Play(new Tick(50));
+        foreach (var ms in new[] { 0, 50, 100, 120 })
+        {
+            f.PumpAt(ms);
+        }
+
+        f.Engine.Stop();
+        f.PumpAt(121);
+
+        // Lifted at 100 in the loop, put back down by the wrap, lifted again by Stop.
+        Assert.Equal(["B04000@50", "B0407F@100", "B04000@121"], f.Sent().Where(m => m.StartsWith("B040", StringComparison.Ordinal) && !m.EndsWith("@0", StringComparison.Ordinal)));
     }
 
     [Fact]
