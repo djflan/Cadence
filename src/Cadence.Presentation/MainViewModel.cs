@@ -346,7 +346,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Loads routes and outputs for the initial project.</summary>
     public Task InitializeAsync() => SyncAndRefreshAsync();
 
-    internal void Execute(IProjectCommand command) => _session.Execute(command);
+    /// <summary>Runs an edit. An edit the model refuses (it would break routing or hide content) changes nothing and is explained in a message.</summary>
+    internal bool Execute(IProjectCommand command)
+    {
+        try
+        {
+            return _session.Execute(command);
+        }
+        catch (CommandRefusedException ex)
+        {
+            AddMessage(MessageSeverity.Warning, command.Label, ex.Message);
+            return false;
+        }
+    }
 
     /// <summary>The channel a track's output sends on, when it overrides the track's own.</summary>
     internal MidiChannel? RouteChannel(TrackId track) => TrackOutputs.Read(Project, track).Channel;
