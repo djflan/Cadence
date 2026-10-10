@@ -206,7 +206,10 @@ public sealed class TimelineView : Control
     /// <summary>Raised when an automation lane's points are edited: the lane's track, the lane, an undo label, and the new points.</summary>
     public event EventHandler<(int Lane, AutomationLaneId Automation, string Label, IReadOnlyList<AutomationPoint> Points)>? AutomationEdited;
 
-    /// <summary>Where a clip's name strip is drawn, in this control's coordinates, or null if the clip is not shown.</summary>
+    /// <summary>
+    /// The visible part of a clip's name strip, in this control's coordinates, or null if the clip is not
+    /// on any track or not in view.
+    /// </summary>
     public Rect? ClipHeaderBounds(ClipId clip)
     {
         if (Project is not { } project)
@@ -219,14 +222,26 @@ public sealed class TimelineView : Control
         {
             if (project.Sequence.Tracks[lane].FindClip(clip) is { } found)
             {
-                var x0 = Math.Round(TickToX(found.Start.Value)) + 1;
-                var x1 = Math.Round(TickToX(found.End.Value));
-                return new Rect(x0, _tops[lane] + 2, Math.Max(3, x1 - x0 - 1), ClipHeaderHeight + 1);
+                var header = HeaderOf(ClipBody(found, _tops[lane], 0));
+                var visible = new Rect(VisibleLeft, header.Y, double.IsFinite(VisibleWidth) ? VisibleWidth : Bounds.Width, header.Height);
+                var shown = header.Intersect(visible);
+                return shown.Width > 0 ? shown : null;
             }
         }
 
         return null;
     }
+
+    /// <summary>A clip's body as drawn in a row starting at <paramref name="rowTop"/>, shifted by <paramref name="offset"/> ticks.</summary>
+    private Rect ClipBody(Clip clip, double rowTop, long offset)
+    {
+        var shift = TickToX(offset);
+        var x0 = Math.Round(TickToX(clip.Start.Value) + shift) + 1;
+        var x1 = Math.Round(TickToX(clip.End.Value) + shift);
+        return new Rect(x0, rowTop + 2, Math.Max(3, x1 - x0 - 1), LaneHeight - 5);
+    }
+
+    private static Rect HeaderOf(Rect body) => new(body.X, body.Y, body.Width, ClipHeaderHeight + 1);
 
     public double TickToX(long tick) => Project is { } p ? TimeGrid.TickToX(tick, p.Sequence, PixelsPerQuarter) : 0;
 
@@ -351,7 +366,7 @@ public sealed class TimelineView : Control
 
         if (e.ClickCount >= 2)
         {
-            if (point.Position.Y - _tops[lane] < ClipHeaderHeight + 2)
+            if (HeaderOf(ClipBody(clip, _tops[lane], 0)).Contains(point.Position))
             {
                 ClipNameDoubleClicked?.Invoke(this, clip.Id);
             }
@@ -878,9 +893,8 @@ public sealed class TimelineView : Control
     private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Start, int End) slice, (int Low, int High) range, int colorLane, double rowTop, double left, double right, long offset)
     {
         var shift = TickToX(offset);
-        var x0 = Math.Round(TickToX(clip.Start.Value) + shift) + 1;
-        var x1 = Math.Round(TickToX(clip.End.Value) + shift);
-        if (x1 < left || x0 > right)
+        var body = ClipBody(clip, rowTop, offset);
+        if (body.Right + 1 < left || body.X > right)
         {
             return;
         }
@@ -888,21 +902,19 @@ public sealed class TimelineView : Control
         var color = Palette.Track(colorLane);
         var selected = SelectedClips.Contains(clip.Id);
         var muted = track.IsMuted;
-        var top = rowTop + 2;
-        var height = LaneHeight - 5;
-        var body = new Rect(x0, top, Math.Max(3, x1 - x0 - 1), height);
         var fill = Palette.Mix(Palette.Lane, color, muted ? 0.16 : selected ? 0.5 : 0.32);
         var header = Palette.Mix(Palette.Lane, color, muted ? 0.32 : selected ? 0.95 : 0.68);
         var edge = selected ? new Pen(Brushes.White, 1.5) : new Pen(new SolidColorBrush(Palette.Darken(color, 0.25)), 1);
 
         context.DrawRectangle(new SolidColorBrush(fill), edge, body, 2, 2);
-        context.DrawRectangle(new SolidColorBrush(header), null, new Rect(body.X + 0.5, body.Y + 0.5, body.Width - 1, ClipHeaderHeight), 1.5, 1.5);
+        var strip = HeaderOf(body);
+        context.DrawRectangle(new SolidColorBrush(header), null, new Rect(strip.X + 0.5, strip.Y + 0.5, strip.Width - 1, strip.Height - 1), 1.5, 1.5);
 
         // The name stays readable at the left edge of the view while the clip scrolls past.
         var labelX = Math.Max(body.X + 4, VisibleLeft + 4);
         if (labelX < body.Right - 24)
         {
-            var name = new FormattedText(clip.Name.Length > 0 ? clip.Name : track.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, RegionFace, 10, RegionText)
+            var name = new FormattedText(track.ClipName(clip), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, RegionFace, 10, RegionText)
             {
                 MaxTextWidth = Math.Max(1, body.Right - labelX - 4),
                 MaxLineCount = 1,

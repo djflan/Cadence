@@ -533,6 +533,11 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         _vm.Arrangement.RenameClip(clip, "");
         Assert.Equal("Piano", _vm.Arrangement.DisplayName(clip));
         Assert.Null(_vm.Arrangement.DisplayName(ClipId.New()));
+
+        // A track name with stray spaces, confirmed unchanged, still leaves the clip following it.
+        _session.Execute(ProjectCommands.RenameTrack(Track.Id, "Piano "));
+        _vm.Arrangement.RenameClip(clip, "Piano ");
+        Assert.Empty(Track.Clips[0].Name);
     }
 
     [Fact]

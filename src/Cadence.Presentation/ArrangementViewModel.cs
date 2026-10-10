@@ -171,8 +171,7 @@ public sealed partial class ArrangementViewModel : ObservableObject
     }
 
     /// <summary>The name a clip shows: its own, or else its track's. Null if there is no such clip.</summary>
-    public string? DisplayName(ClipId clip) =>
-        TrackOf(clip) is { } track ? track.FindClip(clip)!.Name is { Length: > 0 } name ? name : track.Name : null;
+    public string? DisplayName(ClipId clip) => TrackOf(clip) is { } track ? track.ClipName(track.FindClip(clip)!) : null;
 
     /// <summary>
     /// Names a clip, as typed over its header. Leaving the name empty, or as the track's name it was
@@ -186,14 +185,13 @@ public sealed partial class ArrangementViewModel : ObservableObject
             return;
         }
 
-        var current = track.FindClip(clip)!.Name;
-        var typed = name.Trim();
-        if (current.Length == 0 && typed == track.Name)
+        // The command trims and bounds the name; here only the decision to keep following the track.
+        if (track.FindClip(clip)!.Name.Length == 0 && name.Trim() == track.Name.Trim())
         {
             return;
         }
 
-        _owner.Execute(ClipCommands.RenameClip(track.Id, clip, typed));
+        _owner.Execute(ClipCommands.RenameClip(track.Id, clip, name));
     }
 
     /// <summary>Drops clips that no longer exist from the selection, e.g. after undo.</summary>
