@@ -794,6 +794,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         AddMessage(MessageSeverity.Info, "Record", take.Events.IsEmpty
             ? "Nothing was played, so the take was discarded."
             : string.Create(CultureInfo.InvariantCulture, $"Recorded {notes} note{(notes == 1 ? string.Empty : "s")}{(others > 0 ? $" and {others} other event{(others == 1 ? string.Empty : "s")}" : string.Empty)} on {name}."));
+
+        // Recorded controllers on a target an automation lane controls are kept but do not play.
+        if (Project.Sequence.FindTrack(take.Track) is { } track)
+        {
+            var replaced = take.Events.OfType<ChannelEvent>().Count(e => TrackRendering.Replaces(track, e, RouteChannel(track.Id)));
+            if (replaced > 0)
+            {
+                AddMessage(MessageSeverity.Warning, "Record", string.Create(CultureInfo.InvariantCulture, $"{replaced} recorded event{(replaced == 1 ? " is" : "s are")} replaced by {name}'s automation lanes and will not play. Delete or clear the lane to hear them."));
+            }
+        }
     }
 
     private void ApplyMetronome()
@@ -926,10 +936,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         var events = tracks.Sum(t => t.Clips.OfType<NoteClip>().Sum(c => c.Content.Items.Length));
+        var points = tracks.Sum(t => t.Automation.Sum(l => l.Points.Length));
         var subject = tracks.Count == 1 ? $"\"{tracks[0].Name}\"" : $"{tracks.Count} tracks";
-        if (events > 0 && !await _ui.ConfirmAsync(
+        var contents = points == 0 ? $"{events} events" : events == 0 ? $"{points} automation points" : $"{events} events and {points} automation points";
+        if (events + points > 0 && !await _ui.ConfirmAsync(
                 tracks.Count == 1 ? "Delete track?" : "Delete tracks?",
-                $"{subject} {(tracks.Count == 1 ? "has" : "have")} {events} events. You can undo this.",
+                $"{subject} {(tracks.Count == 1 ? "has" : "have")} {contents}. You can undo this.",
                 "Delete",
                 destructive: true))
         {

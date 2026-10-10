@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -83,6 +84,11 @@ public sealed class TimelineView : Control
 
     // The top of each track's row, laid out on measure and render.
     private double[] _tops = [];
+
+    // Each track's notes and pitch range, kept with the (immutable) track so drags do not rebuild them.
+    private readonly ConditionalWeakTable<Track, TrackNotes> _notes = [];
+
+    private sealed record TrackNotes(List<NoteEvent> Notes, (int Low, int High) Range);
 
     private enum Grip
     {
@@ -386,11 +392,10 @@ public sealed class TimelineView : Control
                 break;
             case Grip.StartEdge:
                 // Edges stop at neighbouring clips, as the resize does.
-                var before = track.Clips.Where(c => c.End <= clip.Start).Select(c => c.End.Value).DefaultIfEmpty(0).Max();
-                _dragDelta = Math.Clamp(SnapClip(sequence, clip.Start.Value + raw), before, clip.End.Value - 1) - clip.Start.Value;
+                _dragDelta = Math.Clamp(SnapClip(sequence, clip.Start.Value + raw), track.Neighbours(clip.Id).Before.Value, clip.End.Value - 1) - clip.Start.Value;
                 break;
             case Grip.EndEdge:
-                var after = track.Clips.Where(c => c.Start >= clip.End).Select(c => c.Start.Value).DefaultIfEmpty(long.MaxValue).Min();
+                var after = track.Neighbours(clip.Id).After?.Value ?? long.MaxValue;
                 _dragDelta = Math.Clamp(SnapClip(sequence, clip.End.Value + raw), clip.Start.Value + 1, after) - clip.End.Value;
                 break;
         }
@@ -784,9 +789,12 @@ public sealed class TimelineView : Control
     private void DrawClips(DrawingContext context, Track track, int lane, double top, double left, double right)
     {
         // One pitch range for the whole track, so a note sits at the same height in every clip.
-        var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
-        var low = notes.Count == 0 ? 0 : notes.Min(n => n.Note.Value);
-        var range = (low, Math.Max(low + 12, notes.Count == 0 ? 0 : notes.Max(n => n.Note.Value)));
+        var (notes, range) = _notes.GetValue(track, t =>
+        {
+            var all = t.ArrangedEvents.OfType<NoteEvent>().ToList();
+            var low = all.Count == 0 ? 0 : all.Min(n => n.Note.Value);
+            return new TrackNotes(all, (low, Math.Max(low + 12, all.Count == 0 ? 0 : all.Max(n => n.Note.Value))));
+        });
         var first = 0;
         foreach (var clip in track.Clips)
         {
