@@ -170,6 +170,30 @@ public sealed partial class ArrangementViewModel : ObservableObject
         return clip.Id;
     }
 
+    /// <summary>The name a clip shows: its own, or else its track's. Null if there is no such clip.</summary>
+    public string? DisplayName(ClipId clip) => TrackOf(clip) is { } track ? track.ClipName(track.FindClip(clip)!) : null;
+
+    /// <summary>
+    /// Names a clip, as typed over its header. Leaving the name empty, or as the track's name it was
+    /// showing, keeps the clip following its track's name.
+    /// </summary>
+    public void RenameClip(ClipId clip, string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        if (TrackOf(clip) is not { } track)
+        {
+            return;
+        }
+
+        // The command trims and bounds the name; here only the decision to keep following the track.
+        if (track.FindClip(clip)!.Name.Length == 0 && name.Trim() == track.Name.Trim())
+        {
+            return;
+        }
+
+        _owner.Execute(ClipCommands.RenameClip(track.Id, clip, name));
+    }
+
     /// <summary>Drops clips that no longer exist from the selection, e.g. after undo.</summary>
     internal void Sync()
     {

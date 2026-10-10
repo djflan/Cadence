@@ -165,6 +165,13 @@ public sealed class Track
         return null;
     }
 
+    /// <summary>The name <paramref name="clip"/> shows: its own, or else the track's.</summary>
+    public string ClipName(Clip clip)
+    {
+        ArgumentNullException.ThrowIfNull(clip);
+        return clip.Name.Length > 0 ? clip.Name : Name;
+    }
+
     /// <summary>The clip containing <paramref name="position"/>, if any.</summary>
     public Clip? ClipAt(Tick position)
     {

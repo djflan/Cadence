@@ -408,6 +408,10 @@
                                      RecordingLane="{Binding RecordingLane}" RecordingPreview="{Binding RecordingPreview}"
                                      AutomationProperties.Name="Arrangement. Click a clip to select it and drag to move it; double-click to edit its notes. Click in an automation lane to add a point." />
               <controls:PlayheadOverlay x:Name="Playhead" IsRecording="{Binding IsRecording}" IsVisible="{Binding Tracks.Count}" />
+              <!-- Renames a clip in place, over its name strip (double-click the strip, or Return). -->
+              <Canvas>
+                <TextBox x:Name="ClipNameBox" Classes="clipName" IsVisible="False" AutomationProperties.Name="Clip name" />
+              </Canvas>
             </Panel>
           </ScrollViewer>
 

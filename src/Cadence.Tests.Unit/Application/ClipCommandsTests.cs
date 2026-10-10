@@ -234,6 +234,21 @@ public sealed class ClipCommandsTests
     }
 
     [Fact]
+    public void RenameClip_TrimsAndBoundsTheName()
+    {
+        var clip = Clip(0, 100);
+        var project = With(clip);
+        var id = TrackOf(project).Id;
+
+        var named = ClipCommands.RenameClip(id, clip.Id, "  Verse  ").Apply(project);
+        Assert.Equal("Verse", TrackOf(named).Clips[0].Name);
+        Assert.Equal("Rename Clip", ClipCommands.RenameClip(id, clip.Id, "x").Label);
+        Assert.Same(named, ClipCommands.RenameClip(id, clip.Id, "Verse").Apply(named));
+        Assert.Equal(Cadence.Domain.Sequencing.Clip.MaxNameLength, TrackOf(ClipCommands.RenameClip(id, clip.Id, new string('a', 300)).Apply(project)).Clips[0].Name.Length);
+        Assert.Empty(TrackOf(ClipCommands.RenameClip(id, clip.Id, " ").Apply(named)).Clips[0].Name);
+    }
+
+    [Fact]
     public void MoveClips_StopsAtTickZeroAndMakesRoom()
     {
         var first = Clip(1000, 500);

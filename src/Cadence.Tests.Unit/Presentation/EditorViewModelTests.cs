@@ -517,6 +517,30 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Arrangement_RenamesClipsAndFallsBackToTheTrackName()
+    {
+        var clip = Track.Clips[0].Id;
+        Assert.Equal("Piano", _vm.Arrangement.DisplayName(clip));
+
+        // Leaving the track's name as it was shown keeps the clip following the track.
+        _vm.Arrangement.RenameClip(clip, "Piano");
+        Assert.Empty(Track.Clips[0].Name);
+
+        _vm.Arrangement.RenameClip(clip, "Intro");
+        Assert.Equal(("Intro", "Intro"), (Track.Clips[0].Name, _vm.Arrangement.DisplayName(clip)));
+        Assert.Equal("Rename Clip", _session.History.UndoLabel);
+
+        _vm.Arrangement.RenameClip(clip, "");
+        Assert.Equal("Piano", _vm.Arrangement.DisplayName(clip));
+        Assert.Null(_vm.Arrangement.DisplayName(ClipId.New()));
+
+        // A track name with stray spaces, confirmed unchanged, still leaves the clip following it.
+        _session.Execute(ProjectCommands.RenameTrack(Track.Id, "Piano "));
+        _vm.Arrangement.RenameClip(clip, "Piano ");
+        Assert.Empty(Track.Clips[0].Name);
+    }
+
+    [Fact]
     public void Arrangement_SelectingAnotherTrack_DropsClipsFromTheSelection()
     {
         _session.Execute(ProjectCommands.AddTrack(Track.Create("Other")));
