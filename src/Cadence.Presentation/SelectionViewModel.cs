@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Routing;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Routing;
+using Cadence.Domain.Sequencing;
 using Cadence.Profiles;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -84,6 +86,12 @@ public sealed partial class SelectionViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanInitialize { get; private set; }
 
+    public IReadOnlyList<TrackRole> RoleChoices { get; } = Enum.GetValues<TrackRole>();
+
+    /// <summary>The selected tracks' role, or null when they differ.</summary>
+    [ObservableProperty]
+    public partial TrackRole? Role { get; set; }
+
     internal void Sync(IReadOnlyList<TrackViewModel> tracks, IReadOnlyList<OutputOption> outputs, ProfileCatalog catalog)
     {
         _syncing = true;
@@ -101,9 +109,11 @@ public sealed partial class SelectionViewModel : ObservableObject
             SyncOutputs(outputs);
             SyncProfiles(catalog);
             SyncChannels();
-            var transposes = tracks.Select(t => t.Route?.Transpose ?? 0).Distinct().ToList();
+            var transposes = tracks.Select(t => t.Route.Transpose).Distinct().ToList();
             Transpose = transposes.Count == 1 ? transposes[0] : null;
             SyncVoice();
+            var roles = tracks.Select(t => t.Role).Distinct().ToList();
+            Role = roles.Count == 1 ? roles[0] : null;
 
             Problems = tracks.Count == 1
                 ? tracks[0].Problems
@@ -119,6 +129,14 @@ public sealed partial class SelectionViewModel : ObservableObject
         finally
         {
             _syncing = false;
+        }
+    }
+
+    partial void OnRoleChanged(TrackRole? value)
+    {
+        if (!_syncing && value is { } role)
+        {
+            _ = _owner.ChangeRoleAsync(role);
         }
     }
 
@@ -161,7 +179,7 @@ public sealed partial class SelectionViewModel : ObservableObject
     {
         if (!_syncing && value is { } semitones)
         {
-            var clamped = (int)Math.Clamp(semitones, -TrackRoute.MaxTranspose, TrackRoute.MaxTranspose);
+            var clamped = (int)Math.Clamp(semitones, -BuiltInDevices.MaxTranspose, BuiltInDevices.MaxTranspose);
             _owner.ApplyToSelection("Transpose", r => r with { Transpose = clamped });
         }
     }
@@ -251,7 +269,7 @@ public sealed partial class SelectionViewModel : ObservableObject
     private void SyncChannels()
     {
         ChannelChoices.Clear();
-        var distinct = _tracks.Select(t => t.Route?.Channel).Distinct().ToList();
+        var distinct = _tracks.Select(t => t.Route.Channel).Distinct().ToList();
         if (distinct.Count > 1)
         {
             ChannelChoices.Add(ChannelOption.Mixed);
@@ -285,7 +303,7 @@ public sealed partial class SelectionViewModel : ObservableObject
             return;
         }
 
-        var banks = _tracks.Select(t => t.Route?.Voice?.BankId).Distinct().ToList();
+        var banks = _tracks.Select(t => t.Route.Voice?.BankId).Distinct().ToList();
         if (banks.Count > 1)
         {
             Banks.Add(BankOption.Mixed);
@@ -305,7 +323,7 @@ public sealed partial class SelectionViewModel : ObservableObject
             return;
         }
 
-        var programs = _tracks.Select(t => t.Route?.Voice?.Program).Distinct().ToList();
+        var programs = _tracks.Select(t => t.Route.Voice?.Program).Distinct().ToList();
         if (programs.Count > 1)
         {
             Programs.Add(ProgramOption.Mixed);

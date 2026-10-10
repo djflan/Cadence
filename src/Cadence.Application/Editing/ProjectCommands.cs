@@ -1,3 +1,4 @@
+using Cadence.Domain.Devices;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
@@ -14,11 +15,9 @@ public static class ProjectCommands
     public static IProjectCommand AddTrack(Track track) =>
         new ProjectCommand("Add Track", p => p with { Sequence = p.Sequence.WithTrack(track) });
 
-    /// <summary>Removes a track and its route.</summary>
+    /// <summary>Removes a track with its chain and every connection from or to it (see <see cref="Project.WithoutTrack"/>).</summary>
     public static IProjectCommand RemoveTrack(TrackId track) =>
-        new ProjectCommand("Delete Track", p => p.Sequence.FindTrack(track) is null
-            ? p
-            : p with { Sequence = p.Sequence.WithoutTrack(track), Routing = p.Routing.Without(track) });
+        new ProjectCommand("Delete Track", p => p.Sequence.FindTrack(track) is null ? p : p.WithoutTrack(track));
 
     public static IProjectCommand RenameTrack(TrackId track, string name) =>
         EditTrack("Rename Track", track, t => t.Name == name ? t : t.WithName(name));
@@ -138,9 +137,12 @@ public static class ProjectCommands
             return Route(cleared, start, [.. take], meter, [], []);
         });
 
-    /// <summary>Sets a route, replacing any existing route for the same track.</summary>
-    public static IProjectCommand SetRoute(TrackRoute route) =>
-        new ProjectCommand("Change Routing", p => Equals(p.Routing.Find(route.Track), route) ? p : p with { Routing = p.Routing.With(route) });
+    /// <summary>
+    /// Sets a track's output as the inspector shows it (see <see cref="TrackOutputs.Write"/>). Refused when it would
+    /// add a routing error, such as sending events from a track whose role carries none.
+    /// </summary>
+    public static IProjectCommand SetTrackOutput(TrackId track, TrackOutput output, DeviceDefinitionLookup? definitions = null) =>
+        RoutingGuard.Command("Change Routing", definitions ?? BuiltInDevices.Find, p => Equals(TrackOutputs.Read(p, track), output) ? p : TrackOutputs.Write(p, track, output));
 
     public static IProjectCommand SetLoop(TickRange? loop) =>
         new ProjectCommand(loop is null ? "Clear Loop" : "Set Loop", p => Equals(p.Loop, loop) ? p : p with { Loop = loop });
@@ -173,12 +175,14 @@ public static class ProjectCommands
         return new ProjectCommand(label, p => list.Aggregate(p, (current, command) => command.Apply(current)));
     }
 
-    /// <summary>Removes tracks and their routes in one step.</summary>
+    /// <summary>Removes tracks, their chains, and their connections in one step.</summary>
     public static IProjectCommand RemoveTracks(IReadOnlyCollection<TrackId> tracks) =>
         Batch(tracks.Count == 1 ? "Delete Track" : "Delete Tracks", tracks.Select(RemoveTrack));
 
     /// <summary>
-    /// Copies each track (with fresh track, clip, event, and lane IDs, and its route) directly below the original.
+    /// Copies each track directly below the original, with fresh track, clip, event, and lane IDs. Its chain
+    /// is copied with fresh device IDs, its automation of its own devices follows the copies, and its outgoing
+    /// connections are copied. Connections into it are not: the copy is a new destination nobody chose.
     /// </summary>
     public static IProjectCommand DuplicateTracks(IReadOnlyCollection<TrackId> tracks) =>
         new ProjectCommand(tracks.Count == 1 ? "Duplicate Track" : "Duplicate Tracks", p =>
@@ -192,19 +196,42 @@ public static class ProjectCommands
                 }
 
                 var name = track.Name.Length + 5 <= Track.MaxNameLength ? track.Name + " copy" : track.Name;
+                var copyId = TrackId.New();
+                var devices = new Dictionary<DeviceId, DeviceId>();
+                if (result.ChainOf(id) is { } chain)
+                {
+                    var copies = chain.Devices.Select(d => d.Duplicate()).ToList();
+                    for (var i = 0; i < copies.Count; i++)
+                    {
+                        devices[chain.Devices[i].Id] = copies[i].Id;
+                    }
+
+                    result = result.WithChain(DeviceChain.Create(ChainOwner.ForTrack(copyId), chain.Name) with { Devices = [.. copies] });
+                }
+
                 var copy = new Track(
-                    TrackId.New(),
+                    copyId,
                     name,
                     track.Clips.Select(c => c.CopyTo(c.Start)),
                     track.IsMuted,
                     track.IsSoloed,
-                    track.Automation.Select(l => new AutomationLane(AutomationLaneId.New(), l.Target, l.Points)));
+                    track.Automation.Select(l => new AutomationLane(
+                        AutomationLaneId.New(),
+                        !l.Target.IsMidi && devices.TryGetValue(l.Target.Device, out var device) ? AutomationTarget.ForDevice(device, l.Target.DeviceParameter) : l.Target,
+                        l.Points)),
+                    track.Role,
+                    track.Group);
                 var index = result.Sequence.Tracks.IndexOf(track) + 1;
                 result = result with { Sequence = result.Sequence.InsertTrack(index, copy) };
-                if (result.Routing.Find(id) is { } route)
-                {
-                    result = result with { Routing = result.Routing.With(route with { Track = copy.Id }) };
-                }
+                var outgoing = result.Connections
+                    .Where(c => c.Source == SignalNode.Track(id) || (c.Source.Kind == SignalNodeKind.Device && devices.ContainsKey(c.Source.AsDevice())))
+                    .Select(c => c with
+                    {
+                        Id = ConnectionId.New(),
+                        Source = c.Source.Kind == SignalNodeKind.Device ? SignalNode.Device(devices[c.Source.AsDevice()]) : SignalNode.Track(copyId),
+                    })
+                    .ToList();
+                result = result with { Connections = result.Connections.AddRange(outgoing) };
             }
 
             return result;
@@ -260,6 +287,12 @@ public static class ProjectCommands
         if (added.Count == 0)
         {
             return track;
+        }
+
+        // Events go in note clips; a clip of another kind (audio) cannot take them, and nothing may overlap it.
+        if (added.Any(e => !pinned.ContainsKey(e.Id) && track.ClipAt(e.Position) is { } c && c is not NoteClip))
+        {
+            throw new CommandRefusedException("Notes and other events cannot go inside an audio clip. Move the audio clip, or put the events on another track.");
         }
 
         // Existing clips take their events and grow first.

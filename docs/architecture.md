@@ -1,16 +1,23 @@
 # Cadence architecture
 
-Cadence models music and musical intent. MIDI 1.0, MIDI 2.0/UMP, SysEx dialects, and operating-system
-MIDI APIs sit at the edges. This page shows where things live and why. The decisions behind it
-are in [docs/adr/](adr/), in particular [ADR 0018](adr/0018-midi-protocol-layering.md) and
-[ADR 0019](adr/0019-sysex-preservation-and-interpretation.md).
+Cadence models music and musical intent. Tracks organize music, clips contain it, devices process
+signals in chains, automation targets device parameters, and one list of connections routes signals to
+other tracks, shared racks, external instruments, and mixer channels. MIDI 1.0, MIDI 2.0/UMP, SysEx
+dialects, and operating-system MIDI APIs sit at the edges. This page shows where things live and why.
+The decisions behind it are in [docs/adr/](adr/), in particular ADRs
+[0018](adr/0018-midi-protocol-layering.md), [0019](adr/0019-sysex-preservation-and-interpretation.md),
+and [0021](adr/0021-track-roles.md) to [0028](adr/0028-plugin-midi-effects-at-plan-time.md).
 
 ## Layers
 
 ```text
 UI / Application         Cadence.Desktop, Cadence.Presentation, Cadence.Application
        ↓
-Sequencer / Domain       Cadence.Domain, Cadence.Profiles, Cadence.Playback
+Sequencer / Domain       Cadence.Domain, Cadence.Profiles
+       ↓
+Signal processing        Cadence.Signal: device chains, the routing graph
+       ↓
+Playback                 Cadence.Playback: prepared plans, the real-time engine
        ↓
 MIDI semantics           channel events (NoteEvent, ControllerEvent, ProgramEvent, …) and ControlValue
        ↓
@@ -27,12 +34,17 @@ build, or a framework that must stay out of testable code. Project persistence l
 ### Projects and their references
 
 ```text
-Cadence.Domain            (nothing)          sequence, tracks, clips, automation, events, time, routes, MIDI values
+Cadence.Domain            (nothing)          sequence, tracks, roles, clips, automation, events, time, MIDI values,
+                                             devices and chains, external instruments, connections, mixer
 Cadence.Midi              Domain             MIDI 1.0 encoding, SMF, SysEx dialects, endpoint contracts
 Cadence.Profiles          Domain             device profiles: what an instrument understands
-Cadence.Infrastructure    Domain             project files
-Cadence.Playback          Domain, Midi       real-time engine, prepared plans
-Cadence.Application       all of the above   sessions, editing, recording, routing
+Cadence.Signal            Domain             chain runner, built-in processors, device catalog, signal graph
+Cadence.Infrastructure    Domain             project files, chain preset files, migrations
+Cadence.Playback          Domain, Midi, Signal   real-time engine, prepared plans
+Cadence.Plugins.Protocol  (nothing)          plugin control-plane frames and the shared-memory block exchange
+Cadence.Plugins           Plugins.Protocol   worker supervision, crash recovery, scanning (main process)
+Cadence.PluginWorker      Plugins.Protocol   the worker executable that hosts plugins (separate process)
+Cadence.Application       all of the above   sessions, editing commands, recording, routing resolution, plugin bridge
 Cadence.Presentation      Application        view models, no UI framework
 Cadence.Desktop           Presentation, Platform.*   Avalonia views, platform selection
 Cadence.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters
@@ -40,6 +52,10 @@ Cadence.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters
 
 `DependencyDirectionTests` enforces this. `Cadence.Midi` and `Cadence.Profiles` never reference
 each other, and the domain references only the base class library.
+
+Tests: `Cadence.Tests.Unit` (fast, deterministic), `Cadence.Tests.Integration` (real threads, files,
+operating-system MIDI, and plugin worker processes), and `Cadence.Tests.Ui` (Cadence's own app and
+main window on Avalonia's headless platform: real views, bindings, and UI thread, with no display).
 
 ### Where does this belong?
 
@@ -53,6 +69,10 @@ each other, and the domain references only the base class library.
 | Facts about one instrument (banks, voices, drum names, setup SysEx) | a JSON profile in `/profiles`; the loader is `Cadence.Profiles` |
 | An operating-system MIDI API | `Cadence.Platform.<OS>`, implementing `IMidiEndpointProvider` |
 | The project file format or a migration | `Cadence.Infrastructure/Projects` |
+| A built-in device | its definition in `Cadence.Domain/Devices/BuiltInDevices.cs`, its processor in `Cadence.Signal/BuiltIn`, registered in `DeviceCatalog.BuiltIn` |
+| A routing rule (what may connect to what) | `Cadence.Domain/Routing/SignalRoutingValidator.cs` |
+| How processed events reach the plan | `Cadence.Signal/SignalGraph.cs`, then `Cadence.Application/Routing/PlaybackRouting.cs` |
+| An edit to chains, connections, instruments, the mixer, or roles | `Cadence.Application/Editing` (`DeviceCommands`, `RoutingCommands`, `TrackRoleCommands`) |
 | How something is shown or edited | `Cadence.Presentation` (logic), `Cadence.Desktop` (views) |
 
 ### Abstractions
@@ -62,6 +82,8 @@ Interfaces exist only where something is actually substituted:
 - `IMidiEndpointProvider`, `IMidiOutput`, `IMidiInput`: each platform adapter, plus the loopback test double.
 - `IMonotonicClock`: the real clock, and a virtual clock for deterministic tests.
 - `IProjectCommand`, `IProjectMigration`: undoable edits and format upgrades.
+- `ISignalProcessor`: each built-in device's processor (and test processors).
+- `IChainObserver`: what the signal graph needs from inside a chain (taps, instrument inputs).
 - `IUserInteraction`, `IUiDispatcher`: keep the UI framework out of the view models.
 
 Everything else is concrete. SysEx dialects, for example, are static classes chosen by a `switch`
@@ -198,15 +220,98 @@ messages whichever profile a track is routed to.
 An adapter never interprets what it carries, and an interpreter never cares where the bytes came
 from (ADR 0005, 0007, 0008).
 
-## Tracks, clips, and automation
+## Tracks, devices, and routing
 
-A track has no type (ADR 0020). It holds clips, whose type decides what they contain, and automation
-lanes. Today the only clip type is `NoteClip`, holding events at positions relative to the clip's
-content origin (its start, less what is trimmed off the left); an audio clip will join it once there
-is an audio engine. A clip shows a window of its content, so trimming loses nothing, and clips on a
-track never overlap. `Track.ArrangedEvents` is what the clips play, at timeline positions.
-`TrackRendering` adds the automation lanes, sampled into channel events, and leaves out clip events
-a lane replaces; the plan compiler and SMF export both use it.
+```text
+Arrangement
+  Track (role: instrument, audio, hybrid, effect, group)
+    ├── clips (NoteClip, AudioClip)        musical content; never owns an endpoint or a device
+    ├── automation lanes                    MIDI targets, or device parameters by DeviceId
+    └── device chain (optional, one)        Arpeggiator → Transpose → Synth → Filter
+
+Project
+  ├── racks             free-standing chains that several tracks route into (one instrument instance)
+  ├── instruments       external MIDI instruments: profile, operating mode, ports → endpoints
+  ├── connections       the one routing model: events or audio, source → destination, channel mapping
+  └── mixer             channels and the master, independent of tracks
+```
+
+### Tracks and clips
+
+A track has one type and a role (ADR 0021). The role says what the track is for; it is stored and is
+widened, never narrowed, to fit content, and changing it never discards anything. Clips decide what a
+track holds (ADR 0020): `NoteClip` holds events relative to its content origin and shows a window of
+them, so trimming loses nothing; `AudioClip` holds a reference to audio and is arrangement data only,
+because there is no audio engine yet. Clips on a track never overlap. `Track.ArrangedEvents` is what
+the note clips play. `TrackRendering` adds MIDI automation lanes, sampled into channel events, and
+returns device automation separately as parameter changes.
+
+### Devices and chains
+
+A `DeviceDefinition` is what a device is (data); a `DeviceInstance` is one configured occurrence with a
+stable ID, parameters, bypass, and plugin state; a `DeviceChain` is an ordered list with one owner, a
+track or a rack (ADR 0022). Processing is sequential, and passthrough is managed by the host: a device
+is given only the event classes it handles, and everything else (SysEx, controllers it does not
+declare) goes around it and is merged back in canonical order. Only an explicit filter removes events.
+Built-in devices run in `Cadence.Signal` when the plan is compiled; plugin devices run in worker
+processes, never in Cadence's process. Presets are templates without identities: loading one creates
+new devices.
+
+### Routing
+
+Every route is a `SignalConnection` in the project's one list (ADR 0023). A connection starts at a
+track's output (the end of its chain), a rack's output, or a tap after one device, and ends at a track
+or rack, a part of an external instrument (port plus channel), a mixer channel, or the master. A
+connection's `ChannelMapping` filters, forces, or remaps channels; clips are never changed to reach a
+different part. Validation rejects connections that cannot work and every feedback loop. The track
+inspector's Output, Instrument, Channel, Transpose, and Voice fields are a view of this model
+(`TrackOutputs`), so the inspector, the device strip's routing indicators, and the routing inspector
+always agree.
+
+```text
+Piano ───┐                                           ┌──► MU2000 port A, ch 1..16
+Strings ─┼──► rack "XG" [XG synth → Delay] ──audio──► mixer "XG" ──► master
+Bass ────┘
+Lead ──► [Arpeggiator → Transpose] ──► MU2000 port B, ch 4
+                 └── tap ──► track "Harmony"
+```
+
+### From project to plan
+
+`PlaybackRouting.Prepare` resolves each external instrument's profile and ports against what is
+available, then `SignalGraph.Evaluate` renders every track (mute and solo apply to a track's own
+content), runs every chain in dependency order, follows every event connection, and collects:
+external-instrument part feeds, software-instrument feeds (merged from every source, for a future audio
+engine), parameter feeds for devices that do not run in Cadence's process, and diagnostics. Each part
+with an available endpoint becomes a `PlanPart`; parts sharing an endpoint share an output slot. The
+compiler encodes MIDI 1.0 at the edge and orders the plan by tick, phase, origin track, and index,
+exactly as before the routing model existed, so old projects send the same bytes. The real-time engine
+is unchanged (ADR 0006).
+
+Live notes (audition, MIDI thru, the on-screen keyboard, the metronome) follow the track's live route:
+the nearest playable instrument through its connections, with the forced channel and the Transpose
+devices on the way.
+
+In the app, the inspector's Devices strip edits the selected track's chain, or a rack's chain after
+"Edit" in the Racks section; Connections follows whichever chain the strip shows. The Mixer section
+edits channels, their outputs, and the master gain (kept and saved; nothing sounds without an audio
+engine). Every edit is a command, and one that would add a routing error is refused with a message.
+Consecutive edits with the same merge key within a second (a slider drag) are one undo step.
+
+### Automation
+
+Automation is separate from signal flow (ADR 0024). A MIDI lane targets a controller, pitch bend, or
+pressure on a channel, and becomes events. A device lane targets a parameter of a device by ID: it does
+not pass through the devices before it, it is never encoded as MIDI, and reordering or moving devices
+does not retarget it. Built-in processors apply it at its tick; other devices receive it as a parameter
+feed for their worker.
+
+### Plugin workers
+
+Third-party plugins are hosted in separate worker processes (ADR 0025), never loaded into Cadence's own
+process. Process isolation is crash isolation, not a security sandbox. When the plan is compiled, a
+plugin MIDI effect runs in its worker over the arrangement and its output joins the chain like a
+built-in device's (ADR 0028). See [docs/plugin-hosting.md](plugin-hosting.md).
 
 ## Known compromises
 
@@ -218,8 +323,15 @@ These are deliberate for now and are where MIDI 2.0 work will start:
   single parameter events cannot always reproduce the original bytes. For example, a message that
   sends only CC 6 leaves the device's previous LSB in place. A MIDI 2.0 encoder can translate the
   sequences as it sends them, as the MIDI 2.0 translation rules describe.
-- **Sixteen channels.** `MidiChannel` is 1 to 16. UMP adds 16 groups. The group belongs to routing
-  (`TrackRoute`) and the endpoint, not to the music.
+- **Sixteen channels.** `MidiChannel` is 1 to 16. UMP adds 16 groups. The group belongs to an external
+  instrument's port and its endpoint, not to the music or to connections.
+- **No audio engine.** Audio clips, audio connections, and mixer channels are modelled, saved, and
+  validated, and software instruments receive their event feeds, but nothing produces sound yet.
+- **Plugin MIDI effects are rendered, not played live.** When the plan is compiled, each plugin MIDI effect
+  runs in its own worker over the arrangement (ADR 0028), so its output is routed downstream. A worker that
+  is gone or hung leaves the events unchanged, with a diagnostic. Live input does not pass through plugins.
+- **Live notes apply only Transpose devices** from the chains on a track's live route; other devices
+  (an arpeggiator, say) shape played-back notes but not live input.
 - **The playback plan is MIDI 1.0.** `PlaybackPlan` and `ChaseState` hold encoded `ChannelMessage`s,
   so chasing controller state on seek is worked out in MIDI 1.0 terms. A MIDI 2.0 output will need
   its plan entries in UMP form.
@@ -270,6 +382,21 @@ be written by hand for legacy instruments or filled in from MIDI-CI later. Contr
 then snap drawing to the steps and show values in the device's own units. Nothing supplies this
 data yet, so it waits.
 
+## Deferred
+
+Built as boundaries and tested where cheap, but not finished:
+
+- **Audio engine**: playing audio clips and software instruments, the mixer's gain and pan, plugin audio driven
+  by playback, and plugin delay compensation across the graph. Feeds, parameter feeds, and audio connections are
+  produced and validated so the engine has a defined input.
+- **Third-party plugin formats** (VST3 loading, parameter enumeration) and **plugin editors** (windows, focus,
+  DPI, a worker dying with its editor open). The worker hosts Cadence's reference plugins today.
+- **MIDI 2.0** transport and UMP, **MPE**, and per-note controllers.
+- **Visual node-graph editing** and **feedback routing** (loops are refused).
+- **Operating-system sandboxing** of plugin workers.
+- **Group track processing** and folding in the arrangement.
+- **Translating device automation to CC, RPN, NRPN, or SysEx** for external instruments.
+
 ## Decisions at a glance
 
 | Decision | Recorded in |
@@ -283,3 +410,36 @@ data yet, so it waits.
 | XG and GS are dialect interpreters, not core MIDI concepts | ADR 0019 |
 | Device semantics are independent of platform transport | ADR 0005, ADR 0007, ADR 0008 |
 | Simplicity over speculative abstraction | ADR 0018 |
+| Track roles are stored and reconciled; conversions never discard | ADR 0021 |
+| Device chains with stable identities; passthrough by event class | ADR 0022 |
+| One routing model of connections; external instruments and mixer channels are entities | ADR 0023 (supersedes 0008) |
+| Device automation targets parameters, separate from signal flow | ADR 0024 |
+| Plugins run out of process; isolation is not a sandbox | ADR 0025 |
+| C# first; Rust only for measured or native-interface needs | ADR 0026 |
+| Project format 4 and its migration | ADR 0027 |
+| Plugin MIDI effects run in their worker when the plan is compiled | ADR 0028 |
+
+## Native technology
+
+C# is the default for all code (ADR 0026). Rust is used for a component only when a measurement shows
+managed code cannot meet a real-time or throughput requirement after tuning, or when a native interface
+(such as plugin binaries) requires it; it replaces C or C++ for new Cadence-owned native code. C and C++
+appear only as third-party libraries, vendor SDK requirements, or thin ABI shims. Today there is no Rust
+and no Cadence-owned native code.
+
+## Acceptance scenarios and their tests
+
+| # | Scenario | Tests |
+| - | -------- | ----- |
+| 1 | Four tracks feed one shared XG synth with one audio output | `AcceptanceScenarioTests.Scenario1_*` |
+| 2 | A track's MIDI effect transforms notes before a synth | `SignalGraphTests.Scenario2_*` |
+| 3 | Events a MIDI effect generates reach another track | `SignalGraphTests.Scenario3_*` |
+| 4 | Several tracks share one processing chain | `SignalGraphTests.Scenario4_*` |
+| 5 | Automation targets MIDI FX, synth, and filter; reordering keeps it | `AcceptanceScenarioTests.Scenario5_*`, `DeviceAndRoutingCommandsTests.Scenario14_*` |
+| 6 | A note processor keeps XG SysEx and controllers | `SignalGraphTests.Scenario6_*` |
+| 7 | One preset on several tracks creates independent devices | `DeviceAndRoutingCommandsTests.Scenario7_*`, `ChainPresetSerializerTests` |
+| 8 | A track plays an external Yamaha instrument on its port and channel | `AcceptanceScenarioTests.Scenario8_*` |
+| 9 | Audio on an instrument track makes it hybrid without loss | `DeviceAndRoutingCommandsTests.Scenario9_*` |
+| 10 | Invalid connections and feedback are detected | `SignalGraphTests.Scenario10_*`, `DeviceAndRoutingCommandsTests.Scenario10_*`, `SignalRoutingValidatorTests` |
+| 11–13, 15 | Plugin crash isolation, state recovery, several workers, scanning failure | see [plugin-hosting.md](plugin-hosting.md) |
+| 14 | A moved device keeps its identity and automation; routing is validated | `DeviceAndRoutingCommandsTests.Scenario14_*` |

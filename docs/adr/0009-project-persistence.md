@@ -1,6 +1,6 @@
 # 0009. Project persistence: versioned JSON with atomic saves
 
-- Status: Accepted
+- Status: Accepted; amended by 0027 (format 4)
 - Date: 2026-10-04
 
 ## Context

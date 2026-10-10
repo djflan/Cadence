@@ -20,6 +20,16 @@ public readonly record struct ControlValue(uint Value) : IComparable<ControlValu
 
     public static ControlValue FromFourteenBit(int value) => new(ScaleUp((uint)Guard.InRange(value, 0, FourteenBitValue.MaxValue, nameof(value)), 14));
 
+    /// <summary>
+    /// A value from 0.0 (<see cref="Min"/>) to 1.0 (<see cref="Max"/>), clamped. Device parameters use this
+    /// scale (the one VST3 calls normalized), so one stored number means the same on every device.
+    /// </summary>
+    public static ControlValue FromFraction(double fraction) =>
+        double.IsNaN(fraction) ? Min : new((uint)Math.Round(Math.Clamp(fraction, 0.0, 1.0) * uint.MaxValue));
+
+    /// <summary>The value as a fraction from 0.0 to 1.0.</summary>
+    public double ToFraction() => Value / (double)uint.MaxValue;
+
     /// <summary>The value at 7-bit resolution (0-127), as MIDI 1.0 sends it.</summary>
     public int ToSevenBit() => (int)(Value >> 25);
 

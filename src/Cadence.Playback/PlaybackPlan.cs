@@ -3,20 +3,23 @@ using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Wire;
+using Cadence.Signal;
 
 namespace Cadence.Playback;
 
-/// <summary>Where a track's events go in a plan, and how they are transformed on the way.</summary>
+/// <summary>
+/// One stream of events for one output: what the signal graph delivers to one external instrument part,
+/// already processed by its device chains and channel mapping (ADR 0023).
+/// </summary>
 /// <param name="OutputSlot">Index into the outputs given to <see cref="PlaybackEngine.SetOutputs"/>.</param>
-/// <param name="Channel">When set, every channel message on the track is re-addressed to this channel.</param>
-/// <param name="Transpose">Semitones added to every note; notes pushed outside 0-127 are left out and reported.</param>
-public sealed record PlanTrackBinding(int OutputSlot, MidiChannel? Channel = null, int Transpose = 0)
+/// <param name="Events">The events in canonical order, keyed by origin track and index (see <see cref="SignalEvent"/>).</param>
+public sealed record PlanPart(int OutputSlot, ImmutableArray<SignalEvent> Events)
 {
     /// <summary>
-    /// Events sent at tick 0 (whatever their own position) before the track's events in the same
-    /// phase, such as a voice selection. They are subject to the channel override but not to transposition.
+    /// Channel events sent at tick 0 (whatever their own position), such as a voice selection. Give them
+    /// negative sequence numbers so they precede the part's events in the same phase.
     /// </summary>
-    public ImmutableArray<ChannelEvent> InitialEvents { get; init; } = [];
+    public ImmutableArray<SignalEvent> InitialEvents { get; init; } = [];
 }
 
 /// <summary>Something the compiler left out of a plan, and why.</summary>

@@ -1,10 +1,16 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using Cadence.Application.Routing;
+using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
+using Cadence.Midi.Endpoints;
 using Cadence.Midi.Files;
 using Cadence.Midi.Wire;
 using Cadence.Playback;
+using Cadence.Profiles;
+using Cadence.Signal;
 
 namespace Cadence.Tests.Unit.Playback;
 
@@ -31,15 +37,28 @@ internal static class PlanDump
 
     public static string SamplesDirectory => Path.Combine(RepositoryRoot, "samples");
 
-    /// <summary>Every track on its own slot, untransformed.</summary>
-    public static Dictionary<TrackId, PlanTrackBinding> SlotPerTrack(Sequence sequence) =>
-        sequence.Tracks.Select((t, i) => (t.Id, Slot: i)).ToDictionary(x => x.Id, x => new PlanTrackBinding(x.Slot));
+    /// <summary>
+    /// <paramref name="project"/> with each track sending to an external instrument on a test
+    /// endpoint: one per track (slot = track index), or all on one when <paramref name="shared"/>.
+    /// <paramref name="output"/> adds channel, transposition, and voice settings per track.
+    /// </summary>
+    public static Project Routed(Project project, bool shared = false, Func<Track, TrackOutput>? output = null) =>
+        project.Sequence.Tracks.Select((t, i) => (Track: t, Index: i)).Aggregate(project, (current, x) =>
+            TrackOutputs.Write(current, x.Track.Id, (output?.Invoke(x.Track) ?? TrackOutput.None) with { Endpoint = SlotReference(shared ? 0 : x.Index) }));
+
+    public static Project Routed(Sequence sequence, bool shared = false) => Routed(Project.CreateNew("dump") with { Sequence = sequence }, shared);
+
+    public static EndpointReference SlotReference(int slot) => new("test", $"slot-{slot}", $"Slot {slot}");
+
+    public static IReadOnlyList<EndpointDescriptor> SlotEndpoints(int count) =>
+        [.. Enumerable.Range(0, count).Select(i => new EndpointDescriptor(new EndpointId("test", $"slot-{i}"), $"Slot {i}", EndpointDirection.Output, EndpointTransport.Test, EndpointCapabilities.SystemExclusive))];
+
+    /// <summary>The plan the controller would prepare for <paramref name="project"/>, with every test endpoint present.</summary>
+    public static PlaybackPlan Compile(Project project, ProfileCatalog? profiles = null) =>
+        PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, profiles ?? ProfileCatalog.Empty, SlotEndpoints(Math.Max(1, project.Sequence.Tracks.Length))).Compile(project.Sequence);
 
     // Note releases are sent by the engine at the end of each note.
-    public static IEnumerable<string> PlaybackStream(Sequence sequence) => PlaybackStream(sequence, SlotPerTrack(sequence));
-
-    public static IEnumerable<string> PlaybackStream(Sequence sequence, IReadOnlyDictionary<TrackId, PlanTrackBinding> bindings) =>
-        PlaybackStream(PlaybackPlanCompiler.Compile(sequence, bindings));
+    public static IEnumerable<string> PlaybackStream(Sequence sequence) => PlaybackStream(Compile(Routed(sequence)));
 
     public static IEnumerable<string> PlaybackStream(PlaybackPlan plan)
     {

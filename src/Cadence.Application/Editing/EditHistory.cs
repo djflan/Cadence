@@ -10,11 +10,20 @@ public interface IProjectCommand
 
     /// <summary>Returns the changed project, or the same instance when there is nothing to change.</summary>
     Project Apply(Project project);
+
+    /// <summary>
+    /// Edits with the same key that follow each other closely are one undo step, such as the many values of one
+    /// slider drag. Null for an edit that always stands alone.
+    /// </summary>
+    string? MergeKey => null;
 }
 
 public sealed class ProjectCommand(string label, Func<Project, Project> apply) : IProjectCommand
 {
     public string Label { get; } = label;
+
+    /// <inheritdoc/>
+    public string? MergeKey { get; init; }
 
     public Project Apply(Project project) => apply(project);
 }
@@ -26,15 +35,22 @@ public sealed class ProjectCommand(string label, Func<Project, Project> apply) :
 /// </summary>
 public sealed class EditHistory
 {
+    /// <summary>How close together edits with the same <see cref="IProjectCommand.MergeKey"/> must be to merge.</summary>
+    public static readonly TimeSpan MergeWindow = TimeSpan.FromSeconds(1);
+
     private readonly int _capacity;
+    private readonly TimeProvider _time;
+    private string? _mergeKey;
+    private long _mergedAt;
     private readonly LinkedList<(string Label, Project Before)> _undo = new();
     private readonly Stack<(string Label, Project After)> _redo = new();
 
-    public EditHistory(Project initial, int capacity = 500)
+    public EditHistory(Project initial, int capacity = 500, TimeProvider? time = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
         Current = initial ?? throw new ArgumentNullException(nameof(initial));
         _capacity = capacity;
+        _time = time ?? TimeProvider.System;
     }
 
     public Project Current { get; private set; }
@@ -60,12 +76,20 @@ public sealed class EditHistory
             return false;
         }
 
-        _undo.AddLast((command.Label, Current));
-        if (_undo.Count > _capacity)
+        // A merging edit keeps the state from before the first edit of its run, so one undo reverts the whole run.
+        var now = _time.GetTimestamp();
+        var merges = command.MergeKey is { } key && key == _mergeKey && _undo.Count > 0 && _time.GetElapsedTime(_mergedAt, now) <= MergeWindow;
+        if (!merges)
         {
-            _undo.RemoveFirst();
+            _undo.AddLast((command.Label, Current));
+            if (_undo.Count > _capacity)
+            {
+                _undo.RemoveFirst();
+            }
         }
 
+        _mergeKey = command.MergeKey;
+        _mergedAt = now;
         _redo.Clear();
         Set(next);
         return true;
@@ -79,6 +103,7 @@ public sealed class EditHistory
         }
 
         _undo.RemoveLast();
+        _mergeKey = null;
         _redo.Push((last.Value.Label, Current));
         Set(last.Value.Before);
     }
@@ -91,6 +116,7 @@ public sealed class EditHistory
         }
 
         _undo.AddLast((next.Label, Current));
+        _mergeKey = null;
         Set(next.After);
     }
 
@@ -100,6 +126,7 @@ public sealed class EditHistory
         ArgumentNullException.ThrowIfNull(project);
         _undo.Clear();
         _redo.Clear();
+        _mergeKey = null;
         Set(project);
     }
 

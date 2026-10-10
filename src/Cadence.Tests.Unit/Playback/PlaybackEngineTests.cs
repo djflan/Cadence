@@ -344,7 +344,7 @@ public sealed class PlaybackEngineTests
         var a = Track.FromEvents(TrackId.New(), "a", [Note(10, 5)]);
         var b = Track.FromEvents(TrackId.New(), "b", [Note(10, 5)]);
         var sequence = Sequence.CreateEmpty(Resolution).WithTrack(a).WithTrack(b);
-        f.Engine.Load(PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [a.Id] = new(0), [b.Id] = new(1) }));
+        f.Engine.Load(PlanDump.Compile(PlanDump.Routed(sequence)));
         f.Engine.Play(Tick.Zero);
 
         f.PumpAt(0);

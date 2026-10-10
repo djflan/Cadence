@@ -1,18 +1,31 @@
 using System.Collections.Immutable;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Time;
 
 namespace Cadence.Domain.Sequencing;
 
+/// <summary>A value to set on a device parameter at a position, rendered from a device automation lane.</summary>
+public readonly record struct ParameterChange(Tick Position, DeviceId Device, ParameterId Parameter, ControlValue Value);
+
 /// <summary>What a track sends, and how much of its clip content and automation was left out on the way.</summary>
 /// <param name="Events">Timeline-positioned events in canonical order.</param>
 /// <param name="SuppressedEvents">Clip events left out because a lane controls the same target.</param>
 /// <param name="DroppedLanes">Lanes left out because an earlier lane controls the same target once channels are overridden.</param>
-public sealed record RenderedTrack(ImmutableArray<TrackEvent> Events, int SuppressedEvents, int DroppedLanes);
+public sealed record RenderedTrack(ImmutableArray<TrackEvent> Events, int SuppressedEvents, int DroppedLanes)
+{
+    /// <summary>
+    /// Device parameter changes in position order. They are separate from <see cref="Events"/> on purpose:
+    /// automation of a device parameter is delivered to the device, not routed through the devices before it
+    /// and not encoded as MIDI (ADR 0024).
+    /// </summary>
+    public ImmutableArray<ParameterChange> ParameterChanges { get; init; } = [];
+}
 
 /// <summary>
-/// Combines a track's clips and automation into the events it sends (ADR 0020). Playback and MIDI file
-/// export both use this, so they agree on what a track plays.
+/// Combines a track's clips and automation into the events it sends (ADR 0020), and its device automation
+/// into parameter changes (ADR 0024). Playback and MIDI file export both use this, so they agree on what a
+/// track plays.
 /// </summary>
 public static class TrackRendering
 {
@@ -29,7 +42,8 @@ public static class TrackRendering
         var targets = new HashSet<AutomationTarget>();
         var lanes = new List<AutomationLane>();
         var dropped = 0;
-        foreach (var lane in track.Automation.Where(l => !l.Points.IsEmpty))
+        var changes = RenderParameters(track, ppqn);
+        foreach (var lane in track.Automation.Where(l => l.Target.IsMidi && !l.Points.IsEmpty))
         {
             if (targets.Add(Effective(lane.Target, channelOverride)))
             {
@@ -43,7 +57,7 @@ public static class TrackRendering
 
         if (lanes.Count == 0)
         {
-            return new RenderedTrack(track.ArrangedEvents, 0, dropped);
+            return new RenderedTrack(track.ArrangedEvents, 0, dropped) { ParameterChanges = changes };
         }
 
         var kept = new List<TrackEvent>(track.ArrangedEvents.Length);
@@ -75,7 +89,19 @@ public static class TrackRendering
             events.Add(j == rendered.Count || (i < kept.Count && EventOrder.Compare(kept[i], rendered[j]) <= 0) ? kept[i++] : rendered[j++]);
         }
 
-        return new RenderedTrack(events.MoveToImmutable(), suppressed, dropped);
+        return new RenderedTrack(events.MoveToImmutable(), suppressed, dropped) { ParameterChanges = changes };
+    }
+
+    /// <summary>The device automation lanes of <paramref name="track"/>, sampled the way MIDI lanes are, at full parameter resolution.</summary>
+    private static ImmutableArray<ParameterChange> RenderParameters(Track track, Ppqn ppqn)
+    {
+        var interval = AutomationRenderer.DefaultInterval(ppqn);
+        var changes = track.Automation
+            .Where(l => !l.Target.IsMidi && !l.Points.IsEmpty)
+            .SelectMany(lane => AutomationRenderer.Sample(lane, interval).Select(s => new ParameterChange(s.Position, lane.Target.Device, lane.Target.DeviceParameter, s.Value)))
+            .OrderBy(c => c.Position)
+            .ToImmutableArray();
+        return changes;
     }
 
     /// <summary>

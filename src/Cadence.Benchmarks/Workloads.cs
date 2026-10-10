@@ -1,9 +1,13 @@
+using Cadence.Application.Routing;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
 using Cadence.Playback;
+using Cadence.Profiles;
+using Cadence.Signal;
 
 namespace Cadence.Benchmarks;
 
@@ -35,10 +39,20 @@ internal static class Workloads
         return sequence;
     }
 
-    public static Dictionary<TrackId, PlanTrackBinding> Bindings(Sequence sequence) =>
-        sequence.Tracks.ToDictionary(t => t.Id, _ => new PlanTrackBinding(0));
+    public static readonly EndpointDescriptor Sink = new(new EndpointId("bench", "sink"), "Sink", EndpointDirection.Output, EndpointTransport.Test, EndpointCapabilities.None);
 
     public static Project ProjectFor(Sequence sequence) => Project.CreateNew("Benchmark") with { Sequence = sequence };
+
+    /// <summary>The sequence with every track sent to one external instrument on <see cref="Sink"/>.</summary>
+    public static Project Routed(Sequence sequence)
+    {
+        var endpoint = new EndpointReference(Sink.Id.Provider, Sink.Id.Value, Sink.DisplayName);
+        return sequence.Tracks.Aggregate(ProjectFor(sequence), (project, track) => TrackOutputs.Write(project, track.Id, new TrackOutput { Endpoint = endpoint }));
+    }
+
+    /// <summary>What the controller does after every edit: evaluate the routing and the signal graph, then compile.</summary>
+    public static PlaybackPlan Compile(Project project) =>
+        PlaybackRouting.Prepare(project, DeviceCatalog.BuiltIn, ProfileCatalog.Empty, [Sink]).Compile(project.Sequence);
 }
 
 /// <summary>An output that accepts everything and only counts, so measurements see Cadence's own cost.</summary>

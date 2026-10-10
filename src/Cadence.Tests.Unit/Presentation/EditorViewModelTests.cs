@@ -45,7 +45,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
         await _vm.InitializeAsync();
         var track = Track.FromEvents(TrackId.New(), "Piano", [Note(0), Note(960, 64), Note(1920, 67)]);
         _session.Execute(ProjectCommands.AddTrack(track));
-        _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, _synth.OutputId.Value, "Synth") }));
+        _session.Execute(ProjectCommands.SetTrackOutput(track.Id, new TrackOutput { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, _synth.OutputId.Value, "Synth") }));
         _vm.LowerPane = LowerPane.EventList;
         await Settle();
     }
@@ -483,7 +483,7 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     public void Editor_ComparesOverriddenLanesOnTheRouteChannel()
     {
         // The route sends everything on channel 2, so a lane on channel 2 replaces the clip's channel 1 CC 7.
-        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(Track.Id)! with { Channel = MidiChannel.FromNumber(2) }));
+        _session.Execute(ProjectCommands.SetTrackOutput(Track.Id, TrackOutputs.Read(_session.Project, Track.Id) with { Channel = MidiChannel.FromNumber(2) }));
         _session.Execute(AutomationCommands.AddLane(Track.Id, new AutomationLane(
             AutomationLaneId.New(),
             AutomationTarget.ForController(MidiChannel.FromNumber(2), ControllerNumber.ChannelVolume),

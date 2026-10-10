@@ -1,9 +1,9 @@
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Infrastructure.Projects;
-using Cadence.Playback;
 using CsCheck;
 using static Cadence.Tests.Unit.Playback.PlanDump;
 
@@ -23,9 +23,10 @@ namespace Cadence.Tests.Unit.Infrastructure;
 /// <item>format2-canon-gm16: canon-gm16.mid imported and saved without routes, so its per-track hashes
 /// equal the sample's hashes in MidiOneOutputGoldenTests.</item>
 /// </list>
-/// Plans are compiled with each route's channel and transpose, once with a slot per track and once with
-/// every track on one slot, which pins the order between tracks that share an output. Voice selections
-/// depend on resolved profiles, not on the track model, so they are left out.
+/// Plans are compiled through the routing model the old routes migrate to (each route's channel on its
+/// connection, its transposition as a Transpose device), once with a slot per track and once with every
+/// track on one slot, which pins the order between tracks that share an output. Voice selections depend on
+/// resolved profiles, not on the track model, so they are left out.
 /// </remarks>
 public sealed class PlanEquivalenceTests
 {
@@ -42,8 +43,8 @@ public sealed class PlanEquivalenceTests
     {
         var project = ProjectSerializer.Default.Deserialize(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Fixtures", fixture))).Project;
 
-        Assert.Equal(slotPerTrack, Hash(PlaybackStream(project.Sequence, RoutedBindings(project, shared: false))));
-        Assert.Equal(sharedSlot, Hash(PlaybackStream(project.Sequence, RoutedBindings(project, shared: true))));
+        Assert.Equal(slotPerTrack, Hash(PlaybackStream(Compile(OnTestSlots(project, shared: false)))));
+        Assert.Equal(sharedSlot, Hash(PlaybackStream(Compile(OnTestSlots(project, shared: true)))));
         Assert.Equal(exported, Hash(ExportStream(project.Sequence)));
     }
 
@@ -78,10 +79,7 @@ public sealed class PlanEquivalenceTests
             return bare.SequenceEqual(enclosed);
         });
 
-    private static Dictionary<TrackId, PlanTrackBinding> RoutedBindings(Project project, bool shared) =>
-        project.Sequence.Tracks.Select((t, i) => (t.Id, Slot: shared ? 0 : i)).ToDictionary(
-            x => x.Id,
-            x => project.Routing.Routes.TryGetValue(x.Id, out var route)
-                ? new PlanTrackBinding(x.Slot, route.Channel, route.Transpose)
-                : new PlanTrackBinding(x.Slot));
+    // Each track keeps the channel and transposition its route migrated to, and is sent to a test endpoint.
+    private static Project OnTestSlots(Project project, bool shared) =>
+        Routed(project, shared, t => TrackOutputs.Read(project, t.Id) with { Profile = null, Voice = null });
 }

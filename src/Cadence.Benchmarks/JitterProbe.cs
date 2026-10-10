@@ -19,7 +19,7 @@ internal static class JitterProbe
         var output = new CountingOutput(delivery);
         using var engine = new PlaybackEngine(clock, sequence.TempoMap);
         engine.SetOutputs([output]);
-        engine.Load(PlaybackPlanCompiler.Compile(sequence, Workloads.Bindings(sequence)));
+        engine.Load(Workloads.Compile(Workloads.Routed(sequence)));
 
         var gcBefore = GC.CollectionCount(0);
         using (new PlaybackThread(engine, onThreadStart))

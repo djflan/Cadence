@@ -1,5 +1,6 @@
 using Cadence.Application.Sessions;
 using Cadence.Domain.Midi;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
@@ -285,7 +286,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await Settle();
 
         Assert.All(_vm.Tracks, t => Assert.True(t.IsReady));
-        Assert.All(_session.Project.Routing.Routes.Values, r => Assert.Equal((5, 7), (r.Channel!.Value.Number, r.Transpose)));
+        Assert.All(_session.Project.Sequence.Tracks.Select(t => TrackOutputs.Read(_session.Project, t.Id)), r => Assert.Equal((5, 7), (r.Channel!.Value.Number, r.Transpose)));
         Assert.Equal("Transpose (3 Tracks)", _session.History.UndoLabel);
 
         _vm.UndoCommand.Execute(null);
@@ -447,6 +448,223 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await _vm.ImportMidiCommand.ExecuteAsync(null);
 
         Assert.Contains(_vm.Messages, m => m.Severity == MessageSeverity.Error && m.Source == "Import");
+    }
+
+    private async Task<(TrackViewModel First, TrackViewModel Second)> TwoTracksAsync()
+    {
+        var first = await ImportAsync();
+        _session.Execute(Cadence.Application.Editing.ProjectCommands.AddTrack(Track.FromEvents(TrackId.New(), "Strings", [new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max)])));
+        await Settle();
+        _vm.Select(first);
+        await Settle();
+        return (first, _vm.Tracks[1]);
+    }
+
+    [Fact]
+    public async Task DeviceStrip_AddsReordersBypassesAndEditsDevices_ThroughTheProject()
+    {
+        var track = await ImportAsync();
+        var strip = _vm.DeviceStrip;
+        Assert.True(strip.HasTrack);
+        Assert.True(strip.IsEmpty);
+
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Transpose");
+        strip.AddDeviceCommand.Execute(null);
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+
+        Assert.Equal(["Transpose", "Arpeggiator"], strip.Devices.Select(d => d.Name));
+        var transpose = strip.Devices[0];
+        transpose.Parameters.Single(p => p.Name == "Semitones").Value = 12;
+        strip.Devices[1].MoveUpCommand.Execute(null);
+        await Settle();
+
+        Assert.Equal(["Arpeggiator", "Transpose"], strip.Devices.Select(d => d.Name));
+        Assert.Equal(12, TrackOutputs.Read(_session.Project, track.Id).Transpose);
+        Assert.Equal(12m, _vm.Selection.Transpose);
+
+        strip.Devices[0].IsBypassed = true;
+        await Settle();
+        Assert.True(_session.Project.ChainOf(track.Id)!.Devices[0].IsBypassed);
+        Assert.Equal("Bypassed", strip.Devices[0].Status);
+
+        strip.Devices[0].RemoveCommand.Execute(null);
+        await Settle();
+        Assert.Equal(["Transpose"], strip.Devices.Select(d => d.Name));
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(2, strip.Devices.Count);
+    }
+
+    [Fact]
+    public async Task ARoutingIndicator_OpensTheRoutingInspector_AndShowsWhereTheDeviceSends()
+    {
+        var (first, second) = await TwoTracksAsync();
+        var strip = _vm.DeviceStrip;
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+        var shown = false;
+        _vm.Connections.ShowRequested += (_, _) => shown = true;
+
+        strip.Devices[0].ShowRoutingCommand.Execute(null);
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Strings");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+
+        Assert.True(shown);
+        Assert.Equal("After Arpeggiator", _vm.Connections.Source!.Name);
+        Assert.Equal("→ track \"Strings\"", strip.Devices[0].RoutingIndicator);
+        Assert.Contains("After Arpeggiator", Assert.Single(_vm.Connections.Outgoing).Text, StringComparison.Ordinal);
+        Assert.Equal(first.Id, _session.Project.ChainOf(first.Id)!.Owner.Track);
+        Assert.Equal(SignalNode.Track(second.Id), Assert.Single(_session.Project.Connections, c => c.Source.Kind == SignalNodeKind.Device).Destination);
+    }
+
+    [Fact]
+    public async Task TheRoutingInspector_RefusesFeedback_WithAMessage()
+    {
+        var (first, second) = await TwoTracksAsync();
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Strings");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+        _vm.Select(second);
+        await Settle();
+        Assert.Contains("Piano", Assert.Single(_vm.Connections.Incoming).Text, StringComparison.Ordinal);
+
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Piano");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+
+        Assert.Single(_session.Project.Connections, c => c.Destination.Kind == SignalNodeKind.Track);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("feed back", StringComparison.Ordinal));
+        Assert.NotEqual(first.Id, second.Id);
+    }
+
+    [Fact]
+    public async Task ChangingTheRole_IsAppliedOrExplained()
+    {
+        var track = await ImportAsync();
+        Assert.Equal(TrackRole.Instrument, _vm.Selection.Role);
+
+        _vm.Selection.Role = TrackRole.Audio;
+        await Settle();
+        Assert.Equal(TrackRole.Instrument, _session.Project.Sequence.FindTrack(track.Id)!.Role);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("holds note clips", StringComparison.Ordinal));
+
+        _vm.Selection.Role = TrackRole.Hybrid;
+        await Settle();
+        Assert.Equal(TrackRole.Hybrid, _session.Project.Sequence.FindTrack(track.Id)!.Role);
+        Assert.Equal(TrackRole.Hybrid, track.Role);
+    }
+
+    [Fact]
+    public async Task AChainPreset_SavedFromOneTrack_LoadsAsNewDevicesOnAnother()
+    {
+        var (first, second) = await TwoTracksAsync();
+        var strip = _vm.DeviceStrip;
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+        _ui.NextSavePath = Path.Combine(_directory, "Arp.cadence-chain");
+        await strip.SavePresetCommand.ExecuteAsync(null);
+
+        _vm.Select(second);
+        await Settle();
+        _ui.NextOpenPath = _ui.NextSavePath;
+        await strip.LoadPresetCommand.ExecuteAsync(null);
+        await Settle();
+
+        var original = Assert.Single(_session.Project.ChainOf(first.Id)!.Devices);
+        var loaded = Assert.Single(_session.Project.ChainOf(second.Id)!.Devices);
+        Assert.Equal(original.Definition, loaded.Definition);
+        Assert.NotEqual(original.Id, loaded.Id);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("as \"Arp\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ARack_IsCreatedEditedInTheStrip_FedByATrack_AndRemoved()
+    {
+        var track = await ImportAsync();
+
+        _vm.Racks.NewRackCommand.Execute(null);
+        await Settle();
+        var rack = Assert.Single(_session.Project.Chains, c => c.Owner.Kind == Cadence.Domain.Devices.ChainOwnerKind.Rack);
+        Assert.True(_vm.DeviceStrip.IsEditingRack);
+        Assert.Equal("Rack: Rack 1", _vm.DeviceStrip.Heading);
+        Assert.Equal("Rack 1 output", _vm.Connections.Sources[0].Name);
+
+        _vm.DeviceStrip.DeviceToAdd = _vm.DeviceStrip.AvailableDevices.Single(d => d.Name == "Transpose");
+        _vm.DeviceStrip.AddDeviceCommand.Execute(null);
+        await Settle();
+        Assert.Single(_session.Project.FindChain(rack.Id)!.Devices);
+        Assert.Null(_session.Project.ChainOf(track.Id));
+
+        _vm.DeviceStrip.BackToTrackCommand.Execute(null);
+        await Settle();
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Rack: Rack 1");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+        Assert.Equal("1 device · 1 input", Assert.Single(_vm.Racks.Racks).Detail);
+
+        _vm.Racks.Racks[0].Name = "XG";
+        await Settle();
+        Assert.Equal("XG", _session.Project.FindChain(rack.Id)!.Name);
+
+        _vm.Racks.Racks[0].RemoveCommand.Execute(null);
+        await Settle();
+        Assert.Empty(_vm.Racks.Racks);
+        Assert.DoesNotContain(_session.Project.Connections, c => c.Destination.Kind == SignalNodeKind.Rack);
+    }
+
+    [Fact]
+    public async Task MixerChannels_AreEdited_AFaderDragIsOneUndoStep_AndALoopIsRefused()
+    {
+        await ImportAsync();
+        _vm.Mixer.NewChannelCommand.Execute(null);
+        _vm.Mixer.NewChannelCommand.Execute(null);
+        await Settle();
+        var (first, second) = (_vm.Mixer.Channels[0], _vm.Mixer.Channels[1]);
+
+        first.Gain = -3;
+        first.Gain = -6;
+        first.Gain = -9;
+        await Settle();
+        Assert.Equal(-9, _session.Project.Mixer.Channels[0].GainDecibels);
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(0, _session.Project.Mixer.Channels[0].GainDecibels);
+
+        first.Output = first.Outputs.Single(o => o.Name == "Channel 2");
+        await Settle();
+        second.Output = second.Outputs.Single(o => o.Name == "Channel 1");
+        await Settle();
+
+        Assert.Null(_session.Project.Mixer.Channels[1].Output);
+        Assert.Equal("Master", _vm.Mixer.Channels[1].Output!.Name);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("feed back", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DraggingAParameterSlider_IsOneUndoStep()
+    {
+        await ImportAsync();
+        _vm.DeviceStrip.DeviceToAdd = _vm.DeviceStrip.AvailableDevices.Single(d => d.Name == "Transpose");
+        _vm.DeviceStrip.AddDeviceCommand.Execute(null);
+        await Settle();
+        var semitones = _vm.DeviceStrip.Devices[0].Parameters.Single();
+
+        foreach (var value in new[] { 1, 2, 3, 4, 5 })
+        {
+            semitones.Value = value;
+        }
+
+        await Settle();
+        Assert.Equal(5, semitones.Value);
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(0, _vm.DeviceStrip.Devices[0].Parameters.Single().Value);
+        Assert.Equal("Add Device", _session.History.UndoLabel);
     }
 
     private sealed class ImmediateDispatcher : IUiDispatcher

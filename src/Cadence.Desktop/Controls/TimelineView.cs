@@ -923,6 +923,25 @@ public sealed class TimelineView : Control
             context.DrawText(name, new Point(labelX, body.Y + 0.5));
         }
 
+        if (clip is AudioClip audio)
+        {
+            // There is no audio engine yet, so no waveform: say what the clip holds, plainly.
+            var source = new FormattedText($"Audio · {Path.GetFileName(audio.Source.Location)}", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, RegionFace, 9, RegionText)
+            {
+                MaxTextWidth = Math.Max(1, body.Right - labelX - 4),
+                MaxLineCount = 1,
+                Trimming = TextTrimming.CharacterEllipsis,
+            };
+            var middle = body.Y + 16 + ((body.Height - 19) / 2);
+            context.DrawLine(new Pen(new SolidColorBrush(Palette.Lighten(color, 0.3), 0.6), 1), new Point(body.X + 2, middle), new Point(body.Right - 2, middle));
+            if (labelX < body.Right - 24)
+            {
+                context.DrawText(source, new Point(labelX, body.Y + 15));
+            }
+
+            return;
+        }
+
         if (slice.Start == slice.End)
         {
             return;

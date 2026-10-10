@@ -4,6 +4,7 @@ using Cadence.Domain.Time;
 using Cadence.Midi.Endpoints;
 using Cadence.Midi.Timing;
 using Cadence.Playback;
+using Cadence.Signal;
 
 namespace Cadence.Tests.Integration.Playback;
 
@@ -29,7 +30,7 @@ public sealed class PlaybackThreadTests
 
         using var engine = new PlaybackEngine(clock, sequence.TempoMap);
         engine.SetOutputs([output]);
-        engine.Load(PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = new(0) }));
+        engine.Load(PlaybackPlanCompiler.Compile(sequence, [new PlanPart(0, [.. track.ArrangedEvents.Select((e, i) => new SignalEvent(e, 0, i))])]));
 
         using (new PlaybackThread(engine))
         {

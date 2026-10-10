@@ -15,8 +15,12 @@
     <ProjectReference Include="../Cadence.Infrastructure/Cadence.Infrastructure.csproj" />
     <ProjectReference Include="../Cadence.Midi/Cadence.Midi.csproj" />
     <ProjectReference Include="../Cadence.Playback/Cadence.Playback.csproj" />
+    <ProjectReference Include="../Cadence.PluginWorker/Cadence.PluginWorker.csproj" />
+    <ProjectReference Include="../Cadence.Plugins/Cadence.Plugins.csproj" />
+    <ProjectReference Include="../Cadence.Plugins.Protocol/Cadence.Plugins.Protocol.csproj" />
     <ProjectReference Include="../Cadence.Presentation/Cadence.Presentation.csproj" />
     <ProjectReference Include="../Cadence.Profiles/Cadence.Profiles.csproj" />
+    <ProjectReference Include="../Cadence.Signal/Cadence.Signal.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

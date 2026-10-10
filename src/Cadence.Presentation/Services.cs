@@ -53,4 +53,5 @@ public static class FileFilters
 {
     public static readonly FileFilter Project = new("Cadence project", ["cadence"]);
     public static readonly FileFilter Midi = new("Standard MIDI file", ["mid", "midi", "smf"]);
+    public static readonly FileFilter ChainPreset = new("Cadence chain preset", ["cadence-chain"]);
 }

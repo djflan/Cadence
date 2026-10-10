@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
+using Cadence.Application.Plugins;
 using Cadence.Application.Sessions;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
+using Cadence.Domain.Routing;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Infrastructure.Projects;
@@ -11,6 +14,7 @@ using Cadence.Midi.Endpoints;
 using Cadence.Midi.Files;
 using Cadence.Playback;
 using Cadence.Profiles;
+using Cadence.Signal;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -59,16 +63,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly PlaybackController _playback;
     private readonly EndpointDirectory _endpoints;
     private readonly IUserInteraction _ui;
+    private readonly PluginDeviceHost? _plugins;
     private readonly IUiDispatcher _dispatcher;
     private readonly MidiMonitor? _monitor;
     private IReadOnlyList<EndpointDescriptor> _outputDescriptors = [];
     private int _refreshing;
+    private int _refreshAgain;
     private long _lastInputCount;
     private int _inputActivityFrames;
 
-    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null, ComputerKeyboardViewModel? keyboard = null)
+    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null, ComputerKeyboardViewModel? keyboard = null, PluginDeviceHost? plugins = null)
     {
         Keyboard = keyboard;
+        _plugins = plugins;
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _playback = playback ?? throw new ArgumentNullException(nameof(playback));
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
@@ -77,11 +84,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _monitor = monitor;
         Project = session.Project;
         Selection = new SelectionViewModel(this);
+        DeviceStrip = new DeviceStripViewModel(this);
+        Connections = new ConnectionsViewModel(this);
+        Racks = new RacksViewModel(this);
+        Mixer = new MixerViewModel(this);
         Editor = new EditorViewModel(this);
         Arrangement = new ArrangementViewModel(this);
         EventList = new EventListViewModel(this, Editor);
         SelectedTracks.CollectionChanged += (_, _) =>
         {
+            DeviceStrip.LeaveRack();
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
             SyncEditor();
@@ -102,6 +114,20 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             Keyboard?.RefreshChannel();
         });
         _endpoints.EndpointsChanged += (_, _) => _dispatcher.Post(() => _ = RefreshAsync());
+        if (_plugins is not null)
+        {
+            _playback.UseDevices(_plugins.Extend(DeviceCatalog.BuiltIn));
+            // A plugin MIDI effect that stops or comes back changes what goes into the plan, so recompile it too.
+            _plugins.StatusChanged += (_, device) => _dispatcher.Post(() =>
+            {
+                SyncSelection();
+                if (_plugins.ShapesThePlan(device))
+                {
+                    _ = RefreshAsync();
+                }
+            });
+        }
+
         foreach (var failure in _playback.Profiles.Failures)
         {
             AddMessage(MessageSeverity.Warning, "Profiles", $"{Path.GetFileName(failure.Source)} was not loaded: {(failure.Diagnostics.Count > 0 ? failure.Diagnostics[0].ToString() : "unknown error")}");
@@ -135,6 +161,102 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The clip selection and clip edits in the arrangement.</summary>
     public ArrangementViewModel Arrangement { get; }
+
+    /// <summary>The selected track's device chain.</summary>
+    public DeviceStripViewModel DeviceStrip { get; }
+
+    /// <summary>The selected track's (or edited rack's) connections: the routing inspector.</summary>
+    public ConnectionsViewModel Connections { get; }
+
+    /// <summary>The project's racks: shared device chains.</summary>
+    public RacksViewModel Racks { get; }
+
+    /// <summary>The project's mixer channels.</summary>
+    public MixerViewModel Mixer { get; }
+
+    /// <summary>The devices chains can use: built-ins, and plugins as data (they run in worker processes).</summary>
+    internal DeviceCatalog Devices => _playback.Devices;
+
+    internal IUserInteraction UserInteraction => _ui;
+
+    /// <summary>A device's status for the strip: a plugin's from its worker, otherwise from the catalog.</summary>
+    internal DeviceStatus DeviceStatus(DeviceInstance device) =>
+        _plugins?.StatusOf(device) is { } runtime
+            ? new DeviceStatus(runtime.Text, runtime.NeedsAttention, runtime.CanRestart)
+            : Presentation.DeviceStatus.Of(device, Devices);
+
+    /// <summary>Restarts a crashed, hung, or quarantined plugin device and restores its last saved state.</summary>
+    internal async Task RestartDeviceAsync(DeviceId device)
+    {
+        if (_plugins is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!await _plugins.RestartAsync(device))
+            {
+                AddMessage(MessageSeverity.Warning, "Plugins", "The plugin did not start again. Its settings are kept; try again, or remove the device.");
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AddMessage(MessageSeverity.Warning, "Plugins", $"The plugin could not be restarted: {ex.Message}");
+        }
+
+        SyncSelection();
+    }
+
+    // Starts workers for plugin devices that need one and stops those whose device is gone. A failure is a message,
+    // never a crash and never a fall-back to Cadence's own process.
+    private async Task SyncPluginsAsync()
+    {
+        if (_plugins is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _plugins.SyncAsync(Project);
+            _playback.UseDevices(_plugins.Extend(DeviceCatalog.BuiltIn));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AddMessage(MessageSeverity.Warning, "Plugins", $"Plugins could not be started: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Changes the role of every selected track. A change that needs consent is asked about first; a refused one
+    /// is explained and nothing changes. Clips, devices, automation, and routing are never discarded (ADR 0021).
+    /// </summary>
+    internal async Task ChangeRoleAsync(TrackRole role)
+    {
+        foreach (var track in SelectedTracks.Select(t => t.Id).ToList())
+        {
+            var plan = TrackRoleConversion.ForRoleChange(Project, track, role, Devices.Lookup);
+            switch (plan.Outcome)
+            {
+                case RoleChangeOutcome.Refused:
+                    AddMessage(MessageSeverity.Warning, "Track Role", plan.Message);
+                    break;
+                case RoleChangeOutcome.NeedsConfirmation:
+                    if (await _ui.ConfirmAsync("Change Track Role", plan.Message, "Change", destructive: false))
+                    {
+                        Execute(TrackRoleCommands.SetRole(track, role, Devices.Lookup, confirmed: true));
+                    }
+
+                    break;
+                case RoleChangeOutcome.Automatic:
+                    Execute(TrackRoleCommands.SetRole(track, role, Devices.Lookup));
+                    break;
+            }
+        }
+
+        SyncSelection();
+    }
 
     /// <summary>The tracks whose automation lanes are shown, so the arrangement can lay out its rows.</summary>
     [ObservableProperty]
@@ -345,10 +467,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Loads routes and outputs for the initial project.</summary>
     public Task InitializeAsync() => SyncAndRefreshAsync();
 
-    internal void Execute(IProjectCommand command) => _session.Execute(command);
+    /// <summary>Runs an edit. An edit the model refuses (it would break routing or hide content) changes nothing and is explained in a message.</summary>
+    internal bool Execute(IProjectCommand command)
+    {
+        try
+        {
+            return _session.Execute(command);
+        }
+        catch (CommandRefusedException ex)
+        {
+            AddMessage(MessageSeverity.Warning, command.Label, ex.Message);
 
-    /// <summary>The channel a track's route sends on, when it overrides the track's own.</summary>
-    internal MidiChannel? RouteChannel(TrackId track) => Project.Routing.Find(track)?.Channel;
+            // Controls bound two ways still show the refused value; show the project's again.
+            SyncSelection();
+            return false;
+        }
+    }
+
+    /// <summary>The channel a track's output sends on, when it overrides the track's own.</summary>
+    internal MidiChannel? RouteChannel(TrackId track) => TrackOutputs.Read(Project, track).Channel;
 
     internal void OnTrackLayoutChanged()
     {
@@ -367,7 +504,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal void AddAutomationLane(TrackViewModel track, AutomationOption option)
     {
         ArgumentNullException.ThrowIfNull(option);
-        var channel = track.Route?.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
+        var channel = track.Route.Channel ?? Project.Sequence.FindTrack(track.Id)?.FirstChannel ?? MidiChannel.FromIndex(0);
         Execute(AutomationCommands.AddLane(track.Id, AutomationLane.Create(option.On(channel))));
         track.IsAutomationExpanded = true;
     }
@@ -377,7 +514,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal DeviceProfile? FindProfile(string id) => _playback.Profiles.Find(id);
 
     /// <summary>Applies a routing change to every selected track as one undoable step.</summary>
-    internal void ApplyToSelection(string label, Func<Domain.Routing.TrackRoute, Domain.Routing.TrackRoute> change)
+    internal void ApplyToSelection(string label, Func<TrackOutput, TrackOutput> change)
     {
         var tracks = SelectedTracks.ToList();
         if (tracks.Count == 0)
@@ -385,7 +522,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        var commands = tracks.Select(t => ProjectCommands.SetRoute(change(Project.Routing.Find(t.Id) ?? new Domain.Routing.TrackRoute(t.Id))));
+        var commands = tracks.Select(t => ProjectCommands.SetTrackOutput(t.Id, change(TrackOutputs.Read(Project, t.Id))));
         Execute(ProjectCommands.Batch(tracks.Count == 1 ? label : $"{label} ({tracks.Count} Tracks)", commands));
     }
 
@@ -598,14 +735,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     });
 
     [RelayCommand]
-    private Task SaveAsync() => _session.FilePath is null ? SaveAsAsync() : RunAsync("Save", () => _session.SaveAsync());
+    private Task SaveAsync() => _session.FilePath is null ? SaveAsAsync() : RunAsync("Save", async () =>
+    {
+        await CapturePluginStateAsync();
+        await _session.SaveAsync();
+    });
+
+    // Plugins hold their own state while they run; it goes into the project before the project is written.
+    private Task CapturePluginStateAsync() => _plugins?.CaptureAllAsync() ?? Task.CompletedTask;
 
     [RelayCommand]
     private async Task SaveAsAsync()
     {
         if (await _ui.PickSaveFileAsync("Save Project", ProjectName + ".cadence", FileFilters.Project) is { } path)
         {
-            await RunAsync("Save", () => _session.SaveAsync(path));
+            await RunAsync("Save", async () =>
+            {
+                await CapturePluginStateAsync();
+                await _session.SaveAsync(path);
+            });
         }
     }
 
@@ -793,6 +941,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var notes = take.Events.Count(e => e is NoteEvent);
         var others = take.Events.Length - notes;
         var name = Tracks.FirstOrDefault(t => t.Id == take.Track)?.Name ?? "the track";
+        if (take.NotAdded is { } reason)
+        {
+            AddMessage(MessageSeverity.Warning, "Record", $"The take was not added to {name}: {reason}");
+            return;
+        }
+
         AddMessage(MessageSeverity.Info, "Record", take.Events.IsEmpty
             ? "Nothing was played, so the take was discarded."
             : string.Create(CultureInfo.InvariantCulture, $"Recorded {notes} note{(notes == 1 ? string.Empty : "s")}{(others > 0 ? $" and {others} other event{(others == 1 ? string.Empty : "s")}" : string.Empty)} on {name}."));
@@ -965,8 +1119,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var reference = Application.Routing.RouteResolver.ReferenceTo(endpoint);
         foreach (var track in Project.Sequence.Tracks)
         {
-            var route = Project.Routing.Find(track.Id) ?? new Domain.Routing.TrackRoute(track.Id);
-            Execute(ProjectCommands.SetRoute(route with { Endpoint = reference }));
+            Execute(ProjectCommands.SetTrackOutput(track.Id, TrackOutputs.Read(Project, track.Id) with { Endpoint = reference }));
         }
     }
 
@@ -1009,6 +1162,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SyncTracks();
         SyncEditor();
         Arrangement.Sync();
+        await SyncPluginsAsync();
         await RefreshAsync();
     }
 
@@ -1017,22 +1171,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _refreshing, 1) != 0)
         {
-            // A refresh is running; it will pick up the latest state when the next change arrives.
-            _dispatcher.Post(() => _ = RefreshAsync());
+            // A refresh is running; it goes round once more when it finishes, so it picks up the latest state.
+            Volatile.Write(ref _refreshAgain, 1);
             return;
         }
 
         try
         {
-            await _playback.RefreshAsync();
-            foreach (var problem in _playback.OutputProblems)
+            do
             {
-                AddMessage(MessageSeverity.Warning, "Outputs", problem);
+                try
+                {
+                    await _playback.RefreshAsync();
+                    foreach (var problem in _playback.OutputProblems)
+                    {
+                        AddMessage(MessageSeverity.Warning, "Outputs", problem);
+                    }
+                }
+                catch (EndpointUnavailableException ex)
+                {
+                    AddMessage(MessageSeverity.Warning, "Outputs", ex.Message);
+                }
             }
-        }
-        catch (EndpointUnavailableException ex)
-        {
-            AddMessage(MessageSeverity.Warning, "Outputs", ex.Message);
+            while (Interlocked.Exchange(ref _refreshAgain, 0) != 0);
         }
         finally
         {
@@ -1100,7 +1261,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OutputsText = string.Create(CultureInfo.InvariantCulture, $"{Outputs.Count} output{(Outputs.Count == 1 ? string.Empty : "s")} available");
     }
 
-    private void SyncSelection() => Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
+    private void SyncSelection()
+    {
+        Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
+        var single = SelectedTracks.Count == 1 ? SelectedTracks[0].Id : (TrackId?)null;
+        DeviceStrip.Sync(Project, single, Devices);
+        Connections.Sync(Project, single, DeviceStrip.Rack);
+        Racks.Sync(Project, DeviceStrip.Rack);
+        Mixer.Sync(Project.Mixer);
+    }
+
+    /// <summary>Refreshes the device strip, routing inspector, racks, and mixer from the project.</summary>
+    internal void SyncDeviceViews() => SyncSelection();
 
     private static string Describe(EndpointTransport transport) => transport switch
     {
@@ -1138,7 +1310,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 Tracks.Move(Tracks.IndexOf(existing), i);
             }
 
-            existing.Sync(i + 1, tracks[i], _playback.Routes.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
+            existing.Sync(i + 1, tracks[i], _playback.Tracks.FirstOrDefault(r => r.Track == tracks[i].Id), outputs);
         }
 
         if (ArmedTrack is { } armed && !Tracks.Contains(armed))
@@ -1204,7 +1376,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private void AddMessage(MessageSeverity severity, string source, string text)
+    internal void AddMessage(MessageSeverity severity, string source, string text)
     {
         Messages.Add(new MessageItem(severity, source, text));
         while (Messages.Count > MaxMessages)
@@ -1217,6 +1389,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         Keyboard?.ReleaseAll();
         _monitor?.Dispose();
+        if (_plugins is not null)
+        {
+            await _plugins.DisposeAsync();
+        }
+
         await _playback.DisposeAsync();
     }
 }

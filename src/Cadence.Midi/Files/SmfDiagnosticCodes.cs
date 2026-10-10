@@ -35,4 +35,7 @@ public static class SmfDiagnosticCodes
     public const string TextEncodedAsUtf8 = "SMF201";
     public const string OverlappingNotes = "SMF202";
     public const string AutomationReplacedEvents = "SMF203";
+
+    /// <summary>Device parameter automation has no MIDI form, so it is not in the file (ADR 0024).</summary>
+    public const string DeviceAutomationNotExported = "SMF204";
 }

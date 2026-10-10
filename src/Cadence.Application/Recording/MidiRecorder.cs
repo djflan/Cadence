@@ -19,7 +19,11 @@ public sealed record ThruTarget(IMidiOutput Output, MidiChannel? Channel, int Tr
 public readonly record struct RecordingNote(long Start, long End, NoteNumber Note, Velocity Velocity, bool IsHeld);
 
 /// <summary>A finished take: the events played and the range that was recorded over.</summary>
-public sealed record RecordedTake(TrackId Track, ImmutableArray<TrackEvent> Events, TickRange? Range);
+public sealed record RecordedTake(TrackId Track, ImmutableArray<TrackEvent> Events, TickRange? Range)
+{
+    /// <summary>Why the take was not added to its track, when the edit was refused (it fell inside an audio clip, say).</summary>
+    public string? NotAdded { get; init; }
+}
 
 /// <summary>
 /// Receives MIDI input, echoes it to the selected track's output (MIDI thru), and captures it into a

@@ -2,7 +2,7 @@ using Cadence.Domain.Midi;
 using Cadence.Domain.Sequencing;
 using Cadence.Domain.Time;
 using Cadence.Midi.Files;
-using Cadence.Playback;
+using Cadence.Tests.Unit.Playback;
 using CsCheck;
 using static Cadence.Tests.Unit.Midi.Files.SmfBytes;
 using static Cadence.Tests.Unit.Midi.Files.SmfReaderTests;
@@ -32,6 +32,19 @@ public sealed class SmfImportExportTests
         var volume = fileTrack.Events.OfType<SmfChannelEvent>().Select(e => (e.Tick, (int)e.Message.Data2)).ToList();
         Assert.Equal([(0L, 20), (960L, 90)], volume);
         Assert.Equal(960, fileTrack.EndTick);
+    }
+
+    [Fact]
+    public void Export_ReportsDeviceAutomation_ItCannotWrite()
+    {
+        var lane = new AutomationLane(AutomationLaneId.New(), AutomationTarget.ForDevice(Cadence.Domain.Devices.DeviceId.New(), new Cadence.Domain.Devices.ParameterId(1)), [new AutomationPoint(Tick.Zero, ControlValue.Max)]);
+        var track = Track.FromEvents(TrackId.New(), "t", [new NoteEvent(Tick.Zero, new TickSpan(10), One, NoteNumber.MiddleC, Velocity.Max)]).WithAutomation([lane]);
+
+        var result = SmfExporter.Export(Sequence.CreateEmpty(new Ppqn(480)).WithTrack(track));
+
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Code == SmfDiagnosticCodes.DeviceAutomationNotExported);
+        Assert.Equal(SmfDiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.DoesNotContain(result.File.Tracks.ElementAt(1).Events.OfType<SmfChannelEvent>(), e => e.Message.Status is >= 0xB0 and <= 0xBF);
     }
 
     [Fact]
@@ -84,8 +97,7 @@ public sealed class SmfImportExportTests
         Assert.All(part.ArrangedEvents.OfType<ChannelEvent>(), e => Assert.Equal(One, e.Channel));
         Assert.All(drum.ArrangedEvents.OfType<ChannelEvent>(), e => Assert.Equal(10, e.Channel.Number));
 
-        var bindings = result.Sequence.Tracks.ToDictionary(t => t.Id, _ => new PlanTrackBinding(0));
-        var plan = PlaybackPlanCompiler.Compile(result.Sequence, bindings);
+        var plan = PlanDump.Compile(PlanDump.Routed(result.Sequence, shared: true));
         Assert.Empty(plan.Diagnostics);
         Assert.Single(plan.Payloads);
         Assert.Equal(0, plan.Events[0].PayloadIndex);

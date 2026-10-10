@@ -7,7 +7,7 @@ indices, only stable identifiers and identity hints.
 ```json
 {
   "format": "cadence-project",
-  "formatVersion": 3,
+  "formatVersion": 4,
   "project": {
     "id": "0199b0f2-…",
     "name": "Demo",
@@ -18,7 +18,7 @@ indices, only stable identifiers and identity hints.
       "meter":   [ { "tick": 0, "numerator": 4, "denominator": 4 } ],
       "markers": [ { "tick": 3840, "name": "Verse" } ],
       "tracks": [
-        { "id": "…", "name": "Bass", "muted": false, "soloed": false,
+        { "id": "…", "name": "Bass", "muted": false, "soloed": false, "role": "instrument",
           "clips": [
             { "id": "…", "type": "note", "start": 3840, "length": 7680, "offset": 0, "name": "Verse",
               "events": [
@@ -31,17 +31,39 @@ indices, only stable identifiers and identity hints.
           "automation": [
             { "id": "…", "target": { "type": "controller", "channel": 2, "controller": 7 },
               "points": [ { "tick": 0, "value": 0, "curve": "linear" },
-                          { "tick": 7680, "value": 3355443200, "curve": "hold" } ] }
+                          { "tick": 7680, "value": 3355443200, "curve": "hold" } ] },
+            { "id": "…", "target": { "type": "device", "device": "…", "parameter": 1 },
+              "points": [ { "tick": 0, "value": 2147483648, "curve": "hold" } ] }
           ] }
       ]
     },
-    "routing": [
-      { "track": "…",
-        "profile":  { "id": "cadence.generic.xg", "name": "Generic XG" },
-        "endpoint": { "provider": "coremidi", "key": "-12345", "name": "QY Out" },
-        "channel": 3, "transpose": -12,
-        "voice": { "bank": "normal", "program": 34 } }
-    ]
+    "instruments": [
+      { "id": "…", "name": "QY Out", "profile": { "id": "cadence.generic.xg", "name": "Generic XG" },
+        "operatingMode": "XG",
+        "ports": [ { "id": "A", "name": "Port A",
+                     "endpoint": { "provider": "coremidi", "key": "-12345", "name": "QY Out" } } ] }
+    ],
+    "chains": [
+      { "id": "…", "owner": { "type": "track", "track": "…" },
+        "devices": [
+          { "id": "…", "definition": { "id": "cadence.midi.transpose", "name": "Transpose", "version": "1" },
+            "parameters": [ { "id": 1, "value": 1610612735 } ] } ] },
+      { "id": "…", "owner": { "type": "rack" }, "name": "Shared synth",
+        "devices": [
+          { "id": "…", "definition": { "id": "vst3:…", "name": "Vital" }, "bypassed": true,
+            "parameters": [], "state": { "format": "vst3-component-v1", "data": "AAEC/w==" } } ] }
+    ],
+    "connections": [
+      { "id": "…", "kind": "events",
+        "source": { "type": "track", "id": "…" },
+        "destination": { "type": "instrument", "id": "…", "port": "A" },
+        "mapping": { "force": 3 },
+        "voice": { "bank": "normal", "program": 34 } },
+      { "id": "…", "kind": "audio",
+        "source": { "type": "rack", "id": "…" }, "destination": { "type": "mixer", "id": "…" } }
+    ],
+    "mixer": { "masterGain": 0,
+      "channels": [ { "id": "…", "name": "Synth bus", "gain": -3.5, "pan": 0, "muted": false, "soloed": false } ] }
   },
   "extensions": { "org.example.feature": { } }
 }
@@ -55,13 +77,19 @@ indices, only stable identifiers and identity hints.
   shows content ticks from `offset` to `offset + length`. Content outside that window is kept but not
   played, so trimming a clip loses nothing. `name` is optional; without it the clip shows the
   track's name.
-- The only clip `type` is `note`, holding the events below. `audio` is reserved.
+- A track's `role` is `instrument`, `audio`, `hybrid`, `effect`, or `group` (ADR 0021); `group`
+  (optional) is the ID of the group track it belongs to. Roles are stored, and on reading a role that
+  cannot show the track's content is widened (an instrument track with audio clips becomes hybrid).
+- A clip's `type` is `note`, holding the events below, or `audio`, holding a `source` (`location`,
+  `sampleRate`, `frames`, `channels`). Audio clips are arrangement data only; nothing plays them yet.
 - Event IDs are unique across all clips of a track.
 - `automation` (optional; omitted when empty) holds a track's automation lanes, in display order. A
   lane's `target` is a `controller` (with a `controller` number, not bank select, 32–63, data entry or
   increment/decrement, RPN/NRPN selectors, or channel mode), `pitchBend`, or `channelPressure`, on a
-  `channel`; no two lanes on a track share a target. Its `points` have timeline `tick`s, at most one
-  per tick, 32-bit `value`s, and a `curve` (`hold` or `linear`) for the way to the next point.
+  `channel`; or a `device` parameter, by device ID and parameter ID, which is delivered to that device
+  and never sent as MIDI (ADR 0024). No two lanes on a track share a target. Its `points` have timeline
+  `tick`s, at most one per tick, 32-bit `value`s (normalized for device parameters), and a `curve`
+  (`hold` or `linear`) for the way to the next point. A lane whose device is missing is kept.
 - Channel events describe what is played, not MIDI 1.0 bytes:
   - `note`: a note with its length, attack velocity, and release velocity.
   - `noteOff`: a release with no matching note, kept from an import.
@@ -73,7 +101,18 @@ indices, only stable identifiers and identity hints.
   8192 for pitch bend) is 2147483648, and 127 (or 16383) is 4294967295.
 - The other event types are `sysex` (a complete `F0 … F7` message), `raw` (bytes kept verbatim from
   an import), and `meta` (a preserved meta event).
-- Routes are stored whether or not their profile or endpoint is currently available.
+- `instruments` are external MIDI instruments (ADR 0023): a name, an optional device profile, an
+  optional operating mode, and ports, each with an optional endpoint. They are stored whether or not
+  their profile or endpoints are currently available.
+- `chains` are device chains (ADR 0022). Each has one `owner`: a `track` (at most one chain per track)
+  or a free-standing `rack`. Devices are in processing order, each with a stable `id`, a `definition`
+  reference (ID plus the name and version last seen, so a missing plugin can still be named),
+  normalized parameter `value`s, `bypassed`, and an opaque plugin `state` (base64, with its `format`).
+- `connections` are the one routing model: `events` or `audio`, from a `source` (`track`, `rack`, or a
+  `device` tap) to a `destination` (`track`, `rack`, `instrument` with a `port`, `mixer` channel, or
+  `master`), with an optional channel `mapping` (`only`, then `force` or `remap`) and `voice`.
+  Connections that do not validate are kept and reported, never dropped on load.
+- `mixer` holds the master gain and mixer channels, which are independent of tracks.
 - `extensions` and any other unrecognised top-level properties are preserved on save.
 - Reading is strict: any invalid value fails with the JSON path of the problem.
 
@@ -82,6 +121,15 @@ indices, only stable identifiers and identity hints.
 `formatVersion` increases whenever the structure changes. Older files are upgraded in memory by a
 chain of migrations before they are read; saving always writes the current version. A file from a
 newer Cadence is refused with an explanation and never overwritten.
+
+Format 4 replaced the per-track `routing` with `instruments`, `chains`, `connections`, and `mixer`,
+and added track `role`, `group`, audio clips, and device automation targets (ADR 0027). Each format 3
+route becomes one external instrument per distinct endpoint and profile (named after the endpoint, or
+"Unassigned" for a route with settings but no endpoint), a connection from the track forcing the
+route's channel and selecting its voice, and, for a non-zero transposition, a Transpose device in the
+track's chain. A route for a track that no longer exists is kept as a connection, which validation
+reports. Every track gets the `instrument` role and the mixer starts empty. Migrated projects send
+byte-identical MIDI (`Format3EquivalenceTests`).
 
 Format 3 put each track's events in clips. A format 2 track's events move into one note clip, with
 the track's ID, from the bar of its first event to the bar line after its latest end, so it plays

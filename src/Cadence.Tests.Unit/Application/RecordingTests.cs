@@ -51,7 +51,7 @@ public sealed class RecordingTests : IAsyncDisposable
     {
         var track = Track.FromEvents(TrackId.New(), "Keys", events);
         _session.Execute(ProjectCommands.AddTrack(track));
-        _session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, output.OutputId.Value, output.Name) }));
+        _session.Execute(ProjectCommands.SetTrackOutput(track.Id, new TrackOutput { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, output.OutputId.Value, output.Name) }));
         return track;
     }
 
@@ -184,7 +184,7 @@ public sealed class RecordingTests : IAsyncDisposable
     public async Task Thru_EchoesToTheTrackWithItsChannelAndTranspose()
     {
         var track = AddTrack(_synth);
-        _session.Execute(ProjectCommands.SetRoute(_session.Project.Routing.Find(track.Id)! with { Channel = MidiChannel.FromNumber(3), Transpose = 12 }));
+        _session.Execute(ProjectCommands.SetTrackOutput(track.Id, TrackOutputs.Read(_session.Project, track.Id) with { Channel = MidiChannel.FromNumber(3), Transpose = 12 }));
         _controller.SetThruTrack(track.Id);
         await _controller.RefreshAsync(Ct);
 

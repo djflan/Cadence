@@ -7,6 +7,7 @@ using Cadence.Midi.Endpoints;
 using Cadence.Midi.Timing;
 using Cadence.Platform.CoreMidi;
 using Cadence.Playback;
+using Cadence.Signal;
 
 namespace Cadence.Tests.Integration.Platform;
 
@@ -126,10 +127,13 @@ public sealed class CoreMidiProviderTests
         var track = Track.FromEvents(TrackId.New(), "t", Enumerable.Range(0, 16)
             .Select(i => (TrackEvent)new NoteEvent(new Tick(i * 10), new TickSpan(5), channel, new NoteNumber(48 + i), Velocity.Max)));
         var sequence = Sequence.CreateEmpty(new Ppqn(500)).WithTrack(track);
-        var binding = new PlanTrackBinding(0) { InitialEvents = [new ProgramEvent(Tick.Zero, channel, new ProgramSelection(new ProgramNumber(5), BankMsb: SevenBitValue.Min))] };
+        var part = new PlanPart(0, [.. track.ArrangedEvents.Select((e, i) => new SignalEvent(e, 0, i))])
+        {
+            InitialEvents = [new SignalEvent(new ProgramEvent(Tick.Zero, channel, new ProgramSelection(new ProgramNumber(5), BankMsb: SevenBitValue.Min)), 0, -1)],
+        };
         using var engine = new PlaybackEngine(Clock, sequence.TempoMap);
         engine.SetOutputs([output]);
-        engine.Load(PlaybackPlanCompiler.Compile(sequence, new Dictionary<TrackId, PlanTrackBinding> { [track.Id] = binding }));
+        engine.Load(PlaybackPlanCompiler.Compile(sequence, [part]));
 
         using (new PlaybackThread(engine))
         {

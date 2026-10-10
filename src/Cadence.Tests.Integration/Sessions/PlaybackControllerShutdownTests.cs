@@ -27,7 +27,7 @@ public sealed class PlaybackControllerShutdownTests
         var session = new ProjectSession();
         var track = Track.FromEvents(TrackId.New(), "t", [new NoteEvent(Tick.Zero, new TickSpan(100_000), MidiChannel.FromIndex(0), NoteNumber.MiddleC, Velocity.Max)]);
         session.Execute(ProjectCommands.AddTrack(track));
-        session.Execute(ProjectCommands.SetRoute(new TrackRoute(track.Id) { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value) }));
+        session.Execute(ProjectCommands.SetTrackOutput(track.Id, new TrackOutput { Endpoint = new EndpointReference(LoopbackMidiProvider.ProviderId, port.OutputId.Value) }));
 
         for (var i = 0; i < 20; i++)
         {

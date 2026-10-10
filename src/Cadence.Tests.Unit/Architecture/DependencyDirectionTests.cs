@@ -10,10 +10,14 @@ public sealed class DependencyDirectionTests
         { "Cadence.Domain", [] },
         { "Cadence.Midi", ["Cadence.Domain"] },
         { "Cadence.Profiles", ["Cadence.Domain"] },
-        { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi"] },
-        { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
+        { "Cadence.Signal", ["Cadence.Domain"] },
+        { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi", "Cadence.Signal"] },
+        { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Plugins", "Cadence.Plugins.Protocol", "Cadence.Profiles", "Cadence.Signal"] },
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
-        { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles"] },
+        { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles", "Cadence.Signal"] },
+        { "Cadence.Plugins.Protocol", [] },
+        { "Cadence.Plugins", ["Cadence.Plugins.Protocol"] },
+        { "Cadence.PluginWorker", ["Cadence.Plugins.Protocol"] },
     };
 
     [Theory]
@@ -41,4 +45,20 @@ public sealed class DependencyDirectionTests
             name is "System" or "mscorlib" or "netstandard" || name.StartsWith("System.", StringComparison.Ordinal),
             $"Cadence.Domain must not reference {name}."));
     }
+
+    [Fact]
+    public void PluginsProtocol_ReferencesOnlyTheBaseClassLibrary()
+    {
+        var references = Assembly.Load("Cadence.Plugins.Protocol").GetReferencedAssemblies().Select(r => r.Name ?? string.Empty);
+
+        Assert.All(references, name => Assert.True(
+            name is "System" or "mscorlib" or "netstandard" || name.StartsWith("System.", StringComparison.Ordinal),
+            $"Cadence.Plugins.Protocol must not reference {name}."));
+    }
+
+    [Fact]
+    public void Plugins_DoesNotReferenceTheWorker_SoNoPluginCanRunInTheHostProcess() =>
+        Assert.DoesNotContain(
+            Assembly.Load("Cadence.Plugins").GetReferencedAssemblies(),
+            r => r.Name == "Cadence.PluginWorker");
 }

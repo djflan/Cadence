@@ -58,9 +58,10 @@ Text is written as UTF-8.
 
 Each file track holds what its sequence track plays: the events its clips show (notes cut at clip
 ends, trimmed content left out) and its automation lanes, rendered as controller, pitch bend, and
-pressure events (ADR 0020). Clip events a lane replaces are left out (SMF203). Export has no routes,
-so it compares lanes and clip events on their own channels; with a route's channel override,
-playback can replace more. A MIDI file has no clips or lanes, so importing an exported file brings
+pressure events (ADR 0020). Clip events a lane replaces are left out (SMF203). Lanes that automate a
+device parameter have no MIDI form and are not written; export reports them (SMF204, ADR 0024). Export
+does not follow the routing model (device chains, connections), so it compares lanes and clip events on
+their own channels; when a connection forces a channel, playback can replace more. A MIDI file has no clips or lanes, so importing an exported file brings
 automation back as clip events.
 
 ## Diagnostics
@@ -97,6 +98,7 @@ with a count.
 | SMF201 | Info | Non-ASCII names were written as UTF-8 |
 | SMF202 | Warning | Same-pitch notes overlap on one channel; their lengths may change when read back |
 | SMF203 | Info | Clip events were left out because the track's automation replaces them |
+| SMF204 | Warning | Device parameter automation cannot be stored in a MIDI file and was left out |
 
 ## Known limitations
 
