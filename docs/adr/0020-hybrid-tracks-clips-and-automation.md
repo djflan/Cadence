@@ -1,6 +1,6 @@
 # 0020. Hybrid tracks: typed clips and track automation lanes
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-10
 
 ## Context
@@ -96,10 +96,11 @@ guards this with fixtures written by the format 2 serializer.
 - Everything that read `Track.Events` changes: the plan compiler, SMF import and export, recording,
   the piano roll, and the event list. The piano roll edits one clip at a time and follows added
   events into the clip they land in. A take recorded into empty space becomes a new clip.
-- **Loop wraps do not chase** (ADR 0006): a held automation value at the loop start is not resent
-  when the loop wraps, only at the next point. Clip controller events already behave this way, but
-  automation makes it far more noticeable. A chase state computed with the plan and sent at the wrap
-  would fix it without work on the playback thread.
+- **Loop wraps chase what changed.** Without it, a held automation value at the loop start would be
+  resent only at its next point. The engine sends, at each wrap, the state at the loop start where it
+  differs from the state at the loop end (`ChaseState.AtWrap`), computed when a plan is loaded or the
+  loop is set rather than on the playback thread. A value the loop sets for the first time goes back
+  to its Reset All Controllers value where it has one.
 - Splitting a clip through a held note silences the rest of the note, because the right half does not
   retrigger it. This matches the rule for clip ends; a split that keeps sounding notes would need
   notes that carry over between clips.
