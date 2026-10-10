@@ -40,6 +40,7 @@ public sealed class PianoRollView : Control
 
     private static readonly IBrush WhiteRow = new SolidColorBrush(Palette.WhiteKeyRow);
     private static readonly IBrush BlackRow = new SolidColorBrush(Palette.BlackKeyRow);
+    private static readonly IBrush OutsideClip = new SolidColorBrush(Colors.Black, 0.28);
     private static readonly IPen OctavePen = new Pen(new SolidColorBrush(Palette.OctaveLine), 1);
     private static readonly IPen RowPen = new Pen(new SolidColorBrush(Color.Parse("#202023")), 1);
     private static readonly IBrush WhiteKey = new SolidColorBrush(Palette.WhiteKey);
@@ -260,6 +261,7 @@ public sealed class PianoRollView : Control
                 var local = new Rect(0, grid.Top, grid.Width, grid.Height);
                 TimeGrid.DrawLines(context, sequence, Zoom, _scrollX, local, _editor.Snap.Division);
                 TimeGrid.ShadeCycle(context, sequence, project.Loop, Zoom, _scrollX, local);
+                ShadeOutsideClip(context, sequence, local);
                 DrawNotes(context, sequence, track, color, local);
                 DrawRecording(context, sequence, local);
                 if (_gesture == Gesture.Marquee)
@@ -764,6 +766,27 @@ public sealed class PianoRollView : Control
         }
     }
 
+    /// <summary>Darkens the time outside the edited clip, where notes are kept but do not play.</summary>
+    private void ShadeOutsideClip(DrawingContext context, Sequence sequence, Rect area)
+    {
+        if (_editor?.Clip is not { } clip)
+        {
+            return;
+        }
+
+        var start = TimeGrid.TickToX(clip.Start.Value, sequence, Zoom) - _scrollX;
+        var end = TimeGrid.TickToX(clip.End.Value, sequence, Zoom) - _scrollX;
+        if (start > area.Left)
+        {
+            context.FillRectangle(OutsideClip, new Rect(area.Left, area.Top, Math.Min(start, area.Right) - area.Left, area.Height));
+        }
+
+        if (end < area.Right)
+        {
+            context.FillRectangle(OutsideClip, new Rect(Math.Max(end, area.Left), area.Top, area.Right - Math.Max(end, area.Left), area.Height));
+        }
+    }
+
     private void DrawNotes(DrawingContext context, Sequence sequence, Track track, Color color, Rect area)
     {
         var editor = _editor!;
@@ -794,7 +817,8 @@ public sealed class PianoRollView : Control
 
             var velocity = _velocityPreview.TryGetValue(original.Id, out var v) ? v : original.Velocity.Value;
             var fill = isSelected ? Palette.Lighten(color, 0.55) : Palette.Mix(Palette.Darken(color, 0.35), color, 0.35 + (0.65 * velocity / 127.0));
-            DrawNote(context, sequence, original, fill, isSelected ? selectedBorder : border, erased ? 0.25 : 1, showNames, area);
+            var hidden = editor.Clip is { } clip && !clip.Contains(original.Position);
+            DrawNote(context, sequence, original, fill, isSelected ? selectedBorder : border, erased || hidden ? 0.3 : 1, showNames, area);
         }
 
         if (preview is not null)
