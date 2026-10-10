@@ -1,6 +1,6 @@
 # 0006. Playback engine: prepared plans, dual cursors, runtime releases
 
-- Status: Accepted
+- Status: Accepted; loop-wrap chase superseded by 0020
 - Date: 2026-10-04
 
 ## Context

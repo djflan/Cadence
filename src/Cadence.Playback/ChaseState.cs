@@ -52,10 +52,11 @@ internal static class ChaseState
     /// </summary>
     /// <remarks>
     /// A changed bank or program is sent whole (bank select, then program), since a bank takes effect
-    /// only with the next program change. A value first set inside the loop goes back to its reset value
-    /// (Reset All Controllers, RP-015: pitch bend centred, pressure and modulation 0, pedals up,
-    /// expression 127, and bank 0) where there is one, and is otherwise left as it is. Events at the
-    /// loop start itself are not included: the cursor sends them right after the wrap.
+    /// only with the next program change; it is restored only when the loop start has a program, and a
+    /// bank first selected inside the loop then goes back to 0. Any other value first set inside the
+    /// loop goes back to its Reset All Controllers value (RP-015: pitch bend centred, pressure and
+    /// modulation 0, pedals up, expression 127) where it has one, and is otherwise left as it is. Events
+    /// at the loop start itself are not included: the cursor sends them right after the wrap.
     /// </remarks>
     public static ChaseMessage[] AtWrap(PlaybackPlan plan, LoopRegion loop)
     {
@@ -79,7 +80,9 @@ internal static class ChaseState
 
             var bankMsb = Target(from.Controllers[0], end.Controllers[0], Controller(channel, 0, 0));
             var bankLsb = Target(from.Controllers[32], end.Controllers[32], Controller(channel, 32, 0));
-            if (bankMsb != end.Controllers[0] || bankLsb != end.Controllers[32] || from.Program != end.Program)
+            // A bank takes effect only with a program change, so the voice is restored only when there is
+            // a program to restore.
+            if (from.Program is not null && (bankMsb != end.Controllers[0] || bankLsb != end.Controllers[32] || from.Program != end.Program))
             {
                 AddUnlessSent(bankMsb, sentAtStart.Controllers[0]);
                 AddUnlessSent(bankLsb, sentAtStart.Controllers[32]);

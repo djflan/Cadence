@@ -27,7 +27,7 @@ build, or a framework that must stay out of testable code. Project persistence l
 ### Projects and their references
 
 ```text
-Cadence.Domain            (nothing)          sequence, tracks, events, time, routes, MIDI values
+Cadence.Domain            (nothing)          sequence, tracks, clips, automation, events, time, routes, MIDI values
 Cadence.Midi              Domain             MIDI 1.0 encoding, SMF, SysEx dialects, endpoint contracts
 Cadence.Profiles          Domain             device profiles: what an instrument understands
 Cadence.Infrastructure    Domain             project files
@@ -197,6 +197,15 @@ messages whichever profile a track is routed to.
 
 An adapter never interprets what it carries, and an interpreter never cares where the bytes came
 from (ADR 0005, 0007, 0008).
+
+## Tracks, clips, and automation
+
+A track has no type (ADR 0020). It holds clips, whose type decides what they contain, and
+automation lanes. Today the only clip type is `NoteClip`, holding events at positions relative to the
+clip's content origin (its start, less what is trimmed off the left); an audio clip will join it once there is an audio engine. A clip shows a window of its content,
+so trimming loses nothing, and clips on a track never overlap. `Track.ArrangedEvents` is what the
+clips play, at timeline positions. `TrackRendering` adds the automation lanes, sampled into channel
+events, and leaves out clip events a lane replaces; the plan compiler and SMF export both use it.
 
 ## Known compromises
 
