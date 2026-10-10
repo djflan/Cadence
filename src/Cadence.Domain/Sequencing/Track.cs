@@ -91,28 +91,31 @@ public sealed class Track
     /// <summary>The end of the last clip or the last automation point, whichever is later; zero if there are neither.</summary>
     public Tick EndPosition => Tick.Max(Clips.IsEmpty ? Tick.Zero : Clips[^1].End, Automation.IsEmpty ? Tick.Zero : Automation.Max(l => l.EndPosition));
 
-    /// <summary>The channel of the first channel event, which is the track's channel unless its route overrides it.</summary>
+    /// <summary>
+    /// The track's channel unless its route overrides it: that of the first channel event that plays,
+    /// else of any channel event its clips hold, else of its first automation lane.
+    /// </summary>
     public MidiChannel? FirstChannel
     {
         get
         {
-            foreach (var clip in Clips)
+            foreach (var e in ArrangedEvents)
             {
-                if (clip is not NoteClip notes)
+                if (e is ChannelEvent playing)
                 {
-                    continue;
-                }
-
-                foreach (var e in notes.Content.Items)
-                {
-                    if (e is ChannelEvent channelEvent)
-                    {
-                        return channelEvent.Channel;
-                    }
+                    return playing.Channel;
                 }
             }
 
-            return null;
+            foreach (var clip in Clips)
+            {
+                if (clip is NoteClip notes && notes.Content.Items.OfType<ChannelEvent>().FirstOrDefault() is { } held)
+                {
+                    return held.Channel;
+                }
+            }
+
+            return Automation.IsEmpty ? null : Automation[0].Target.Channel;
         }
     }
 
@@ -167,6 +170,24 @@ public sealed class Track
     {
         var index = LastStartingAtOrBefore(position);
         return index >= 0 && Clips[index].Contains(position) ? Clips[index] : null;
+    }
+
+    /// <summary>
+    /// The limits of the clip with <paramref name="id"/>'s free space: the end of the clip before it (or
+    /// tick 0) and the start of the clip after it (or null if there is none).
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The track has no clip with that ID.</exception>
+    public (Tick Before, Tick? After) Neighbours(ClipId id)
+    {
+        for (var i = 0; i < Clips.Length; i++)
+        {
+            if (Clips[i].Id == id)
+            {
+                return (i > 0 ? Clips[i - 1].End : Tick.Zero, i + 1 < Clips.Length ? Clips[i + 1].Start : null);
+            }
+        }
+
+        throw new KeyNotFoundException($"Clip {id} is not on this track.");
     }
 
     /// <summary>

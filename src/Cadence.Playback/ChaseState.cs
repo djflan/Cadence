@@ -3,13 +3,14 @@ using Cadence.Midi.Wire;
 
 namespace Cadence.Playback;
 
-/// <summary>A message to send to <see cref="Slot"/> before playback starts mid-sequence.</summary>
+/// <summary>A message to send to <see cref="Slot"/> to bring a device up to date: before playback starts mid-sequence, or at a loop wrap.</summary>
 internal readonly record struct ChaseMessage(int Slot, ChannelMessage Message);
 
 /// <summary>
 /// Computes the controller state in effect at a position so starting playback mid-song sounds as it
 /// would have from the top: bank select, program, continuous controllers, pitch bend, and channel
-/// pressure, per output slot and channel.
+/// pressure, per output slot and channel. <see cref="AtWrap"/> does the same for a loop wrap, sending
+/// only what differs and resetting what the loop first sets.
 /// </summary>
 /// <remarks>
 /// Deliberately not chased: notes already sounding at the position, SysEx (resending device setup

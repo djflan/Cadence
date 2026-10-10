@@ -48,7 +48,9 @@ public static class ProjectCommands
     /// between clips goes to <paramref name="clip"/> when that clip borders the same gap, or else to a new
     /// clip in its gap (the first new clip takes <paramref name="clip"/>'s ID if the track has no such
     /// clip yet). Clips grow, to bar lines, to show what they receive, but never into a neighbouring clip
-    /// or before tick 0; a note reaching past that is kept whole but plays only to the clip's end.
+    /// or before tick 0; a note reaching past that is kept whole but plays only to the clip's end. An
+    /// edit that does not move an event or change its length (velocity, channel) never grows a clip, nor
+    /// does editing hidden content, so a trimmed clip stays trimmed.
     /// </remarks>
     public static IProjectCommand EditEvents(TrackId track, ClipId clip, string label, IEnumerable<EventId> remove, IEnumerable<TrackEvent> add)
     {
@@ -57,17 +59,42 @@ public static class ProjectCommands
         removed.UnionWith(added.Select(e => e.Id));
         return EditTrack(label, track, (t, meter) =>
         {
+            // Where each edited event lives now, found in one pass over the track.
+            var replacing = added.Select(e => e.Id).ToHashSet();
+            var homes = new Dictionary<EventId, (NoteClip Clip, TrackEvent Event)>();
+            foreach (var c in t.Clips.OfType<NoteClip>())
+            {
+                foreach (var e in c.Content.Items)
+                {
+                    if (replacing.Contains(e.Id))
+                    {
+                        homes[e.Id] = (c, e);
+                    }
+                }
+            }
+
             var pinned = new Dictionary<EventId, ClipId>();
+            var steady = new HashSet<EventId>();
             foreach (var e in added)
             {
-                if (t.ClipOf(e.Id) is { } home && (!home.Shows(home.Content.Find(e.Id)!) || home.Contains(e.Position)))
+                if (homes.TryGetValue(e.Id, out var home))
                 {
-                    pinned.Add(e.Id, home.Id);
+                    var shown = home.Clip.Shows(home.Event);
+                    if (!shown || home.Clip.Contains(e.Position))
+                    {
+                        pinned.Add(e.Id, home.Clip.Id);
+                    }
+
+                    var start = home.Event.Position.Value + home.Clip.Origin;
+                    if (!shown || (start == e.Position.Value && start + (home.Event.EndPosition - home.Event.Position).Value == e.EndPosition.Value))
+                    {
+                        steady.Add(e.Id);
+                    }
                 }
             }
 
             var without = Without(t, removed);
-            return added.Count == 0 && ReferenceEquals(without, t) ? t : Route(without, clip, added, meter, pinned);
+            return added.Count == 0 && ReferenceEquals(without, t) ? t : Route(without, clip, added, meter, pinned, steady);
         });
     }
 
@@ -108,7 +135,7 @@ public static class ProjectCommands
             }
 
             var start = cleared.ClipAt(take.Min(e => e.Position))?.Id ?? ClipId.New();
-            return Route(cleared, start, [.. take], meter, new Dictionary<EventId, ClipId>());
+            return Route(cleared, start, [.. take], meter, [], []);
         });
 
     /// <summary>Sets a route, replacing any existing route for the same track.</summary>
@@ -223,8 +250,12 @@ public static class ProjectCommands
         return changed ? track.WithClips(clips) : track;
     }
 
-    /// <summary>Adds events (at timeline positions) to clips as <see cref="EditEvents"/> describes.</summary>
-    private static Track Route(Track track, ClipId preferred, List<TrackEvent> added, MeterMap meter, Dictionary<EventId, ClipId> pinned)
+    /// <summary>
+    /// Adds events (at timeline positions) to clips as <see cref="EditEvents"/> describes: those in
+    /// <paramref name="pinned"/> stay in their clip, and those in <paramref name="steady"/> do not make
+    /// their clip grow.
+    /// </summary>
+    private static Track Route(Track track, ClipId preferred, List<TrackEvent> added, MeterMap meter, Dictionary<EventId, ClipId> pinned, HashSet<EventId> steady)
     {
         if (added.Count == 0)
         {
@@ -255,7 +286,7 @@ public static class ProjectCommands
             }
         }
 
-        var result = Grow(track, into, meter);
+        var result = Grow(track, into, meter, steady);
 
         // The rest started in free space: some may now be inside a clip that grew; others get a clip per gap.
         var grown = new Dictionary<ClipId, List<TrackEvent>>();
@@ -278,7 +309,7 @@ public static class ProjectCommands
             }
         }
 
-        result = Grow(result, grown, meter);
+        result = Grow(result, grown, meter, steady);
         foreach (var events in gaps.Values)
         {
             var id = result.FindClip(preferred) is null ? preferred : ClipId.New();
@@ -300,12 +331,12 @@ public static class ProjectCommands
         }
     }
 
-    private static Track Grow(Track track, Dictionary<ClipId, List<TrackEvent>> groups, MeterMap meter)
+    private static Track Grow(Track track, Dictionary<ClipId, List<TrackEvent>> groups, MeterMap meter, HashSet<EventId> steady)
     {
         foreach (var (id, events) in groups)
         {
             var clip = (NoteClip)track.FindClip(id)!;
-            track = track.WithClip(GrowToShow(clip.EditTimeline([], events), events, track, meter));
+            track = track.WithClip(GrowToShow(clip.EditTimeline([], events), [.. events.Where(e => !steady.Contains(e.Id))], track, meter));
         }
 
         return track;
@@ -314,6 +345,11 @@ public static class ProjectCommands
     /// <summary>Grows <paramref name="clip"/> to bar lines around <paramref name="added"/>, within its gap on <paramref name="track"/>.</summary>
     private static NoteClip GrowToShow(NoteClip clip, List<TrackEvent> added, Track track, MeterMap meter)
     {
+        if (added.Count == 0)
+        {
+            return clip;
+        }
+
         var first = added.Min(e => e.Position.Value);
         var last = added.Max(e => e.Position.Value);
         var reach = Math.Max(added.Max(e => e.EndPosition.Value), last + 1);
@@ -323,9 +359,7 @@ public static class ProjectCommands
         }
 
         var (barStart, barEnd) = NoteClip.EnclosingBounds(first, last, reach, meter);
-        var others = track.RemoveClip(clip.Id);
-        var before = others.Clips.Where(c => c.End <= clip.Start).Select(c => c.End).DefaultIfEmpty(Tick.Zero).Max();
-        var after = others.Clips.Where(c => c.Start >= clip.End).Select(c => (Tick?)c.Start).Min();
+        var (before, after) = track.Neighbours(clip.Id);
         var until = Tick.Max(clip.End, barEnd);
         return clip.WithBounds(Tick.Max(before, Tick.Min(clip.Start, barStart)), after is { } next ? Tick.Min(until, next) : until);
     }

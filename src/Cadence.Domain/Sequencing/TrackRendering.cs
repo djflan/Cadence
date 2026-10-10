@@ -78,6 +78,18 @@ public static class TrackRendering
         return new RenderedTrack(events.MoveToImmutable(), suppressed, dropped);
     }
 
+    /// <summary>
+    /// Whether <paramref name="e"/>, as a clip event on <paramref name="track"/>, would be left out because a
+    /// non-empty lane controls its target, compared on <paramref name="channelOverride"/> when given.
+    /// </summary>
+    public static bool Replaces(Track track, ChannelEvent e, MidiChannel? channelOverride = null)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(e);
+        return AutomationTarget.Of(e) is { } target
+            && track.Automation.Any(l => !l.Points.IsEmpty && Effective(l.Target, channelOverride) == Effective(target, channelOverride));
+    }
+
     private static AutomationTarget Effective(AutomationTarget target, MidiChannel? channelOverride) =>
         channelOverride is { } channel ? target.WithChannel(channel) : target;
 }

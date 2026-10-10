@@ -148,6 +148,24 @@ public sealed class ClipCommandsTests
     }
 
     [Fact]
+    public void EditEvents_ThatDoNotMoveEvents_LeaveATrimmedClipTrimmed()
+    {
+        // Nothing after the clip would stop it growing; a velocity change still must not un-trim it.
+        var hidden = Note(4000);
+        var cut = Note(1800, length: 1000);
+        var trimmed = Clip(0, 1920, hidden, cut);
+        var project = With(trimmed);
+        var id = TrackOf(project).Id;
+
+        var edited = ProjectCommands.ReplaceEvents(id, trimmed.Id, "Change Velocity", [hidden with { Velocity = new Velocity(5) }, cut with { Velocity = new Velocity(5) }]).Apply(project);
+        Assert.Equal([(0L, 1920L)], Bounds(edited));
+
+        // Making the cut note longer is a change the user wants to hear, so the clip grows for it.
+        var longer = ProjectCommands.ReplaceEvent(id, trimmed.Id, cut with { Duration = new TickSpan(1500) }).Apply(project);
+        Assert.Equal([(0L, 3840L)], Bounds(longer));
+    }
+
+    [Fact]
     public void EditEvents_WithoutAnEditedClip_NameTheFirstNewClip()
     {
         var existing = Clip(0, 1920);

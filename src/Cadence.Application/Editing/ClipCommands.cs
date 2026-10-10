@@ -54,8 +54,7 @@ public static class ClipCommands
                 return t;
             }
 
-            var before = t.Clips.Where(c => c.End <= target.Start).Select(c => c.End).DefaultIfEmpty(Tick.Zero).Max();
-            var after = t.Clips.Where(c => c.Start >= target.End).Select(c => (Tick?)c.Start).Min();
+            var (before, after) = t.Neighbours(clip);
             var from = Tick.Max(before, Tick.Min(start, new Tick(target.End.Value - 1)));
             var to = Tick.Max(new Tick(from.Value + 1), after is { } next ? Tick.Min(until, next) : until);
             return from == target.Start && to == target.End ? t : t.WithClip(target.WithBounds(from, to));

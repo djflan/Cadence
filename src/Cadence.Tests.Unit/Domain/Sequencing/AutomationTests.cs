@@ -255,6 +255,30 @@ public sealed class AutomationTests
     }
 
     [Fact]
+    public void Replaces_MatchesRendering()
+    {
+        var onTwo = new ControllerEvent(new Tick(5), Two, ControllerNumber.ChannelVolume, ControlValue.Max);
+        var track = TrackWith([onTwo], Lane(Volume, Point(0, 64)));
+
+        Assert.False(TrackRendering.Replaces(track, onTwo));
+        Assert.True(TrackRendering.Replaces(track, onTwo, channelOverride: One));
+        Assert.True(TrackRendering.Replaces(track, onTwo with { Channel = One }));
+        Assert.False(TrackRendering.Replaces(TrackWith([onTwo], Lane(Volume)), onTwo with { Channel = One }));
+    }
+
+    [Fact]
+    public void FirstChannel_PrefersWhatPlaysThenHiddenContentThenLanes()
+    {
+        var hidden = new ControllerEvent(Tick.Zero, Two, ControllerNumber.Expression, ControlValue.Max);
+        var playing = new ControllerEvent(new Tick(50), MidiChannel.FromNumber(3), ControllerNumber.Expression, ControlValue.Max);
+        var trimmed = new NoteClip(ClipId.New(), new Tick(10), new TickSpan(100), new TickSpan(10), new EventList([hidden, playing]));
+
+        Assert.Equal(MidiChannel.FromNumber(3), new Track(TrackId.New(), "t", [trimmed]).FirstChannel);
+        Assert.Equal(Two, new Track(TrackId.New(), "t", [trimmed with { Length = new TickSpan(5) }]).FirstChannel);
+        Assert.Equal(Two, Track.Create("t").WithLane(Lane(Volume.WithChannel(Two))).FirstChannel);
+    }
+
+    [Fact]
     public void Track_LanesHaveUniqueTargetsAndCountTowardsTheEnd()
     {
         var lane = Lane(Volume, Point(5000, 1));

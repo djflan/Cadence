@@ -470,6 +470,21 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Editor_OverriddenFollowsTheLaneEventsChannels()
+    {
+        // The track's first channel is 1, but its CC 7 data is on channel 2, where the lane is.
+        _session.Execute(ProjectCommands.AddEvent(Track.Id, Track.Clips[0].Id, new ControllerEvent(new Tick(10), MidiChannel.FromNumber(2), ControllerNumber.ChannelVolume, ControlValue.Max)));
+        _session.Execute(AutomationCommands.AddLane(Track.Id, new AutomationLane(
+            AutomationLaneId.New(),
+            AutomationTarget.ForController(MidiChannel.FromNumber(2), ControllerNumber.ChannelVolume),
+            [new AutomationPoint(Tick.Zero, ControlValue.Max)])));
+
+        Editor.Lane = ControllerLane.Standard.Single(l => l.Controller == 7 && l.Kind == ControllerLaneKind.Controller);
+
+        Assert.True(Editor.IsLaneOverridden);
+    }
+
+    [Fact]
     public void AutomationOptions_ShowTheirControllerInMenus()
     {
         Assert.Equal("Volume (CC 7)", AutomationOption.Volume.ToString());

@@ -239,16 +239,12 @@ public sealed partial class EditorViewModel : ObservableObject
     /// True when a track automation lane controls what the current controller lane shows, on the track's
     /// channel as its route sends it. Automation wins, so these clip events do not play (ADR 0020).
     /// </summary>
-    public bool IsLaneOverridden => Track is { } track && Lane.Kind != ControllerLaneKind.Velocity && track.Automation.Any(l =>
-        !l.Points.IsEmpty
-        && (_owner.RouteChannel(track.Id) ?? l.Target.Channel) == (_owner.RouteChannel(track.Id) ?? DefaultChannel(track))
-        && (Lane.Kind, l.Target.Parameter) switch
-        {
-            (ControllerLaneKind.Controller, AutomationParameter.Controller) => l.Target.Controller.Value == Lane.Controller,
-            (ControllerLaneKind.PitchBend, AutomationParameter.PitchBend) => true,
-            (ControllerLaneKind.ChannelPressure, AutomationParameter.ChannelPressure) => true,
-            _ => false,
-        });
+    /// <remarks>
+    /// Uses playback's own rule (<see cref="TrackRendering.Replaces"/>) on the lane's events and on what
+    /// drawing in the lane would add.
+    /// </remarks>
+    public bool IsLaneOverridden => Track is { } track && Lane.Kind != ControllerLaneKind.Velocity && !track.Automation.IsEmpty
+        && LaneEvents().Append(Lane.Create(Tick.Zero, DefaultChannel(track), 0)).Any(e => TrackRendering.Replaces(track, e, _owner.RouteChannel(track.Id)));
 
     /// <summary>Keep the playhead in view while playing.</summary>
     [ObservableProperty]
@@ -745,9 +741,18 @@ public sealed partial class EditorViewModel : ObservableObject
     /// <summary>Switches to the clip holding the earliest of <paramref name="added"/>, unless the edited clip received any of them.</summary>
     private void FollowClipOf(IReadOnlyCollection<TrackEvent> added)
     {
-        if (added.Count == 0 || Track is not { } track || (Clip is { } edited && added.Any(e => edited.Content.Find(e.Id) is not null)))
+        if (added.Count == 0 || Track is not { } track)
         {
             return;
+        }
+
+        if (Clip is { } edited)
+        {
+            var mine = edited.Content.Items.Select(e => e.Id).ToHashSet();
+            if (added.Any(e => mine.Contains(e.Id)))
+            {
+                return;
+            }
         }
 
         if (track.ClipOf(added.MinBy(e => e.Position)!.Id) is { } clip && clip.Id != Clip?.Id)

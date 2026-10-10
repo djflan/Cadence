@@ -248,9 +248,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The track first: changing the track selection drops selected clips on other tracks.
+        // The track first: changing the track selection drops selected clips on other tracks. Pressing
+        // a clip that is already selected keeps the selection, so clips on several tracks move together.
         var track = vm.Tracks[lane];
-        if (modifiers is KeyModifiers.None or KeyModifiers.Alt)
+        var arrangement = vm.Arrangement;
+        var plain = modifiers is KeyModifiers.None or KeyModifiers.Alt;
+        if (plain && !arrangement.SelectedClips.Contains(clip))
         {
             if (vm.SelectedTracks.Count != 1 || vm.SelectedTrack != track)
             {
@@ -262,7 +265,6 @@ public partial class MainWindow : Window
             vm.SelectedTracks.Add(track);
         }
 
-        var arrangement = vm.Arrangement;
         if (modifiers.HasFlag(CommandModifier))
         {
             arrangement.SelectClip(clip, Presentation.SelectionMode.Toggle);

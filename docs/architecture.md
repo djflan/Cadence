@@ -200,12 +200,13 @@ from (ADR 0005, 0007, 0008).
 
 ## Tracks, clips, and automation
 
-A track has no type (ADR 0020). It holds clips, whose type decides what they contain, and
-automation lanes. Today the only clip type is `NoteClip`, holding events at positions relative to the
-clip's content origin (its start, less what is trimmed off the left); an audio clip will join it once there is an audio engine. A clip shows a window of its content,
-so trimming loses nothing, and clips on a track never overlap. `Track.ArrangedEvents` is what the
-clips play, at timeline positions. `TrackRendering` adds the automation lanes, sampled into channel
-events, and leaves out clip events a lane replaces; the plan compiler and SMF export both use it.
+A track has no type (ADR 0020). It holds clips, whose type decides what they contain, and automation
+lanes. Today the only clip type is `NoteClip`, holding events at positions relative to the clip's
+content origin (its start, less what is trimmed off the left); an audio clip will join it once there
+is an audio engine. A clip shows a window of its content, so trimming loses nothing, and clips on a
+track never overlap. `Track.ArrangedEvents` is what the clips play, at timeline positions.
+`TrackRendering` adds the automation lanes, sampled into channel events, and leaves out clip events
+a lane replaces; the plan compiler and SMF export both use it.
 
 ## Known compromises
 
