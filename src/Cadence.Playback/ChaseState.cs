@@ -84,6 +84,25 @@ internal static class ChaseState
         }
     }
 
+    /// <summary>
+    /// What to send when playback wraps from the end of <paramref name="loop"/> to its start: the state at
+    /// the start where it differs from the state at the end. A changed bank or program is sent whole
+    /// (bank select, then program), since a bank takes effect only with the next program change.
+    /// </summary>
+    public static ChaseMessage[] AtWrap(PlaybackPlan plan, LoopRegion loop)
+    {
+        var atEnd = Compute(plan, loop.End.Value).ToHashSet();
+        var atStart = Compute(plan, loop.Start.Value);
+        var voiceChanged = atStart
+            .Where(m => IsVoice(m.Message) && !atEnd.Contains(m))
+            .Select(m => (m.Slot, m.Message.Channel.Index))
+            .ToHashSet();
+        return [.. atStart.Where(m => IsVoice(m.Message) ? voiceChanged.Contains((m.Slot, m.Message.Channel.Index)) : !atEnd.Contains(m))];
+    }
+
+    private static bool IsVoice(ChannelMessage message) =>
+        message.Kind == ChannelMessageKind.ProgramChange || (message.Kind == ChannelMessageKind.ControlChange && message.Data1 is 0 or 32);
+
     private static bool IsChased(byte controller) =>
         controller is not (6 or 38) and not (>= 96 and <= 101) and < 120;
 
