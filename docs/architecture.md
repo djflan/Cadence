@@ -53,6 +53,10 @@ Cadence.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters
 `DependencyDirectionTests` enforces this. `Cadence.Midi` and `Cadence.Profiles` never reference
 each other, and the domain references only the base class library.
 
+Tests: `Cadence.Tests.Unit` (fast, deterministic), `Cadence.Tests.Integration` (real threads, files,
+operating-system MIDI, and plugin worker processes), and `Cadence.Tests.Ui` (Cadence's own app and
+main window on Avalonia's headless platform: real views, bindings, and UI thread, with no display).
+
 ### Where does this belong?
 
 | You are adding… | Put it in |

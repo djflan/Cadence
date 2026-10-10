@@ -24,13 +24,14 @@ functional (no audio engine, no third-party plugin formats) is labelled as such 
 | Undo merging: same merge key within 1 s is one undo step (parameter sliders, mixer gain/pan, master gain) | Done; `EditHistory` tests with a manual `TimeProvider`, view-model tests |
 | Plugin hosting (`Cadence.Plugins.Protocol`, `Cadence.Plugins`, `Cadence.PluginWorker`) | Done, merged; real worker processes killed in tests; reference plugins only |
 | Application bridge (`PluginDeviceHost`): devices ↔ worker instances, state into the project, status, restart | Done, tested with real workers; wired into the desktop app |
+| Headless UI tests (`Cadence.Tests.Ui`): real window, bindings, UI thread, mouse clicks, captured frames | Done; inspector sections, rack editing, mixer fader undo, plugin recompile on worker death and restart |
 | Plugin MIDI effects in the plan (ADR 0028): rendered in their worker at compile time, routed downstream | Done; `PluginMidiInThePlanTests` with real workers (transpose to a port, automation, tap, killed and hung workers) |
 | Acceptance scenarios 1–15 | All have tests: table in `docs/architecture.md` and `docs/plugin-hosting.md` |
 | Docs: ADRs 0021–0028, architecture, project format, MIDI files, plugin hosting, README | Done |
 | Rust | Not introduced: nothing measured needs it yet (ADR 0026 sets the bar) |
 
 **Last full run (macOS arm64, SDK 10.0.300):** build 0 warnings, 0 errors; `dotnet format --verify-no-changes` exit 0;
-`dotnet test src/Cadence.slnx`: 1132 total, 1119 passed, 12 skipped (other platforms' adapters), 1 failed: the
+`dotnet test src/Cadence.slnx`: 1136 total, 1123 passed, 12 skipped (other platforms' adapters), 1 failed: the
 intermittent `CoreMidiProviderTests.Playback_ThroughCadenceVirtualPort_ArrivesInOrder`, which also fails on the
 untouched base (section 2). Plugin integration tests: 8 consecutive passes of 27, no workers left behind; the bridge
 and strip tests (5) pass.
@@ -139,10 +140,10 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
 - The UI was run and inspected on macOS with a hand-made format 4 project (role, chain with a tap and a missing plugin,
   audio clip), and the Racks and Mixer sections with `format3-routing-full.cadence` (synthetic clicks and drags; an
   autosave restore brought the new rack back). Clicking through every workflow was not done by hand; view-model tests
-  cover the workflows. There are no Avalonia headless UI tests.
-- Plugin MIDI rendering is tested with the reference Transpose plugin only, at the routing level with real workers.
-  The app's "recompile when a plugin MIDI effect's status changes" wiring has no UI-level test (the plugin strip tests
-  use an inline dispatcher that runs posted work on worker threads; a headless Avalonia test would be the right place).
+  cover the workflows. `Cadence.Tests.Ui` covers the Devices, Racks, and Mixer sections on the headless platform
+  (frames are saved to `bin/.../frames/` for looking at); other sections have no headless tests yet.
+- Plugin MIDI rendering is tested with the reference Transpose plugin only (real workers), at the routing level and
+  through the app on the headless UI thread (worker killed, then restarted).
 
 ## 7. Remaining work, in priority order
 
@@ -152,7 +153,8 @@ Ordering that must be preserved: plan events sort by `(tick, EventPhase, source 
 2. **Third-party plugins** (deferred): a native hosting layer behind `IHostedPlugin` in the worker (Rust per ADR 0026),
    parameter enumeration, editors.
 3. **CI on all platforms**: open a PR (when the owner asks) so the matrix builds Windows and Linux.
-4. **Avalonia headless UI tests** (`Avalonia.Headless.XUnit`) for the inspector sections, so the UI is checked without a
-   display (also what a cloud agent on Linux would need).
+4. **More headless UI tests** in `Cadence.Tests.Ui` (Track, Routing, Connections, the arrangement, the piano roll).
+   `Avalonia.Headless.XUnit` 12.1 targets xUnit v3 3.x while the repository uses 4.x, so the tests use
+   `HeadlessUnitTestSession` directly (`HeadlessApp.RunAsync`).
 5. Smaller: rescanning plugins from the UI; translating device automation to CC/RPN/NRPN/SysEx for hardware; group
    track processing; a dedicated mixer view (the inspector section is a list, not a console with meters).
