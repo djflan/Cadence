@@ -35,14 +35,17 @@ public sealed class CommandRefusedException : InvalidOperationException
 /// <summary>Applies an edit only if it adds no routing error the project did not already have (ADR 0023).</summary>
 internal static class RoutingGuard
 {
-    public static IProjectCommand Command(string label, DeviceDefinitionLookup definitions, Func<Project, Project> change)
+    public static IProjectCommand Command(string label, DeviceDefinitionLookup definitions, Func<Project, Project> change, string? mergeKey = null)
     {
         ArgumentNullException.ThrowIfNull(definitions);
         return new ProjectCommand(label, before =>
         {
             var after = change(before);
             return ReferenceEquals(after, before) ? before : Check(before, after, definitions);
-        });
+        })
+        {
+            MergeKey = mergeKey,
+        };
     }
 
     /// <summary>Returns <paramref name="after"/>, or throws when it has errors <paramref name="before"/> did not.</summary>

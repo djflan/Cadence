@@ -249,9 +249,10 @@
               </ItemsControl>
             </StackPanel>
 
-            <Expander Classes="section" Header="Devices" IsExpanded="True" DataContext="{Binding DeviceStrip}" x:DataType="vm:DeviceStripViewModel" IsVisible="{Binding HasTrack}">
+            <Expander Classes="section" Header="{Binding Heading}" IsExpanded="True" DataContext="{Binding DeviceStrip}" x:DataType="vm:DeviceStripViewModel" IsVisible="{Binding HasTrack}">
               <StackPanel Spacing="6">
-                <TextBlock Text="No devices. Events go straight to the track's connections." Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsEmpty}" />
+                <Button Classes="link" Content="← Back to the selected track" IsVisible="{Binding IsEditingRack}" Command="{Binding BackToTrackCommand}" HorizontalAlignment="Left" />
+                <TextBlock Text="{Binding EmptyText}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsEmpty}" />
                 <ItemsControl ItemsSource="{Binding Devices}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:DeviceViewModel">
@@ -350,6 +351,65 @@
                 <ComboBox ItemsSource="{Binding ChannelChoices}" SelectedItem="{Binding Channel}" HorizontalAlignment="Stretch" AutomationProperties.Name="Connection channel"
                           ToolTip.Tip="Send every event on one channel, or keep each event's own channel" />
                 <Button Classes="raised" Content="Connect" Command="{Binding ConnectCommand}" HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Expander>
+
+            <Expander Classes="section" Header="Racks" IsExpanded="False" DataContext="{Binding Racks}" x:DataType="vm:RacksViewModel">
+              <StackPanel Spacing="6">
+                <TextBlock Text="A rack is a device chain several tracks can feed, such as one shared instrument. Connect tracks to it in Connections." Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsEmpty}" />
+                <ItemsControl ItemsSource="{Binding Racks}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RackRow">
+                      <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
+                        <StackPanel>
+                          <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Rack name" />
+                          <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="tool" Content="Edit" Command="{Binding EditCommand}" VerticalAlignment="Top" ToolTip.Tip="Show the rack's devices and connections" />
+                        <Button Grid.Column="2" Classes="tool" Content="✕" Command="{Binding RemoveCommand}" VerticalAlignment="Top" AutomationProperties.Name="Remove rack"
+                                ToolTip.Tip="Remove the rack and its connections" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Classes="raised" Content="New rack" Command="{Binding NewRackCommand}" HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Expander>
+
+            <Expander Classes="section" Header="Mixer" IsExpanded="False" DataContext="{Binding Mixer}" x:DataType="vm:MixerViewModel">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Mixer channels are audio paths, independent of tracks. Cadence has no audio engine yet, so they are kept and saved but nothing sounds." Classes="muted" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Channels}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MixerChannelRow">
+                      <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
+                        <StackPanel Spacing="3">
+                          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="2">
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Channel name" />
+                            <ToggleButton Grid.Column="1" Content="M" IsChecked="{Binding IsMuted}" Padding="6,1" AutomationProperties.Name="Mute channel" />
+                            <ToggleButton Grid.Column="2" Content="S" IsChecked="{Binding IsSoloed}" Padding="6,1" AutomationProperties.Name="Solo channel" />
+                            <Button Grid.Column="3" Classes="tool" Content="✕" Command="{Binding RemoveCommand}" AutomationProperties.Name="Remove channel" />
+                          </Grid>
+                          <Grid ColumnDefinitions="30,*,50" RowDefinitions="Auto,Auto" ColumnSpacing="4">
+                            <TextBlock Text="Gain" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="{Binding MinimumGain}" Maximum="{Binding MaximumGain}" Value="{Binding Gain}" SmallChange="0.5" LargeChange="3" AutomationProperties.Name="Channel gain" />
+                            <TextBlock Grid.Column="2" Text="{Binding GainText}" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Row="1" Text="Pan" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Row="1" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding Pan}" SmallChange="0.05" LargeChange="0.25" AutomationProperties.Name="Channel pan" />
+                          </Grid>
+                          <ComboBox ItemsSource="{Binding Outputs}" SelectedItem="{Binding Output}" HorizontalAlignment="Stretch" AutomationProperties.Name="Channel output"
+                                    ToolTip.Tip="Where this channel's audio goes: the master, or another channel used as a bus" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Classes="raised" Content="New mixer channel" Command="{Binding NewChannelCommand}" HorizontalAlignment="Stretch" />
+                <Grid ColumnDefinitions="Auto,*,50" ColumnSpacing="6">
+                  <TextBlock Text="Master" Classes="label" VerticalAlignment="Center" />
+                  <Slider Grid.Column="1" Minimum="-120" Maximum="24" Value="{Binding MasterGain}" SmallChange="0.5" LargeChange="3" AutomationProperties.Name="Master gain" />
+                  <TextBlock Grid.Column="2" Text="{Binding MasterGainText}" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </Grid>
               </StackPanel>
             </Expander>
 

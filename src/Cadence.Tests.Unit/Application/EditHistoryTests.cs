@@ -184,4 +184,58 @@ public sealed class EditHistoryTests
         Assert.Equal(new Tick(100), history.Current.Loop!.End);
         Assert.False(history.Execute(ProjectCommands.SetTempo(Tick.Zero, Tempo.FromBeatsPerMinute(90))));
     }
+
+    [Fact]
+    public void EditsWithTheSameMergeKey_InQuickSuccession_AreOneUndoStep()
+    {
+        var time = new ManualTime();
+        var history = new EditHistory(Project.CreateNew(), time: time);
+        IProjectCommand Rename(string name, string? key) => new ProjectCommand("Rename Project", p => p with { Name = name }) { MergeKey = key };
+
+        history.Execute(Rename("a", "drag"));
+        time.Advance(TimeSpan.FromMilliseconds(300));
+        history.Execute(Rename("b", "drag"));
+        time.Advance(TimeSpan.FromMilliseconds(300));
+        history.Execute(Rename("c", "drag"));
+        history.Undo();
+
+        Assert.Equal("Untitled", history.Current.Name);
+        Assert.False(history.CanUndo);
+    }
+
+    [Fact]
+    public void Merging_StopsAfterAPause_ADifferentKey_OrAnUndo()
+    {
+        var time = new ManualTime();
+        var history = new EditHistory(Project.CreateNew(), time: time);
+        IProjectCommand Rename(string name, string? key) => new ProjectCommand("Rename Project", p => p with { Name = name }) { MergeKey = key };
+
+        history.Execute(Rename("a", "drag"));
+        time.Advance(EditHistory.MergeWindow + TimeSpan.FromMilliseconds(1));
+        history.Execute(Rename("b", "drag"));
+        history.Execute(Rename("c", "other"));
+        history.Execute(Rename("d", null));
+        history.Execute(Rename("e", null));
+
+        history.Undo();
+        Assert.Equal("d", history.Current.Name);
+        history.Undo();
+        Assert.Equal("c", history.Current.Name);
+        history.Undo();
+        Assert.Equal("b", history.Current.Name);
+        history.Execute(Rename("f", "drag"));
+        history.Undo();
+        Assert.Equal("b", history.Current.Name);
+    }
+
+    private sealed class ManualTime : TimeProvider
+    {
+        private long _ticks = 1;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => _ticks;
+
+        public void Advance(TimeSpan amount) => _ticks += amount.Ticks;
+    }
 }

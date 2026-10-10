@@ -25,15 +25,14 @@ public sealed record DestinationOption(SignalNode Node, SignalKind Kind, string 
 public sealed record ConnectionRow(ConnectionId Id, string Text, string Detail, bool IsIncoming);
 
 /// <summary>
-/// The routing inspector for the selected track (ADR 0023): what it sends and where, what it receives,
-/// and a way to add a connection from its output or from one of its devices. It edits the project's one
+/// The routing inspector for the selected track, or for the rack being edited (ADR 0023): what it sends and
+/// where, what it receives, and a way to add a connection from its output or from one of its devices. It edits the project's one
 /// connection list, the same list the device strip's indicators show, and refuses connections that would
 /// not work or would feed back.
 /// </summary>
 public sealed partial class ConnectionsViewModel : ObservableObject
 {
     private readonly MainViewModel _owner;
-    private TrackId? _track;
 
     internal ConnectionsViewModel(MainViewModel owner) => _owner = owner;
 
@@ -65,21 +64,34 @@ public sealed partial class ConnectionsViewModel : ObservableObject
     /// <summary>Raised when a device's routing indicator asks to show this inspector.</summary>
     public event EventHandler? ShowRequested;
 
-    internal void Sync(Project project, TrackId? track)
+    internal void Sync(Project project, TrackId? track, DeviceChainId? rack = null)
     {
-        _track = track;
-        HasTrack = track is not null;
         Outgoing.Clear();
         Incoming.Clear();
-        if (track is not { } id || project.Sequence.FindTrack(id) is not { } found)
+        SignalNode node;
+        DeviceChain? chain;
+        string name;
+        if (rack is { } rackId && project.FindChain(rackId) is { Owner.Kind: ChainOwnerKind.Rack } rackChain)
         {
+            node = SignalNode.Rack(rackId);
+            chain = rackChain;
+            name = DeviceStripViewModel.RackName(rackChain);
+        }
+        else if (track is { } id && project.Sequence.FindTrack(id) is { } found)
+        {
+            node = SignalNode.Track(id);
+            chain = project.ChainOf(id);
+            name = found.Name;
+        }
+        else
+        {
+            HasTrack = false;
             Sources.Clear();
             Destinations.Clear();
             return;
         }
 
-        var node = SignalNode.Track(id);
-        var chain = project.ChainOf(id);
+        HasTrack = true;
         foreach (var connection in project.Connections)
         {
             var fromHere = connection.Source == node || (connection.Source.Kind == SignalNodeKind.Device && chain?.Find(connection.Source.AsDevice()) is not null);
@@ -96,7 +108,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject
 
         var source = Source?.Node;
         Sources.Clear();
-        Sources.Add(new SourceOption(node, $"{found.Name} output"));
+        Sources.Add(new SourceOption(node, $"{name} output"));
         foreach (var device in chain?.Devices ?? [])
         {
             Sources.Add(new SourceOption(SignalNode.Device(device.Id), $"After {device.DisplayName}"));
@@ -106,14 +118,14 @@ public sealed partial class ConnectionsViewModel : ObservableObject
 
         var destination = Destination;
         Destinations.Clear();
-        foreach (var other in project.Sequence.Tracks.Where(t => t.Id != id))
+        foreach (var other in project.Sequence.Tracks.Where(t => SignalNode.Track(t.Id) != node))
         {
             Destinations.Add(new DestinationOption(SignalNode.Track(other.Id), SignalKind.Events, $"Track: {other.Name}"));
         }
 
-        foreach (var rack in project.Chains.Where(c => c.Owner.Kind == ChainOwnerKind.Rack))
+        foreach (var other in project.Chains.Where(c => c.Owner.Kind == ChainOwnerKind.Rack && SignalNode.Rack(c.Id) != node))
         {
-            Destinations.Add(new DestinationOption(SignalNode.Rack(rack.Id), SignalKind.Events, $"Rack: {(rack.Name.Length > 0 ? rack.Name : "Rack")}"));
+            Destinations.Add(new DestinationOption(SignalNode.Rack(other.Id), SignalKind.Events, $"Rack: {DeviceStripViewModel.RackName(other)}"));
         }
 
         foreach (var instrument in project.Instruments)

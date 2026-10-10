@@ -582,6 +582,91 @@ public sealed class MainViewModelTests : IAsyncLifetime
         Assert.Contains(_vm.Messages, m => m.Text.Contains("as \"Arp\"", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ARack_IsCreatedEditedInTheStrip_FedByATrack_AndRemoved()
+    {
+        var track = await ImportAsync();
+
+        _vm.Racks.NewRackCommand.Execute(null);
+        await Settle();
+        var rack = Assert.Single(_session.Project.Chains, c => c.Owner.Kind == Cadence.Domain.Devices.ChainOwnerKind.Rack);
+        Assert.True(_vm.DeviceStrip.IsEditingRack);
+        Assert.Equal("Rack: Rack 1", _vm.DeviceStrip.Heading);
+        Assert.Equal("Rack 1 output", _vm.Connections.Sources[0].Name);
+
+        _vm.DeviceStrip.DeviceToAdd = _vm.DeviceStrip.AvailableDevices.Single(d => d.Name == "Transpose");
+        _vm.DeviceStrip.AddDeviceCommand.Execute(null);
+        await Settle();
+        Assert.Single(_session.Project.FindChain(rack.Id)!.Devices);
+        Assert.Null(_session.Project.ChainOf(track.Id));
+
+        _vm.DeviceStrip.BackToTrackCommand.Execute(null);
+        await Settle();
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Rack: Rack 1");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+        Assert.Equal("1 device · 1 input", Assert.Single(_vm.Racks.Racks).Detail);
+
+        _vm.Racks.Racks[0].Name = "XG";
+        await Settle();
+        Assert.Equal("XG", _session.Project.FindChain(rack.Id)!.Name);
+
+        _vm.Racks.Racks[0].RemoveCommand.Execute(null);
+        await Settle();
+        Assert.Empty(_vm.Racks.Racks);
+        Assert.DoesNotContain(_session.Project.Connections, c => c.Destination.Kind == SignalNodeKind.Rack);
+    }
+
+    [Fact]
+    public async Task MixerChannels_AreEdited_AFaderDragIsOneUndoStep_AndALoopIsRefused()
+    {
+        await ImportAsync();
+        _vm.Mixer.NewChannelCommand.Execute(null);
+        _vm.Mixer.NewChannelCommand.Execute(null);
+        await Settle();
+        var (first, second) = (_vm.Mixer.Channels[0], _vm.Mixer.Channels[1]);
+
+        first.Gain = -3;
+        first.Gain = -6;
+        first.Gain = -9;
+        await Settle();
+        Assert.Equal(-9, _session.Project.Mixer.Channels[0].GainDecibels);
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(0, _session.Project.Mixer.Channels[0].GainDecibels);
+
+        first.Output = first.Outputs.Single(o => o.Name == "Channel 2");
+        await Settle();
+        second.Output = second.Outputs.Single(o => o.Name == "Channel 1");
+        await Settle();
+
+        Assert.Null(_session.Project.Mixer.Channels[1].Output);
+        Assert.Equal("Master", _vm.Mixer.Channels[1].Output!.Name);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("feed back", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DraggingAParameterSlider_IsOneUndoStep()
+    {
+        await ImportAsync();
+        _vm.DeviceStrip.DeviceToAdd = _vm.DeviceStrip.AvailableDevices.Single(d => d.Name == "Transpose");
+        _vm.DeviceStrip.AddDeviceCommand.Execute(null);
+        await Settle();
+        var semitones = _vm.DeviceStrip.Devices[0].Parameters.Single();
+
+        foreach (var value in new[] { 1, 2, 3, 4, 5 })
+        {
+            semitones.Value = value;
+        }
+
+        await Settle();
+        Assert.Equal(5, semitones.Value);
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(0, _vm.DeviceStrip.Devices[0].Parameters.Single().Value);
+        Assert.Equal("Add Device", _session.History.UndoLabel);
+    }
+
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
         public bool CheckAccess() => true;

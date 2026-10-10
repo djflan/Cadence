@@ -85,11 +85,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Selection = new SelectionViewModel(this);
         DeviceStrip = new DeviceStripViewModel(this);
         Connections = new ConnectionsViewModel(this);
+        Racks = new RacksViewModel(this);
+        Mixer = new MixerViewModel(this);
         Editor = new EditorViewModel(this);
         Arrangement = new ArrangementViewModel(this);
         EventList = new EventListViewModel(this, Editor);
         SelectedTracks.CollectionChanged += (_, _) =>
         {
+            DeviceStrip.LeaveRack();
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
             SyncEditor();
@@ -153,8 +156,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The selected track's device chain.</summary>
     public DeviceStripViewModel DeviceStrip { get; }
 
-    /// <summary>The selected track's connections: the routing inspector.</summary>
+    /// <summary>The selected track's (or edited rack's) connections: the routing inspector.</summary>
     public ConnectionsViewModel Connections { get; }
+
+    /// <summary>The project's racks: shared device chains.</summary>
+    public RacksViewModel Racks { get; }
+
+    /// <summary>The project's mixer channels.</summary>
+    public MixerViewModel Mixer { get; }
 
     /// <summary>The devices chains can use: built-ins, and plugins as data (they run in worker processes).</summary>
     internal DeviceCatalog Devices => _playback.Devices;
@@ -459,6 +468,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         catch (CommandRefusedException ex)
         {
             AddMessage(MessageSeverity.Warning, command.Label, ex.Message);
+
+            // Controls bound two ways still show the refused value; show the project's again.
+            SyncSelection();
             return false;
         }
     }
@@ -1238,8 +1250,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
         var single = SelectedTracks.Count == 1 ? SelectedTracks[0].Id : (TrackId?)null;
         DeviceStrip.Sync(Project, single, Devices);
-        Connections.Sync(Project, single);
+        Connections.Sync(Project, single, DeviceStrip.Rack);
+        Racks.Sync(Project, DeviceStrip.Rack);
+        Mixer.Sync(Project.Mixer);
     }
+
+    /// <summary>Refreshes the device strip, routing inspector, racks, and mixer from the project.</summary>
+    internal void SyncDeviceViews() => SyncSelection();
 
     private static string Describe(EndpointTransport transport) => transport switch
     {

@@ -32,14 +32,15 @@ public sealed record DeviceChoice(DeviceDefinition Definition)
 }
 
 /// <summary>
-/// The selected track's device strip: its chain, first device to last (ADR 0022). Devices are inserted,
-/// removed, reordered, and bypassed here; their routing taps are shown as indicators, which open the same
-/// connection list the routing inspector edits.
+/// A device strip: the selected track's chain, or a rack being edited, first device to last (ADR 0022).
+/// Devices are inserted, removed, reordered, and bypassed here; their routing taps are shown as indicators,
+/// which open the same connection list the routing inspector edits.
 /// </summary>
 public sealed partial class DeviceStripViewModel : ObservableObject
 {
     private readonly MainViewModel _owner;
     private TrackId? _track;
+    private DeviceChainId? _rack;
     private DeviceChainId? _chain;
 
     internal DeviceStripViewModel(MainViewModel owner) => _owner = owner;
@@ -55,8 +56,25 @@ public sealed partial class DeviceStripViewModel : ObservableObject
     [ObservableProperty]
     public partial DeviceViewModel? SelectedDevice { get; set; }
 
+    /// <summary>Whether there is a chain to show: a single selected track, or a rack being edited.</summary>
     [ObservableProperty]
     public partial bool HasTrack { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BackToTrackCommand))]
+    [NotifyPropertyChangedFor(nameof(EmptyText))]
+    public partial bool IsEditingRack { get; private set; }
+
+    public string EmptyText => IsEditingRack
+        ? "No devices. Events go straight to the rack's connections."
+        : "No devices. Events go straight to the track's connections.";
+
+    /// <summary>"Devices" for a track; the rack's name while a rack is edited.</summary>
+    [ObservableProperty]
+    public partial string Heading { get; private set; } = "Devices";
+
+    /// <summary>The rack being edited, if one is.</summary>
+    internal DeviceChainId? Rack => _rack;
 
     public bool IsEmpty => Devices.Count == 0;
 
@@ -64,10 +82,34 @@ public sealed partial class DeviceStripViewModel : ObservableObject
 
     internal DeviceDefinitionLookup Definitions => _owner.Devices.Lookup;
 
+    /// <summary>Shows a rack's chain instead of the selected track's, until <see cref="BackToTrackCommand"/> or a new selection.</summary>
+    internal void EditRack(DeviceChainId rack)
+    {
+        _rack = rack;
+        _owner.SyncDeviceViews();
+    }
+
+    /// <summary>Stops editing a rack without refreshing, when the track selection changes (which refreshes).</summary>
+    internal void LeaveRack() => _rack = null;
+
+    [RelayCommand(CanExecute = nameof(IsEditingRack))]
+    internal void BackToTrack()
+    {
+        _rack = null;
+        _owner.SyncDeviceViews();
+    }
+
     internal void Sync(Project project, TrackId? track, DeviceCatalog catalog)
     {
+        if (_rack is { } editing && project.FindChain(editing) is not { Owner.Kind: ChainOwnerKind.Rack })
+        {
+            _rack = null;
+        }
+
         _track = track;
-        HasTrack = track is not null;
+        HasTrack = track is not null || _rack is not null;
+        IsEditingRack = _rack is not null;
+        Heading = _rack is { } rackId ? $"Rack: {RackName(project.FindChain(rackId)!)}" : "Devices";
         if (!AvailableDevices.Select(c => c.Definition).SequenceEqual(catalog.Definitions))
         {
             AvailableDevices.Clear();
@@ -77,7 +119,7 @@ public sealed partial class DeviceStripViewModel : ObservableObject
             }
         }
 
-        var chain = track is { } id ? project.ChainOf(id) : null;
+        var chain = _rack is { } shown ? project.FindChain(shown) : track is { } id ? project.ChainOf(id) : null;
         _chain = chain?.Id;
         var devices = chain?.Devices ?? [];
         var selected = SelectedDevice?.Id;
@@ -105,13 +147,19 @@ public sealed partial class DeviceStripViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAddDevice))]
     private void AddDevice()
     {
-        if (_track is { } track && DeviceToAdd is { } choice)
+        if (DeviceToAdd is not { } choice || (_rack is null && _track is null))
         {
-            var device = DeviceInstance.Create(choice.Definition.ToReference());
-            if (_owner.Execute(DeviceCommands.InsertDevice(track, device, Definitions, SelectedDevice is { } after ? after.Index + 1 : null)))
-            {
-                SelectedDevice = Devices.FirstOrDefault(d => d.Id == device.Id);
-            }
+            return;
+        }
+
+        var device = DeviceInstance.Create(choice.Definition.ToReference());
+        var at = SelectedDevice is { } after ? after.Index + 1 : (int?)null;
+        var command = _rack is { } rack
+            ? DeviceCommands.InsertDevice(rack, device, Definitions, at)
+            : DeviceCommands.InsertDevice(_track!.Value, device, Definitions, at);
+        if (_owner.Execute(command))
+        {
+            SelectedDevice = Devices.FirstOrDefault(d => d.Id == device.Id);
         }
     }
 
@@ -135,7 +183,7 @@ public sealed partial class DeviceStripViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanLoadPreset))]
     private async Task LoadPresetAsync()
     {
-        if (_track is not { } track || await _owner.UserInteraction.PickOpenFileAsync("Load Chain Preset", [FileFilters.ChainPreset]) is not { } path)
+        if ((_rack is null && _track is null) || await _owner.UserInteraction.PickOpenFileAsync("Load Chain Preset", [FileFilters.ChainPreset]) is not { } path)
         {
             return;
         }
@@ -143,7 +191,7 @@ public sealed partial class DeviceStripViewModel : ObservableObject
         try
         {
             var preset = ChainPresetSerializer.Deserialize(await File.ReadAllBytesAsync(path).ConfigureAwait(true));
-            _owner.Execute(DeviceCommands.LoadPreset(track, preset, Definitions));
+            _owner.Execute(_rack is { } rack ? DeviceCommands.LoadPreset(rack, preset, Definitions) : DeviceCommands.LoadPreset(_track!.Value, preset, Definitions));
         }
         catch (Exception ex) when (ex is ProjectFormatException or IOException or UnauthorizedAccessException)
         {
@@ -151,7 +199,9 @@ public sealed partial class DeviceStripViewModel : ObservableObject
         }
     }
 
-    private bool CanLoadPreset() => _track is not null;
+    private bool CanLoadPreset() => _track is not null || _rack is not null;
+
+    internal static string RackName(DeviceChain rack) => rack.Name.Length > 0 ? rack.Name : "Rack";
 
     internal void Remove(DeviceViewModel device) => _owner.Execute(DeviceCommands.RemoveDevice(device.Id, Definitions));
 

@@ -78,13 +78,23 @@ public static class RoutingCommands
         return new ProjectCommand("Add Mixer Channel", p => p with { Mixer = p.Mixer.With(channel) });
     }
 
-    /// <summary>Replaces the mixer channel with the same ID: name, gain, pan, mute, solo, or output (checked for loops).</summary>
-    public static IProjectCommand UpdateMixerChannel(MixerChannel channel, DeviceDefinitionLookup definitions)
+    /// <summary>
+    /// Replaces the mixer channel with the same ID: name, gain, pan, mute, solo, or output (checked for loops).
+    /// Edits with the same <paramref name="mergeKey"/> in quick succession (a fader drag) are one undo step.
+    /// </summary>
+    public static IProjectCommand UpdateMixerChannel(MixerChannel channel, DeviceDefinitionLookup definitions, string? mergeKey = null)
     {
         ArgumentNullException.ThrowIfNull(channel);
         return RoutingGuard.Command("Change Mixer Channel", definitions, p =>
-            Equals(p.Mixer.Find(channel.Id), channel) ? p : p with { Mixer = p.Mixer.With(channel) });
+            Equals(p.Mixer.Find(channel.Id), channel) ? p : p with { Mixer = p.Mixer.With(channel) }, mergeKey);
     }
+
+    /// <summary>Sets the master gain, in decibels.</summary>
+    public static IProjectCommand SetMasterGain(double decibels) =>
+        new ProjectCommand("Change Master Gain", p => p.Mixer.MasterGainDecibels == decibels ? p : p with { Mixer = p.Mixer with { MasterGainDecibels = decibels } })
+        {
+            MergeKey = "master-gain",
+        };
 
     /// <summary>Removes a mixer channel and the connections into it; channels that fed it go to the master.</summary>
     public static IProjectCommand RemoveMixerChannel(MixerChannelId channel) =>

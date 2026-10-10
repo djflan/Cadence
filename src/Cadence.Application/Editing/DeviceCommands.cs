@@ -68,11 +68,35 @@ public static class DeviceCommands
                 : p);
 
     /// <summary>Sets a stored parameter value (normalized 0 to 1, see <see cref="ControlValue.FromFraction"/>).</summary>
+    /// <remarks>Repeated changes of one parameter in quick succession (a slider drag) are one undo step.</remarks>
     public static IProjectCommand SetParameter(DeviceId device, ParameterId parameter, ControlValue value) =>
         new ProjectCommand("Change Parameter", p =>
             p.FindDevice(device) is { } found && found.Device.ValueOf(parameter) != value
                 ? p.WithChain(found.Chain.Replace(found.Device.WithParameter(parameter, value)))
-                : p);
+                : p)
+        {
+            MergeKey = $"parameter:{device}:{parameter}",
+        };
+
+    /// <summary>Renames a rack (or a track's chain, which is shown under its track's name).</summary>
+    public static IProjectCommand RenameChain(DeviceChainId chain, string name) =>
+        new ProjectCommand("Rename Rack", p =>
+            p.FindChain(chain) is { } found && found.Name != name ? p.WithChain(found with { Name = name }) : p);
+
+    /// <summary>Inserts a preset's devices into the chain <paramref name="chain"/> (a track's or a rack's), as new devices.</summary>
+    public static IProjectCommand LoadPreset(DeviceChainId chain, DeviceChainPreset preset, DeviceDefinitionLookup definitions, int? index = null) =>
+        RoutingGuard.Command("Load Chain Preset", definitions, p =>
+        {
+            ArgumentNullException.ThrowIfNull(preset);
+            var found = p.FindChain(chain) ?? throw new KeyNotFoundException($"Chain {chain} is not in the project.");
+            var at = index ?? found.Devices.Length;
+            foreach (var device in preset.Devices.Select(d => d.Instantiate()).Reverse())
+            {
+                found = found.Insert(at, device);
+            }
+
+            return p.WithChain(found);
+        });
 
     /// <summary>Stores a plugin's state as last captured from its worker, so a restart or reopen can restore it (ADR 0025).</summary>
     public static IProjectCommand SetPluginState(DeviceId device, PluginState state) =>
