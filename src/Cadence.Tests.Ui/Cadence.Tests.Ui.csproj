@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The real Avalonia window on Avalonia's headless platform: views, compiled bindings, and the UI thread, with no display. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Cadence.Tests.Ui</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cadence.Desktop/Cadence.Desktop.csproj" />
+    <!-- Built and copied beside the tests so they can launch real worker processes; never loaded in the test process. -->
+    <ProjectReference Include="../Cadence.PluginWorker/Cadence.PluginWorker.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>
