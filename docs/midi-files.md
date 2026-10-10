@@ -57,9 +57,11 @@ Cadence's canonical order (ADR 0003), so a release always precedes a retrigger o
 Text is written as UTF-8.
 
 Each file track holds what its sequence track plays: the events its clips show (notes cut at clip
-ends, trimmed content left out) and its automation lanes as the controller, pitch bend, and pressure
-events playback would send (ADR 0020). Clip events a lane replaces are left out (SMF203). A MIDI file
-has no clips or lanes, so importing an exported file brings automation back as clip events.
+ends, trimmed content left out) and its automation lanes, rendered as controller, pitch bend, and
+pressure events (ADR 0020). Clip events a lane replaces are left out (SMF203). Export has no routes,
+so it compares lanes and clip events on their own channels; with a route's channel override,
+playback can replace more. A MIDI file has no clips or lanes, so importing an exported file brings
+automation back as clip events.
 
 ## Diagnostics
 

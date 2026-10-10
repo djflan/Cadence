@@ -100,7 +100,8 @@ guards this with fixtures written by the format 2 serializer.
   resent only at its next point. The engine sends, at each wrap, the state at the loop start where it
   differs from the state at the loop end (`ChaseState.AtWrap`), computed when a plan is loaded or the
   loop is set rather than on the playback thread. A value the loop sets for the first time goes back
-  to its Reset All Controllers value where it has one.
+  to its Reset All Controllers value where it has one. This replaces ADR 0006's rule that controllers
+  are not re-chased at the wrap.
 - Splitting a clip through a held note silences the rest of the note, because the right half does not
   retrigger it. This matches the rule for clip ends; a split that keeps sounding notes would need
   notes that carry over between clips.

@@ -197,6 +197,9 @@ public sealed class PlaybackEngineTests
 
         Assert.Equal(["B00001", "C005"], wrap.Select(m => $"{m.Message.Status:X2}{m.Message.Data1:X2}{(m.Message.Kind == ChannelMessageKind.ProgramChange ? string.Empty : m.Message.Data2.ToString("X2", System.Globalization.CultureInfo.InvariantCulture))}"));
         Assert.Empty(ChaseState.AtWrap(Plan(Cc(0, 7, 1)), new LoopRegion(new Tick(50), new Tick(150))));
+
+        // With no program before the loop there is nothing to restore, so no lone bank select is sent.
+        Assert.Empty(ChaseState.AtWrap(Plan(Cc(100, 0, 1), Program(100, 6)), new LoopRegion(new Tick(50), new Tick(150))));
     }
 
     [Fact]

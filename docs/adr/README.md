@@ -10,7 +10,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0003](0003-deterministic-event-ordering.md) | Deterministic ordering of simultaneous events | Accepted |
 | [0004](0004-musical-time-representation.md) | Musical time representation | Accepted |
 | [0005](0005-midi-endpoint-contracts.md) | MIDI endpoint contracts | Accepted |
-| [0006](0006-playback-engine.md) | Playback engine: prepared plans, dual cursors, runtime releases | Accepted |
+| [0006](0006-playback-engine.md) | Playback engine: prepared plans, dual cursors, runtime releases | Accepted; loop-wrap chase superseded by 0020 |
 | [0007](0007-device-profile-format.md) | Data-first device profiles | Accepted |
 | [0008](0008-routing-and-rebinding.md) | Routing: profiles and endpoints bound independently | Accepted |
 | [0009](0009-project-persistence.md) | Project persistence: versioned JSON with atomic saves | Accepted |

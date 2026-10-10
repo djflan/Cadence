@@ -160,8 +160,8 @@ music lives in clips; the piano roll edits one clip at a time and darkens the ti
 | Select clips | Click; Shift-click to add; Ctrl/Cmd-click to add or remove |
 | Move / copy | Drag, also to another track (snapped to bars, or beats when zoomed in); Alt/Option-drag copies |
 | Trim or extend | Drag a clip's left or right edge; trimmed notes are kept, just not played |
-| New clip | Double-click empty space for a one-bar clip, or add notes where there is none |
-| Split at the playhead / duplicate / delete | B / Ctrl/Cmd + D / Delete |
+| New clip | Double-click empty space for a clip filling that bar (up to any neighbouring clip), or add notes in the piano roll on a track with no clips |
+| Split at the playhead / duplicate / delete | B / Ctrl/Cmd + D / Delete, with the arrangement focused (otherwise these act on tracks) |
 | Automation lanes | The + on a track adds a lane (volume, pan, expression, modulation, sustain, brightness, pitch bend, pressure); the arrow shows or hides them |
 | Automation points | Click to add, drag to move (Shift: no snapping), Alt/Option-click to delete, double-click to switch between hold and ramp |
 
