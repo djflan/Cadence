@@ -185,6 +185,15 @@
                 </StackPanel>
               </Grid>
 
+              <Expander Classes="section" Header="Track" IsExpanded="True">
+                <Grid ColumnDefinitions="64,*" RowSpacing="6">
+                  <TextBlock Text="Role" Classes="label" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding RoleChoices}" SelectedItem="{Binding Role}" PlaceholderText="Mixed" HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="Track role"
+                            ToolTip.Tip="What the track is for. Changing it never removes clips, devices, automation, or routing; Cadence asks or refuses when it would." />
+                </Grid>
+              </Expander>
+
               <Expander Classes="section" Header="Routing" IsExpanded="True">
                 <Grid ColumnDefinitions="64,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
                   <TextBlock Text="Output" Classes="label" />
@@ -239,6 +248,108 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </StackPanel>
+
+            <Expander Classes="section" Header="Devices" IsExpanded="True" DataContext="{Binding DeviceStrip}" x:DataType="vm:DeviceStripViewModel" IsVisible="{Binding HasTrack}">
+              <StackPanel Spacing="6">
+                <TextBlock Text="No devices. Events go straight to the track's connections." Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsEmpty}" />
+                <ItemsControl ItemsSource="{Binding Devices}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DeviceViewModel">
+                      <Border BorderBrush="{StaticResource Cadence.Divider}" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4">
+                        <StackPanel Spacing="3">
+                          <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                            <PathIcon Data="{StaticResource Icon.Warning}" Width="11" Height="11" Margin="0,0,4,0" Foreground="{StaticResource Cadence.Warning}" IsVisible="{Binding NeedsAttention}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
+                            <Button Grid.Column="2" Classes="tool" Content="↑" Command="{Binding MoveUpCommand}" ToolTip.Tip="Move earlier in the chain" AutomationProperties.Name="Move device up" />
+                            <Button Grid.Column="3" Classes="tool" Content="↓" Command="{Binding MoveDownCommand}" ToolTip.Tip="Move later in the chain" AutomationProperties.Name="Move device down" />
+                            <Button Grid.Column="4" Classes="tool" Content="✕" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove the device" AutomationProperties.Name="Remove device" />
+                          </Grid>
+                          <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding Kind}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                            <ToggleButton Grid.Column="1" Content="Bypass" IsChecked="{Binding IsBypassed}" FontSize="10" Padding="6,1"
+                                          ToolTip.Tip="A bypassed device passes everything through unchanged" AutomationProperties.Name="Bypass device" />
+                          </Grid>
+                          <Button Classes="link" Content="{Binding RoutingIndicator}" IsVisible="{Binding HasRouting}" Command="{Binding ShowRoutingCommand}" HorizontalAlignment="Left"
+                                  ToolTip.Tip="This device's output is also sent here. Open the connections." />
+                          <Button Classes="link" Content="Route from here…" IsVisible="{Binding !HasRouting}" Command="{Binding ShowRoutingCommand}" HorizontalAlignment="Left" FontSize="10" />
+                          <Expander Header="Parameters" IsVisible="{Binding Parameters.Count}" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <ItemsControl ItemsSource="{Binding Parameters}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ParameterViewModel">
+                                  <StackPanel Margin="0,2">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                      <TextBlock Text="{Binding Name}" Classes="muted" FontSize="10" />
+                                      <TextBlock Grid.Column="1" Text="{Binding ValueText}" FontSize="10" />
+                                    </Grid>
+                                    <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" SmallChange="{Binding Step}" LargeChange="{Binding Step}"
+                                            AutomationProperties.Name="{Binding Name}" />
+                                  </StackPanel>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </Expander>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                  <ComboBox ItemsSource="{Binding AvailableDevices}" SelectedItem="{Binding DeviceToAdd}" PlaceholderText="Add a device…" HorizontalAlignment="Stretch" AutomationProperties.Name="Device to add">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:DeviceChoice">
+                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Detail}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Grid.Column="1" Classes="raised" Content="Add" Command="{Binding AddDeviceCommand}" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="link" Content="Save chain preset…" Command="{Binding SavePresetCommand}" />
+                  <Button Classes="link" Content="Load preset…" Command="{Binding LoadPresetCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Expander>
+
+            <Expander x:Name="ConnectionsSection" Classes="section" Header="Connections" IsExpanded="False" DataContext="{Binding Connections}" x:DataType="vm:ConnectionsViewModel" IsVisible="{Binding HasTrack}">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Sends" Classes="label" />
+                <ItemsControl ItemsSource="{Binding Outgoing}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ConnectionRow">
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,3">
+                        <StackPanel>
+                          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="tool" Content="✕" VerticalAlignment="Top" AutomationProperties.Name="Disconnect"
+                                Command="{Binding $parent[ItemsControl].((vm:ConnectionsViewModel)DataContext).DisconnectCommand, FallbackValue={x:Null}}" CommandParameter="{Binding}" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="Receives" Classes="label" />
+                <ItemsControl ItemsSource="{Binding Incoming}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ConnectionRow">
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,3">
+                        <StackPanel>
+                          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="tool" Content="✕" VerticalAlignment="Top" AutomationProperties.Name="Disconnect"
+                                Command="{Binding $parent[ItemsControl].((vm:ConnectionsViewModel)DataContext).DisconnectCommand, FallbackValue={x:Null}}" CommandParameter="{Binding}" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="New connection" Classes="label" />
+                <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" HorizontalAlignment="Stretch" AutomationProperties.Name="Connection source" />
+                <ComboBox ItemsSource="{Binding Destinations}" SelectedItem="{Binding Destination}" PlaceholderText="Send to…" HorizontalAlignment="Stretch" AutomationProperties.Name="Connection destination" />
+                <ComboBox ItemsSource="{Binding ChannelChoices}" SelectedItem="{Binding Channel}" HorizontalAlignment="Stretch" AutomationProperties.Name="Connection channel"
+                          ToolTip.Tip="Send every event on one channel, or keep each event's own channel" />
+                <Button Classes="raised" Content="Connect" Command="{Binding ConnectCommand}" HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Expander>
 
             <Expander Classes="section" Header="Recording" IsExpanded="True">
               <Grid ColumnDefinitions="64,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">

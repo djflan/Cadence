@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
 using Cadence.Application.Sessions;
+using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Projects;
 using Cadence.Domain.Routing;
@@ -12,6 +13,7 @@ using Cadence.Midi.Endpoints;
 using Cadence.Midi.Files;
 using Cadence.Playback;
 using Cadence.Profiles;
+using Cadence.Signal;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -78,6 +80,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _monitor = monitor;
         Project = session.Project;
         Selection = new SelectionViewModel(this);
+        DeviceStrip = new DeviceStripViewModel(this);
+        Connections = new ConnectionsViewModel(this);
         Editor = new EditorViewModel(this);
         Arrangement = new ArrangementViewModel(this);
         EventList = new EventListViewModel(this, Editor);
@@ -136,6 +140,50 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The clip selection and clip edits in the arrangement.</summary>
     public ArrangementViewModel Arrangement { get; }
+
+    /// <summary>The selected track's device chain.</summary>
+    public DeviceStripViewModel DeviceStrip { get; }
+
+    /// <summary>The selected track's connections: the routing inspector.</summary>
+    public ConnectionsViewModel Connections { get; }
+
+    /// <summary>The devices chains can use: built-ins, and plugins as data (they run in worker processes).</summary>
+    internal DeviceCatalog Devices => _playback.Devices;
+
+    internal IUserInteraction UserInteraction => _ui;
+
+    /// <summary>A device's status for the strip.</summary>
+    internal DeviceStatus DeviceStatus(DeviceInstance device) => Presentation.DeviceStatus.Of(device, Devices);
+
+    /// <summary>
+    /// Changes the role of every selected track. A change that needs consent is asked about first; a refused one
+    /// is explained and nothing changes. Clips, devices, automation, and routing are never discarded (ADR 0021).
+    /// </summary>
+    internal async Task ChangeRoleAsync(TrackRole role)
+    {
+        foreach (var track in SelectedTracks.Select(t => t.Id).ToList())
+        {
+            var plan = TrackRoleConversion.ForRoleChange(Project, track, role, Devices.Lookup);
+            switch (plan.Outcome)
+            {
+                case RoleChangeOutcome.Refused:
+                    AddMessage(MessageSeverity.Warning, "Track Role", plan.Message);
+                    break;
+                case RoleChangeOutcome.NeedsConfirmation:
+                    if (await _ui.ConfirmAsync("Change Track Role", plan.Message, "Change", destructive: false))
+                    {
+                        Execute(TrackRoleCommands.SetRole(track, role, Devices.Lookup, confirmed: true));
+                    }
+
+                    break;
+                case RoleChangeOutcome.Automatic:
+                    Execute(TrackRoleCommands.SetRole(track, role, Devices.Lookup));
+                    break;
+            }
+        }
+
+        SyncSelection();
+    }
 
     /// <summary>The tracks whose automation lanes are shown, so the arrangement can lay out its rows.</summary>
     [ObservableProperty]
@@ -806,6 +854,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var notes = take.Events.Count(e => e is NoteEvent);
         var others = take.Events.Length - notes;
         var name = Tracks.FirstOrDefault(t => t.Id == take.Track)?.Name ?? "the track";
+        if (take.NotAdded is { } reason)
+        {
+            AddMessage(MessageSeverity.Warning, "Record", $"The take was not added to {name}: {reason}");
+            return;
+        }
+
         AddMessage(MessageSeverity.Info, "Record", take.Events.IsEmpty
             ? "Nothing was played, so the take was discarded."
             : string.Create(CultureInfo.InvariantCulture, $"Recorded {notes} note{(notes == 1 ? string.Empty : "s")}{(others > 0 ? $" and {others} other event{(others == 1 ? string.Empty : "s")}" : string.Empty)} on {name}."));
@@ -1112,7 +1166,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OutputsText = string.Create(CultureInfo.InvariantCulture, $"{Outputs.Count} output{(Outputs.Count == 1 ? string.Empty : "s")} available");
     }
 
-    private void SyncSelection() => Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
+    private void SyncSelection()
+    {
+        Selection.Sync([.. SelectedTracks], [.. Outputs], _playback.Profiles);
+        var single = SelectedTracks.Count == 1 ? SelectedTracks[0].Id : (TrackId?)null;
+        DeviceStrip.Sync(Project, single, Devices);
+        Connections.Sync(Project, single);
+    }
 
     private static string Describe(EndpointTransport transport) => transport switch
     {
@@ -1216,7 +1276,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private void AddMessage(MessageSeverity severity, string source, string text)
+    internal void AddMessage(MessageSeverity severity, string source, string text)
     {
         Messages.Add(new MessageItem(severity, source, text));
         while (Messages.Count > MaxMessages)

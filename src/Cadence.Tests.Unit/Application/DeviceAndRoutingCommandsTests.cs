@@ -230,6 +230,20 @@ public sealed class DeviceAndRoutingCommandsTests
     }
 
     [Fact]
+    public void RecordingNotesInsideAnAudioClip_IsRefused_AndOutsideItWorks()
+    {
+        var vocals = new Track(TrackId.New(), "Vocals", [new AudioClip(ClipId.New(), new Tick(960), new TickSpan(960), TickSpan.Zero, new AudioSource("v.wav", 48_000, 48_000, 1))], role: TrackRole.Hybrid);
+        var history = new EditHistory(Project.CreateNew() with { Sequence = Sequence.CreateEmpty(Ppqn.Default).WithTrack(vocals) });
+        NoteEvent At(long tick) => new(new Tick(tick), new TickSpan(10), MidiChannel.FromNumber(1), NoteNumber.MiddleC, Velocity.Max);
+
+        var refused = Assert.Throws<CommandRefusedException>(() => history.Execute(ProjectCommands.Record(vocals.Id, [At(1000)], null)));
+        history.Execute(ProjectCommands.Record(vocals.Id, [At(0)], null));
+
+        Assert.Contains("inside an audio clip", refused.Message, StringComparison.Ordinal);
+        Assert.Equal(2, history.Current.Sequence.FindTrack(vocals.Id)!.Clips.Length);
+    }
+
+    [Fact]
     public void Tracks_CanOnlyJoinAGroupTrack()
     {
         var (history, a, b) = TwoTracks();

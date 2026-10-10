@@ -450,6 +450,138 @@ public sealed class MainViewModelTests : IAsyncLifetime
         Assert.Contains(_vm.Messages, m => m.Severity == MessageSeverity.Error && m.Source == "Import");
     }
 
+    private async Task<(TrackViewModel First, TrackViewModel Second)> TwoTracksAsync()
+    {
+        var first = await ImportAsync();
+        _session.Execute(Cadence.Application.Editing.ProjectCommands.AddTrack(Track.FromEvents(TrackId.New(), "Strings", [new NoteEvent(Tick.Zero, new TickSpan(480), MidiChannel.FromIndex(1), NoteNumber.MiddleC, Velocity.Max)])));
+        await Settle();
+        _vm.Select(first);
+        await Settle();
+        return (first, _vm.Tracks[1]);
+    }
+
+    [Fact]
+    public async Task DeviceStrip_AddsReordersBypassesAndEditsDevices_ThroughTheProject()
+    {
+        var track = await ImportAsync();
+        var strip = _vm.DeviceStrip;
+        Assert.True(strip.HasTrack);
+        Assert.True(strip.IsEmpty);
+
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Transpose");
+        strip.AddDeviceCommand.Execute(null);
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+
+        Assert.Equal(["Transpose", "Arpeggiator"], strip.Devices.Select(d => d.Name));
+        var transpose = strip.Devices[0];
+        transpose.Parameters.Single(p => p.Name == "Semitones").Value = 12;
+        strip.Devices[1].MoveUpCommand.Execute(null);
+        await Settle();
+
+        Assert.Equal(["Arpeggiator", "Transpose"], strip.Devices.Select(d => d.Name));
+        Assert.Equal(12, TrackOutputs.Read(_session.Project, track.Id).Transpose);
+        Assert.Equal(12m, _vm.Selection.Transpose);
+
+        strip.Devices[0].IsBypassed = true;
+        await Settle();
+        Assert.True(_session.Project.ChainOf(track.Id)!.Devices[0].IsBypassed);
+        Assert.Equal("Bypassed", strip.Devices[0].Status);
+
+        strip.Devices[0].RemoveCommand.Execute(null);
+        await Settle();
+        Assert.Equal(["Transpose"], strip.Devices.Select(d => d.Name));
+        _vm.UndoCommand.Execute(null);
+        await Settle();
+        Assert.Equal(2, strip.Devices.Count);
+    }
+
+    [Fact]
+    public async Task ARoutingIndicator_OpensTheRoutingInspector_AndShowsWhereTheDeviceSends()
+    {
+        var (first, second) = await TwoTracksAsync();
+        var strip = _vm.DeviceStrip;
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+        var shown = false;
+        _vm.Connections.ShowRequested += (_, _) => shown = true;
+
+        strip.Devices[0].ShowRoutingCommand.Execute(null);
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Strings");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+
+        Assert.True(shown);
+        Assert.Equal("After Arpeggiator", _vm.Connections.Source!.Name);
+        Assert.Equal("→ track \"Strings\"", strip.Devices[0].RoutingIndicator);
+        Assert.Contains("After Arpeggiator", Assert.Single(_vm.Connections.Outgoing).Text, StringComparison.Ordinal);
+        Assert.Equal(first.Id, _session.Project.ChainOf(first.Id)!.Owner.Track);
+        Assert.Equal(SignalNode.Track(second.Id), Assert.Single(_session.Project.Connections, c => c.Source.Kind == SignalNodeKind.Device).Destination);
+    }
+
+    [Fact]
+    public async Task TheRoutingInspector_RefusesFeedback_WithAMessage()
+    {
+        var (first, second) = await TwoTracksAsync();
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Strings");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+        _vm.Select(second);
+        await Settle();
+        Assert.Contains("Piano", Assert.Single(_vm.Connections.Incoming).Text, StringComparison.Ordinal);
+
+        _vm.Connections.Destination = _vm.Connections.Destinations.Single(d => d.Name == "Track: Piano");
+        _vm.Connections.ConnectCommand.Execute(null);
+        await Settle();
+
+        Assert.Single(_session.Project.Connections, c => c.Destination.Kind == SignalNodeKind.Track);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("feed back", StringComparison.Ordinal));
+        Assert.NotEqual(first.Id, second.Id);
+    }
+
+    [Fact]
+    public async Task ChangingTheRole_IsAppliedOrExplained()
+    {
+        var track = await ImportAsync();
+        Assert.Equal(TrackRole.Instrument, _vm.Selection.Role);
+
+        _vm.Selection.Role = TrackRole.Audio;
+        await Settle();
+        Assert.Equal(TrackRole.Instrument, _session.Project.Sequence.FindTrack(track.Id)!.Role);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("holds note clips", StringComparison.Ordinal));
+
+        _vm.Selection.Role = TrackRole.Hybrid;
+        await Settle();
+        Assert.Equal(TrackRole.Hybrid, _session.Project.Sequence.FindTrack(track.Id)!.Role);
+        Assert.Equal(TrackRole.Hybrid, track.Role);
+    }
+
+    [Fact]
+    public async Task AChainPreset_SavedFromOneTrack_LoadsAsNewDevicesOnAnother()
+    {
+        var (first, second) = await TwoTracksAsync();
+        var strip = _vm.DeviceStrip;
+        strip.DeviceToAdd = strip.AvailableDevices.Single(d => d.Name == "Arpeggiator");
+        strip.AddDeviceCommand.Execute(null);
+        await Settle();
+        _ui.NextSavePath = Path.Combine(_directory, "Arp.cadence-chain");
+        await strip.SavePresetCommand.ExecuteAsync(null);
+
+        _vm.Select(second);
+        await Settle();
+        _ui.NextOpenPath = _ui.NextSavePath;
+        await strip.LoadPresetCommand.ExecuteAsync(null);
+        await Settle();
+
+        var original = Assert.Single(_session.Project.ChainOf(first.Id)!.Devices);
+        var loaded = Assert.Single(_session.Project.ChainOf(second.Id)!.Devices);
+        Assert.Equal(original.Definition, loaded.Definition);
+        Assert.NotEqual(original.Id, loaded.Id);
+        Assert.Contains(_vm.Messages, m => m.Text.Contains("as \"Arp\"", StringComparison.Ordinal));
+    }
+
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
         public bool CheckAccess() => true;

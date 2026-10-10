@@ -24,6 +24,12 @@ public partial class App : Avalonia.Application
             window.Attach(viewModel);
             desktop.MainWindow = window;
             desktop.Exit += (_, _) => Shutdown(viewModel, platformProviders);
+
+            // A project or MIDI file named on the command line (or by the OS file association) opens at start.
+            if (desktop.Args is [var path, ..] && MainViewModel.CanOpenFile(path))
+            {
+                window.Opened += async (_, _) => await viewModel.OpenFileAsync(path);
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -4,6 +4,7 @@ using Cadence.Application.Routing;
 using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
 using Cadence.Domain.Routing;
+using Cadence.Domain.Sequencing;
 using Cadence.Profiles;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -85,6 +86,12 @@ public sealed partial class SelectionViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanInitialize { get; private set; }
 
+    public IReadOnlyList<TrackRole> RoleChoices { get; } = Enum.GetValues<TrackRole>();
+
+    /// <summary>The selected tracks' role, or null when they differ.</summary>
+    [ObservableProperty]
+    public partial TrackRole? Role { get; set; }
+
     internal void Sync(IReadOnlyList<TrackViewModel> tracks, IReadOnlyList<OutputOption> outputs, ProfileCatalog catalog)
     {
         _syncing = true;
@@ -105,6 +112,8 @@ public sealed partial class SelectionViewModel : ObservableObject
             var transposes = tracks.Select(t => t.Route.Transpose).Distinct().ToList();
             Transpose = transposes.Count == 1 ? transposes[0] : null;
             SyncVoice();
+            var roles = tracks.Select(t => t.Role).Distinct().ToList();
+            Role = roles.Count == 1 ? roles[0] : null;
 
             Problems = tracks.Count == 1
                 ? tracks[0].Problems
@@ -120,6 +129,14 @@ public sealed partial class SelectionViewModel : ObservableObject
         finally
         {
             _syncing = false;
+        }
+    }
+
+    partial void OnRoleChanged(TrackRole? value)
+    {
+        if (!_syncing && value is { } role)
+        {
+            _ = _owner.ChangeRoleAsync(role);
         }
     }
 

@@ -286,6 +286,12 @@ public static class ProjectCommands
             return track;
         }
 
+        // Events go in note clips; a clip of another kind (audio) cannot take them, and nothing may overlap it.
+        if (added.Any(e => !pinned.ContainsKey(e.Id) && track.ClipAt(e.Position) is { } c && c is not NoteClip))
+        {
+            throw new CommandRefusedException("Notes and other events cannot go inside an audio clip. Move the audio clip, or put the events on another track.");
+        }
+
         // Existing clips take their events and grow first.
         var target = track.FindClip(preferred) as NoteClip;
         var into = new Dictionary<ClipId, List<TrackEvent>>();

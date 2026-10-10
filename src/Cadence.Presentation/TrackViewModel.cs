@@ -84,6 +84,10 @@ public sealed partial class TrackViewModel : ObservableObject
     [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
 
+    /// <summary>The track's role: what it is for (ADR 0021).</summary>
+    [ObservableProperty]
+    public partial TrackRole Role { get; private set; }
+
     /// <summary>The track's output settings as the inspector edits them (see <see cref="TrackOutputs"/>).</summary>
     public TrackOutput Route { get; private set; } = TrackOutput.None;
 
@@ -140,6 +144,7 @@ public sealed partial class TrackViewModel : ObservableObject
             IsSoloed = track.IsSoloed;
             Summary = Summarize(track);
             SyncLanes(track);
+            Role = track.Role;
             Route = resolved?.Output ?? TrackOutput.None;
             ResolvedProfile = resolved?.Instrument?.Profile.Profile;
             Output = ResolveOutput(outputs, resolved);

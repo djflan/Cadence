@@ -35,6 +35,12 @@ public partial class MainWindow : Window
         _autosaveTimer.Tick += async (_, _) => await viewModel.AutosaveAsync();
         _autosaveTimer.Start();
 
+        viewModel.Connections.ShowRequested += (_, _) =>
+        {
+            viewModel.IsInspectorVisible = true;
+            ConnectionsSection.IsExpanded = true;
+            ConnectionsSection.BringIntoView();
+        };
         Ruler.SeekRequested += (_, tick) => viewModel.SeekTo(tick);
         Ruler.LoopRequested += (_, loop) => viewModel.SetLoop(loop);
         Timeline.LaneClicked += (_, click) =>

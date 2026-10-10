@@ -258,7 +258,14 @@ public sealed class PlaybackController : IAsyncDisposable
         ApplyMetronome();
         if (project.Sequence.FindTrack(take.Track) is not null && (take.Events.Length > 0 || _recordOptions.Replace))
         {
-            _session.Execute(ProjectCommands.Record(take.Track, take.Events, _recordOptions.Replace ? take.Range : null));
+            try
+            {
+                _session.Execute(ProjectCommands.Record(take.Track, take.Events, _recordOptions.Replace ? take.Range : null));
+            }
+            catch (CommandRefusedException ex)
+            {
+                take = take with { NotAdded = ex.Message };
+            }
         }
 
         return take;
