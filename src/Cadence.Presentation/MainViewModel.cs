@@ -766,6 +766,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal void Audition(TrackId track, Domain.Midi.NoteNumber note, Domain.Midi.Velocity velocity) => _playback.Audition(track, note, velocity);
 
+    internal void PlayKey(TrackId track, Domain.Midi.NoteNumber note, Domain.Midi.Velocity velocity) => _playback.PlayKey(track, note, velocity);
+
     internal void EndAudition() => _playback.EndAudition();
 
     private void StopTransport()

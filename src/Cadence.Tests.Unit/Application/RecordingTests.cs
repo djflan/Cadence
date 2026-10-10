@@ -97,6 +97,77 @@ public sealed class RecordingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task PianoKeys_WhileRecordingWithoutThru_SoundOnTheTrackAndAreRecorded()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+
+        // Thru is off here, so the key sounds on the track's output directly, and is still recorded.
+        _controller.PlayKey(track.Id, new NoteNumber(64), new Velocity(80));
+        RunTo(750);
+        _controller.EndAudition();
+        RunTo(800);
+        _controller.Stop();
+
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x90, 64, 80]);
+        Assert.Contains(_synth.Sent, m => m.Bytes is [0x80, 64, _]);
+        var note = Assert.IsType<NoteEvent>(Assert.Single(Recorded(track).ArrangedEvents));
+        Assert.Equal((960L, 480L, 64), (note.Position.Value, note.Duration.Value, (int)note.Note.Value));
+    }
+
+    [Fact]
+    public async Task WhileRecording_OnlyKeysOnTheRecordedTrackAreRecorded()
+    {
+        var other = _provider.CreatePort("Other", "other");
+        var track = AddTrack(_synth);
+        var elsewhere = AddTrack(other);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+        var received = _controller.Recorder.MessagesReceived;
+
+        // Hearing a note being edited, and a key of another track's piano roll, are not playing into the take.
+        _controller.Audition(track.Id, new NoteNumber(60), new Velocity(80));
+        RunTo(550);
+        _controller.PlayKey(elsewhere.Id, new NoteNumber(62), new Velocity(80));
+        RunTo(600);
+        _controller.EndAudition();
+        RunTo(650);
+        _controller.Stop();
+
+        Assert.Empty(Recorded(track).ArrangedEvents);
+        Assert.Contains(other.Sent, m => m.Bytes is [0x90, 62, 80]);
+        Assert.Equal(received, _controller.Recorder.MessagesReceived);
+    }
+
+    [Fact]
+    public async Task OnScreenAndKeyboardNotes_OfTheSamePitch_KeepTheirOwnReleases()
+    {
+        var track = AddTrack(_synth);
+        await _controller.RefreshAsync(Ct);
+        await _controller.RecordAsync(track.Id, new RecordOptions(CountInBars: 0), Ct);
+        _controller.Engine.Pump();
+        RunTo(500);
+
+        Play(60);
+        RunTo(750);
+        _controller.PlayKey(track.Id, new NoteNumber(60), new Velocity(90));
+        RunTo(1000);
+        _controller.EndAudition();
+        RunTo(1500);
+        Release(60);
+        RunTo(1600);
+        _controller.Stop();
+
+        var notes = Recorded(track).ArrangedEvents.Cast<NoteEvent>().Select(n => (n.Position.Value, n.Duration.Value, (int)n.Velocity.Value)).ToList();
+        Assert.Equal([(960L, 1920L, 100), (1440L, 480L, 90)], notes);
+    }
+
+    [Fact]
     public async Task Recording_ClicksTheMetronomeOnTheTracksOutput()
     {
         var track = AddTrack(_synth);

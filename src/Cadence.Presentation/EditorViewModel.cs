@@ -667,6 +667,18 @@ public sealed partial class EditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Plays a key of the piano roll's keyboard: auditioned like <see cref="Audition"/>, but recorded when
+    /// the edited track is being recorded.
+    /// </summary>
+    public void PlayKey(int pitch, int velocity = 100)
+    {
+        if (Track is { } track && pitch is >= 0 and <= 127)
+        {
+            _owner.PlayKey(track.Id, new NoteNumber(pitch), new Velocity(Math.Clamp(velocity, 1, 127)));
+        }
+    }
+
     public void EndAudition() => _owner.EndAudition();
 
     partial void OnInfoPositionChanged(string value)
