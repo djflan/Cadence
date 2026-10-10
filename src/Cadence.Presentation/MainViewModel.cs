@@ -84,6 +84,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             OnPropertyChanged(nameof(SelectedTrack));
             SyncSelection();
             SyncEditor();
+            Arrangement.KeepOnTracks([.. SelectedTracks.Select(t => t.Id)]);
             ApplyThru();
         };
         ApplyMetronome();

@@ -173,8 +173,16 @@ public sealed partial class ArrangementViewModel : ObservableObject
     /// <summary>Drops clips that no longer exist from the selection, e.g. after undo.</summary>
     internal void Sync()
     {
-        var existing = Sequence.Tracks.SelectMany(t => t.Clips).Select(c => c.Id).ToHashSet();
-        if (_selected.RemoveWhere(id => !existing.Contains(id)) > 0)
+        if (_selected.Count > 0 && _selected.RemoveWhere(id => TrackOf(id) is null) > 0)
+        {
+            RaiseChanged();
+        }
+    }
+
+    /// <summary>Drops selected clips that are not on <paramref name="tracks"/>, e.g. when the track selection moves away from them.</summary>
+    internal void KeepOnTracks(IReadOnlyCollection<TrackId> tracks)
+    {
+        if (_selected.Count > 0 && _selected.RemoveWhere(id => TrackOf(id) is not { } track || !tracks.Contains(track.Id)) > 0)
         {
             RaiseChanged();
         }

@@ -89,7 +89,7 @@ public partial class MainWindow : Window
         TempoBox.LostFocus += (_, _) => viewModel.CommitTempo(TempoBox.Text ?? string.Empty);
         MeterBox.LostFocus += (_, _) => viewModel.CommitMeter(MeterBox.Text ?? string.Empty);
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         var nativeMenuBar = OperatingSystem.IsMacOS();
         if (nativeMenuBar)
         {
@@ -199,6 +199,10 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The platform's command key: Cmd on macOS, Ctrl elsewhere.</summary>
+    private static KeyModifiers CommandModifier =>
+        Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+
     /// <summary>Selects a track from its lane, with the same modifiers as the track list.</summary>
     private void OnLaneClicked(int lane, KeyModifiers modifiers)
     {
@@ -207,9 +211,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
         var track = vm.Tracks[lane];
-        if (modifiers.HasFlag(command))
+        if (modifiers.HasFlag(CommandModifier))
         {
             if (!vm.SelectedTracks.Remove(track))
             {
@@ -238,9 +241,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        // The track first: changing the track selection drops selected clips on other tracks.
+        var track = vm.Tracks[lane];
+        if (modifiers is KeyModifiers.None or KeyModifiers.Alt)
+        {
+            if (vm.SelectedTracks.Count != 1 || vm.SelectedTrack != track)
+            {
+                vm.Select(track);
+            }
+        }
+        else if (!vm.SelectedTracks.Contains(track))
+        {
+            vm.SelectedTracks.Add(track);
+        }
+
         var arrangement = vm.Arrangement;
-        if (modifiers.HasFlag(command))
+        if (modifiers.HasFlag(CommandModifier))
         {
             arrangement.SelectClip(clip, Presentation.SelectionMode.Toggle);
         }
@@ -254,20 +270,10 @@ public partial class MainWindow : Window
             arrangement.SelectClip(clip);
         }
 
-        var track = vm.Tracks[lane];
-        if (modifiers == KeyModifiers.None || modifiers == KeyModifiers.Alt)
+        if (arrangement.SelectedClips.Contains(clip))
         {
-            if (vm.SelectedTrack != track)
-            {
-                vm.Select(track);
-            }
+            vm.Editor.EditClip(clip);
         }
-        else if (!vm.SelectedTracks.Contains(track))
-        {
-            vm.SelectedTracks.Add(track);
-        }
-
-        vm.Editor.EditClip(clip);
     }
 
     private void OpenInPianoRoll(int lane, ClipId? clip = null)
@@ -323,7 +329,7 @@ public partial class MainWindow : Window
     /// <summary>⌘/Ctrl + scroll zooms the arrangement around the pointer.</summary>
     private void OnTimelineWheel(object? sender, PointerWheelEventArgs e)
     {
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         if (!e.KeyModifiers.HasFlag(command) || e.Delta.Y == 0)
         {
             return;
@@ -602,7 +608,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var command = Avalonia.Application.Current?.PlatformSettings?.HotkeyConfiguration.CommandModifiers ?? KeyModifiers.Control;
+        var command = CommandModifier;
         var modifiers = e.KeyModifiers;
         if (FocusedTextBox() is { } editing)
         {

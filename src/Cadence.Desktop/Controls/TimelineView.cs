@@ -35,6 +35,10 @@ public sealed class TimelineView : Control
 
     private const double EdgeGrip = 5;
 
+    private static readonly Cursor ResizeCursor = new(StandardCursorType.SizeWestEast);
+    private static readonly Cursor MoveCursor = new(StandardCursorType.DragMove);
+    private static readonly Cursor CopyCursor = new(StandardCursorType.DragCopy);
+
     private static readonly IBrush LaneBrush = new SolidColorBrush(Palette.Lane);
     private static readonly IBrush LaneAltBrush = new SolidColorBrush(Palette.LaneAlt);
     private static readonly IBrush LaneSelected = new SolidColorBrush(Palette.LaneSelected);
@@ -249,6 +253,12 @@ public sealed class TimelineView : Control
         }
 
         ClipPressed?.Invoke(this, (lane, clip.Id, e.KeyModifiers));
+        if (grip == Grip.Body && !SelectedClips.Contains(clip.Id))
+        {
+            // The press took the clip out of the selection; there is nothing to drag.
+            return;
+        }
+
         (_drag, _dragPress, _dragLane, _dragClip) = (grip, point.Position, lane, clip);
         (_dragDelta, _dragLanes, _dragCopy, _dragging) = (0, 0, e.KeyModifiers.HasFlag(KeyModifiers.Alt), false);
         e.Pointer.Capture(this);
@@ -266,7 +276,7 @@ public sealed class TimelineView : Control
         if (_drag == Grip.None || !ReferenceEquals(e.Pointer.Captured, this))
         {
             // Show where an edge can be grabbed.
-            Cursor = HitTest(project.Sequence, position).Grip is Grip.StartEdge or Grip.EndEdge ? new Cursor(StandardCursorType.SizeWestEast) : Cursor.Default;
+            SetCursor(HitTest(project.Sequence, position).Grip is Grip.StartEdge or Grip.EndEdge ? ResizeCursor : Cursor.Default);
             return;
         }
 
@@ -285,18 +295,24 @@ public sealed class TimelineView : Control
 
         var sequence = project.Sequence;
         var raw = (long)Math.Round((position.X - _dragPress.X) * sequence.Ppqn.TicksPerQuarterNote / PixelsPerQuarter);
+        var track = sequence.Tracks[_dragLane];
         switch (_drag)
         {
             case Grip.Body:
-                _dragDelta = Math.Max(0, SnapClip(sequence, clip.Start.Value + raw)) - clip.Start.Value;
-                _dragLanes = Math.Clamp((int)Math.Floor(position.Y / LaneHeight), 0, sequence.Tracks.Length - 1) - _dragLane;
-                Cursor = new Cursor(_dragCopy ? StandardCursorType.DragCopy : StandardCursorType.DragMove);
+                // The selection moves as one: no clip before tick 0, none past the first or last lane.
+                var (earliest, firstLane, lastLane) = SelectionExtent(sequence);
+                _dragDelta = Math.Max(SnapClip(sequence, clip.Start.Value + raw) - clip.Start.Value, -earliest);
+                _dragLanes = Math.Clamp((int)Math.Floor(position.Y / LaneHeight) - _dragLane, -firstLane, sequence.Tracks.Length - 1 - lastLane);
+                SetCursor(_dragCopy ? CopyCursor : MoveCursor);
                 break;
             case Grip.StartEdge:
-                _dragDelta = Math.Clamp(SnapClip(sequence, clip.Start.Value + raw), 0, clip.End.Value - 1) - clip.Start.Value;
+                // Edges stop at neighbouring clips, as the resize does.
+                var before = track.Clips.Where(c => c.End <= clip.Start).Select(c => c.End.Value).DefaultIfEmpty(0).Max();
+                _dragDelta = Math.Clamp(SnapClip(sequence, clip.Start.Value + raw), before, clip.End.Value - 1) - clip.Start.Value;
                 break;
             case Grip.EndEdge:
-                _dragDelta = Math.Max(clip.Start.Value + 1, SnapClip(sequence, clip.End.Value + raw)) - clip.End.Value;
+                var after = track.Clips.Where(c => c.Start >= clip.End).Select(c => c.Start.Value).DefaultIfEmpty(long.MaxValue).Min();
+                _dragDelta = Math.Clamp(SnapClip(sequence, clip.End.Value + raw), clip.Start.Value + 1, after) - clip.End.Value;
                 break;
         }
 
@@ -331,11 +347,41 @@ public sealed class TimelineView : Control
     private void EndDrag()
     {
         (_drag, _dragClip, _dragDelta, _dragLanes, _dragging) = (Grip.None, null, 0, 0, false);
-        Cursor = Cursor.Default;
+        SetCursor(Cursor.Default);
         InvalidateVisual();
     }
 
+    private void SetCursor(Cursor cursor)
+    {
+        if (!ReferenceEquals(Cursor, cursor))
+        {
+            Cursor = cursor;
+        }
+    }
+
+    /// <summary>The earliest start among the selected clips, and the first and last lanes holding any.</summary>
+    private (long Earliest, int FirstLane, int LastLane) SelectionExtent(Sequence sequence)
+    {
+        var (earliest, first, last) = (long.MaxValue, int.MaxValue, -1);
+        for (var lane = 0; lane < sequence.Tracks.Length; lane++)
+        {
+            foreach (var clip in sequence.Tracks[lane].Clips)
+            {
+                if (SelectedClips.Contains(clip.Id))
+                {
+                    (earliest, first, last) = (Math.Min(earliest, clip.Start.Value), Math.Min(first, lane), lane);
+                }
+            }
+        }
+
+        return last < 0 ? (0, 0, sequence.Tracks.Length - 1) : (earliest, first, last);
+    }
+
     /// <summary>The lane and clip under <paramref name="point"/>, and which part of the clip: its body or an edge.</summary>
+    /// <remarks>
+    /// Edges can be grabbed a few pixels either side. Where two clips touch, the side of the line the
+    /// pointer is on decides which clip's edge it is.
+    /// </remarks>
     private (int Lane, Clip? Clip, Grip Grip) HitTest(Sequence sequence, Point point)
     {
         var lane = (int)Math.Floor(point.Y / LaneHeight);
@@ -344,31 +390,27 @@ public sealed class TimelineView : Control
             return (-1, null, Grip.None);
         }
 
-        foreach (var clip in sequence.Tracks[lane].Clips)
+        var track = sequence.Tracks[lane];
+        var tick = new Tick(Math.Max(0, XToTick(point.X)));
+        if (track.ClipAt(tick) is { } clip)
         {
-            var x0 = TickToX(clip.Start.Value);
-            var x1 = TickToX(clip.End.Value);
-            if (point.X < x0 - EdgeGrip || point.X > x1 + EdgeGrip)
-            {
-                continue;
-            }
+            var (x0, x1) = (TickToX(clip.Start.Value), TickToX(clip.End.Value));
 
             // Edges of clips too narrow to hold both are not offered, so the clip can still be dragged.
             var roomy = x1 - x0 > 4 * EdgeGrip;
-            if (roomy && Math.Abs(point.X - x0) <= EdgeGrip)
-            {
-                return (lane, clip, Grip.StartEdge);
-            }
+            var grip = !roomy ? Grip.Body : point.X - x0 <= EdgeGrip ? Grip.StartEdge : x1 - point.X <= EdgeGrip ? Grip.EndEdge : Grip.Body;
+            return (lane, clip, grip);
+        }
 
-            if (roomy && Math.Abs(point.X - x1) <= EdgeGrip)
-            {
-                return (lane, clip, Grip.EndEdge);
-            }
+        var (from, until) = track.GapAt(tick);
+        if (from > Tick.Zero && point.X - TickToX(from.Value) <= EdgeGrip && track.ClipAt(new Tick(from.Value - 1)) is { } before)
+        {
+            return (lane, before, Grip.EndEdge);
+        }
 
-            if (point.X >= x0 && point.X < x1)
-            {
-                return (lane, clip, Grip.Body);
-            }
+        if (until is { } next && TickToX(next.Value) - point.X <= EdgeGrip && track.ClipAt(next) is { } after)
+        {
+            return (lane, after, Grip.StartEdge);
         }
 
         return (lane, null, Grip.None);

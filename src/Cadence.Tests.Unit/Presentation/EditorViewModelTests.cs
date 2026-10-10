@@ -400,6 +400,17 @@ public sealed class EditorViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Arrangement_SelectingAnotherTrack_DropsClipsFromTheSelection()
+    {
+        _session.Execute(ProjectCommands.AddTrack(Track.Create("Other")));
+        _vm.Arrangement.SelectClip(Track.Clips[0].Id);
+
+        _vm.Select(_vm.Tracks[1]);
+
+        Assert.False(_vm.Arrangement.HasClipSelection);
+    }
+
+    [Fact]
     public void Arrangement_CreatesAnEmptyBarAndUndoDropsItFromTheSelection()
     {
         var id = _vm.Arrangement.CreateClip(Track.Id, 5000);
