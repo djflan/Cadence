@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Cadence.Application.Editing;
+using Cadence.Application.Plugins;
 using Cadence.Application.Sessions;
 using Cadence.Domain.Devices;
 using Cadence.Domain.Midi;
@@ -62,6 +63,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly PlaybackController _playback;
     private readonly EndpointDirectory _endpoints;
     private readonly IUserInteraction _ui;
+    private readonly PluginDeviceHost? _plugins;
     private readonly IUiDispatcher _dispatcher;
     private readonly MidiMonitor? _monitor;
     private IReadOnlyList<EndpointDescriptor> _outputDescriptors = [];
@@ -69,9 +71,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private long _lastInputCount;
     private int _inputActivityFrames;
 
-    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null, ComputerKeyboardViewModel? keyboard = null)
+    public MainViewModel(ProjectSession session, PlaybackController playback, EndpointDirectory endpoints, IUserInteraction ui, IUiDispatcher dispatcher, MidiMonitor? monitor = null, ComputerKeyboardViewModel? keyboard = null, PluginDeviceHost? plugins = null)
     {
         Keyboard = keyboard;
+        _plugins = plugins;
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _playback = playback ?? throw new ArgumentNullException(nameof(playback));
         _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
@@ -107,6 +110,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             Keyboard?.RefreshChannel();
         });
         _endpoints.EndpointsChanged += (_, _) => _dispatcher.Post(() => _ = RefreshAsync());
+        if (_plugins is not null)
+        {
+            _playback.UseDevices(_plugins.Extend(DeviceCatalog.BuiltIn));
+            _plugins.StatusChanged += (_, _) => _dispatcher.Post(SyncSelection);
+        }
+
         foreach (var failure in _playback.Profiles.Failures)
         {
             AddMessage(MessageSeverity.Warning, "Profiles", $"{Path.GetFileName(failure.Source)} was not loaded: {(failure.Diagnostics.Count > 0 ? failure.Diagnostics[0].ToString() : "unknown error")}");
@@ -152,8 +161,54 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     internal IUserInteraction UserInteraction => _ui;
 
-    /// <summary>A device's status for the strip.</summary>
-    internal DeviceStatus DeviceStatus(DeviceInstance device) => Presentation.DeviceStatus.Of(device, Devices);
+    /// <summary>A device's status for the strip: a plugin's from its worker, otherwise from the catalog.</summary>
+    internal DeviceStatus DeviceStatus(DeviceInstance device) =>
+        _plugins?.StatusOf(device) is { } runtime
+            ? new DeviceStatus(runtime.Text, runtime.NeedsAttention, runtime.CanRestart)
+            : Presentation.DeviceStatus.Of(device, Devices);
+
+    /// <summary>Restarts a crashed, hung, or quarantined plugin device and restores its last saved state.</summary>
+    internal async Task RestartDeviceAsync(DeviceId device)
+    {
+        if (_plugins is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!await _plugins.RestartAsync(device))
+            {
+                AddMessage(MessageSeverity.Warning, "Plugins", "The plugin did not start again. Its settings are kept; try again, or remove the device.");
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AddMessage(MessageSeverity.Warning, "Plugins", $"The plugin could not be restarted: {ex.Message}");
+        }
+
+        SyncSelection();
+    }
+
+    // Starts workers for plugin devices that need one and stops those whose device is gone. A failure is a message,
+    // never a crash and never a fall-back to Cadence's own process.
+    private async Task SyncPluginsAsync()
+    {
+        if (_plugins is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _plugins.SyncAsync(Project);
+            _playback.UseDevices(_plugins.Extend(DeviceCatalog.BuiltIn));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AddMessage(MessageSeverity.Warning, "Plugins", $"Plugins could not be started: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Changes the role of every selected track. A change that needs consent is asked about first; a refused one
@@ -659,14 +714,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     });
 
     [RelayCommand]
-    private Task SaveAsync() => _session.FilePath is null ? SaveAsAsync() : RunAsync("Save", () => _session.SaveAsync());
+    private Task SaveAsync() => _session.FilePath is null ? SaveAsAsync() : RunAsync("Save", async () =>
+    {
+        await CapturePluginStateAsync();
+        await _session.SaveAsync();
+    });
+
+    // Plugins hold their own state while they run; it goes into the project before the project is written.
+    private Task CapturePluginStateAsync() => _plugins?.CaptureAllAsync() ?? Task.CompletedTask;
 
     [RelayCommand]
     private async Task SaveAsAsync()
     {
         if (await _ui.PickSaveFileAsync("Save Project", ProjectName + ".cadence", FileFilters.Project) is { } path)
         {
-            await RunAsync("Save", () => _session.SaveAsync(path));
+            await RunAsync("Save", async () =>
+            {
+                await CapturePluginStateAsync();
+                await _session.SaveAsync(path);
+            });
         }
     }
 
@@ -1075,6 +1141,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SyncTracks();
         SyncEditor();
         Arrangement.Sync();
+        await SyncPluginsAsync();
         await RefreshAsync();
     }
 
@@ -1289,6 +1356,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         Keyboard?.ReleaseAll();
         _monitor?.Dispose();
+        if (_plugins is not null)
+        {
+            await _plugins.DisposeAsync();
+        }
+
         await _playback.DisposeAsync();
     }
 }

@@ -17,6 +17,8 @@
     <ProjectReference Include="../Cadence.Platform.CoreMidi/Cadence.Platform.CoreMidi.csproj" />
     <ProjectReference Include="../Cadence.Platform.Windows/Cadence.Platform.Windows.csproj" />
     <ProjectReference Include="../Cadence.Presentation/Cadence.Presentation.csproj" />
+    <!-- Plugins run in this worker, a separate process copied beside the app; it is never loaded into the app. -->
+    <ProjectReference Include="../Cadence.PluginWorker/Cadence.PluginWorker.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <!-- Shipped device profiles are data, copied beside the executable. -->

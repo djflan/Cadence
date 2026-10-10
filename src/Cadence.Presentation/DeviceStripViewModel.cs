@@ -162,6 +162,8 @@ public sealed partial class DeviceStripViewModel : ObservableObject
     internal void SetParameter(DeviceViewModel device, ParameterId parameter, ControlValue value) => _owner.Execute(DeviceCommands.SetParameter(device.Id, parameter, value));
 
     internal void ShowRouting(DeviceViewModel device) => _owner.Connections.RouteFrom(device.Id);
+
+    internal Task RestartAsync(DeviceViewModel device) => _owner.RestartDeviceAsync(device.Id);
 }
 
 /// <summary>One device in the strip, with its status in words, its routing taps, and its parameters.</summary>
@@ -193,6 +195,10 @@ public sealed partial class DeviceViewModel : ObservableObject
     [ObservableProperty]
     public partial bool NeedsAttention { get; private set; }
 
+    /// <summary>A plugin that crashed or stopped responding can be restarted from its last saved state.</summary>
+    [ObservableProperty]
+    public partial bool CanRestart { get; private set; }
+
     [ObservableProperty]
     public partial bool IsBypassed { get; set; }
 
@@ -223,6 +229,7 @@ public sealed partial class DeviceViewModel : ObservableObject
             Kind = definition is null ? "Unknown device" : new DeviceChoice(definition).Detail;
             Status = status.Text;
             NeedsAttention = status.NeedsAttention;
+            CanRestart = status.CanRestart;
             Title = status.NeedsAttention ? $"[{device.DisplayName}: {status.Text}]" : device.DisplayName;
             IsBypassed = device.IsBypassed;
             CanMoveUp = index > 0;
@@ -272,6 +279,9 @@ public sealed partial class DeviceViewModel : ObservableObject
     /// <summary>Opens the routing inspector with this device's output as the source.</summary>
     [RelayCommand]
     private void ShowRouting() => _strip.ShowRouting(this);
+
+    [RelayCommand]
+    private Task RestartAsync() => _strip.RestartAsync(this);
 
     internal void SetParameter(ParameterId parameter, ControlValue value)
     {
@@ -338,7 +348,7 @@ public sealed partial class ParameterViewModel : ObservableObject
 }
 
 /// <summary>A device's status in words, and whether it needs the musician's attention.</summary>
-public sealed record DeviceStatus(string Text, bool NeedsAttention = false)
+public sealed record DeviceStatus(string Text, bool NeedsAttention = false, bool CanRestart = false)
 {
     public static DeviceStatus Of(DeviceInstance device, DeviceCatalog catalog)
     {

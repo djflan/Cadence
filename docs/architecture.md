@@ -41,7 +41,10 @@ Cadence.Profiles          Domain             device profiles: what an instrument
 Cadence.Signal            Domain             chain runner, built-in processors, device catalog, signal graph
 Cadence.Infrastructure    Domain             project files, chain preset files, migrations
 Cadence.Playback          Domain, Midi, Signal   real-time engine, prepared plans
-Cadence.Application       all of the above   sessions, editing commands, recording, routing resolution
+Cadence.Plugins.Protocol  (nothing)          plugin control-plane frames and the shared-memory block exchange
+Cadence.Plugins           Plugins.Protocol   worker supervision, crash recovery, scanning (main process)
+Cadence.PluginWorker      Plugins.Protocol   the worker executable that hosts plugins (separate process)
+Cadence.Application       all of the above   sessions, editing commands, recording, routing resolution, plugin bridge
 Cadence.Presentation      Application        view models, no UI framework
 Cadence.Desktop           Presentation, Platform.*   Avalonia views, platform selection
 Cadence.Platform.*        Midi               CoreMIDI, WinMM, ALSA adapters

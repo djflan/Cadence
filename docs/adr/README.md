@@ -29,6 +29,7 @@ change its decision; a later ADR supersedes it and the superseded record is mark
 | [0022](0022-device-chains.md) | Device chains: definitions, instances, ownership, and processing semantics | Accepted |
 | [0023](0023-signal-routing-model.md) | One signal routing model: connections, external instruments, and mixer channels | Accepted; supersedes 0008 |
 | [0024](0024-device-automation.md) | Device parameter automation is separate from signal flow | Accepted; amends 0020 |
+| [0025](0025-out-of-process-plugin-hosting.md) | Plugins run out of process; isolation is crash isolation, not a sandbox | Accepted |
 | [0026](0026-native-technology-policy.md) | Native technology policy: C# first, Rust where measurements or native interfaces demand it | Accepted |
 | [0027](0027-project-format-4.md) | Project format 4 and the migration from per-track routes | Accepted; amends 0009 |
 

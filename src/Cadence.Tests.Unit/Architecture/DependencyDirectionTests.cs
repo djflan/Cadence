@@ -12,7 +12,7 @@ public sealed class DependencyDirectionTests
         { "Cadence.Profiles", ["Cadence.Domain"] },
         { "Cadence.Signal", ["Cadence.Domain"] },
         { "Cadence.Playback", ["Cadence.Domain", "Cadence.Midi", "Cadence.Signal"] },
-        { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles", "Cadence.Signal"] },
+        { "Cadence.Application", ["Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Plugins", "Cadence.Plugins.Protocol", "Cadence.Profiles", "Cadence.Signal"] },
         { "Cadence.Infrastructure", ["Cadence.Domain"] },
         { "Cadence.Presentation", ["Cadence.Application", "Cadence.Domain", "Cadence.Infrastructure", "Cadence.Midi", "Cadence.Playback", "Cadence.Profiles", "Cadence.Signal"] },
         { "Cadence.Plugins.Protocol", [] },

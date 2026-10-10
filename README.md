@@ -15,7 +15,7 @@ It is initially focused on excellent Yamaha XG and QY100 workflows, while its ar
 
 Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); arrange tracks as clips that can be moved, copied, trimmed, and split; draw automation lanes for controllers, pitch bend, and pressure; edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
 
-Cadence is becoming a DAW without giving up MIDI depth. **Working today:** track roles (instrument, audio, hybrid, effect, group) that convert safely; device chains on tracks and shared racks with built-in Transpose, Event Filter, and Arpeggiator devices, bypass, reordering, parameters, and chain presets; one routing model (connections from a track or from after any device to other tracks, racks, external instruments by port and channel, and mixer channels) with feedback detection; external MIDI instruments as project entities; device parameter automation; project format 4 with a migration that plays older projects byte for byte. **Modelled but not yet sounding:** audio clips, software instruments, and the mixer (there is no audio engine yet). See [docs/architecture.md](docs/architecture.md).
+Cadence is becoming a DAW without giving up MIDI depth. **Working today:** track roles (instrument, audio, hybrid, effect, group) that convert safely; device chains on tracks and shared racks with built-in Transpose, Event Filter, and Arpeggiator devices, bypass, reordering, parameters, and chain presets; one routing model (connections from a track or from after any device to other tracks, racks, external instruments by port and channel, and mixer channels) with feedback detection; external MIDI instruments as project entities; device parameter automation; project format 4 with a migration that plays older projects byte for byte. **Modelled but not yet sounding:** audio clips, software instruments, and the mixer (there is no audio engine yet). **Plugins:** an out-of-process hosting foundation (worker processes, crash detection and recovery, state persistence, crash-isolated scanning) tested by killing real worker processes, using Cadence's own reference plugins; third-party plugin formats such as VST3 are not supported yet. See [docs/architecture.md](docs/architecture.md) and [docs/plugin-hosting.md](docs/plugin-hosting.md).
 
 ### Platform support
 
@@ -82,6 +82,7 @@ Cadence/
 │   ├── adr/            Architecture decision records
 │   ├── architecture.md Layers, project map, tracks, devices, routing, and MIDI/SysEx strategy
 │   ├── midi-files.md   Standard MIDI File behavior and diagnostics
+│   ├── plugin-hosting.md  Out-of-process plugin hosting, crash recovery, and its limits
 │   ├── profiles.md     Device profile format
 │   └── project-format.md  Cadence project files, saving, and recovery
 ├── profiles/           Shipped device profiles (data, not code)

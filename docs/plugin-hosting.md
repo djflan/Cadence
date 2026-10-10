@@ -337,6 +337,39 @@ Operating-system sandboxing (App Sandbox, seccomp, AppContainer, and so on) is d
 - **Verified on**: macOS ARM64 only. The code is cross-platform C#, but nothing here has been run on Linux or
   Windows yet; the CI matrix will be the first to do so.
 
+## The application bridge
+
+`Cadence.Application/Plugins/PluginDeviceHost` connects the project to the workers; the project stays the
+authority (ADR 0025):
+
+- A plugin device in a chain has a definition ID `plugin:<format>:<module>/<plugin>`. Each available plugin is
+  added to the device catalog as data (with the parameters its worker reports), never with an in-process factory.
+- `SyncAsync(project)` gives every plugin device whose plugin is available an instance, created from the device's
+  saved `PluginState` and parameter values, and destroys instances whose device is gone. A device whose plugin is
+  missing gets no worker, keeps its state, and shows "Not installed".
+- `CaptureStateAsync` / `CaptureAllAsync` store a running plugin's state and parameter values in the project as one
+  undoable step; the app does this before every save. A crashed plugin is never asked for state; the last stored
+  state stays.
+- `StatusOf(device)` turns the instance status into the device strip's words ("Running", "Crashed",
+  "Not responding", "Stopped after repeated crashes"), and `RestartAsync` restarts from the last captured state.
+- The desktop app scans `<application data>/Cadence/plugins` at start, one scanner process per module.
+
+Tests: `PluginDeviceHostTests` (scenarios 11 to 13 through the project: save, reopen, kill, restart, automation still
+valid; one of two workers killed; a missing plugin; removing a device stops its worker) and
+`PluginDeviceStripTests` (the strip shows `[Reference Gain: Crashed]` with Restart after a real kill).
+
+## Acceptance scenarios
+
+| # | Scenario | Tests (real worker processes) |
+| - | -------- | ----------------------------- |
+| 11 | A worker crashes; Cadence keeps running, the project survives, the device shows as unavailable, and can be restarted | `PluginCrashRecoveryTests.KillingTheWorkerMidStream_*`, `PluginDeviceHostTests.Scenarios11And13_*`, `PluginDeviceStripTests` |
+| 12 | A restarted worker is restored from persisted state; automation references stay valid | `PluginDeviceHostTests.Scenario12_*`, `PluginCrashRecoveryTests.ASnapshot_RestoresIntoANewInstance` |
+| 13 | Several workers; one fails, the others keep working | `PluginCrashRecoveryTests.KillingOneOfSeveralWorkers_LeavesTheOthersProducingCorrectAudio`, `PluginDeviceHostTests.Scenarios11And13_*` |
+| 15 | A module crashes the scanner; Cadence carries on, reports it, and skips it next time | `PluginScannerProcessTests.ACrashingModule_IsQuarantined_SkippedNextTime_AndRetriedOnRequest_WhileOthersStillScan` |
+
+These use the reference plugins in `Cadence.PluginWorker`, not third-party plugins: the crash, recovery, and
+isolation machinery is real, the plugins are Cadence's own.
+
 ## Implemented and tested
 
 | What | Tests |
@@ -371,5 +404,7 @@ and run as one non-parallel collection. The integration project references the w
 - **Wake-up primitives** (futex, eventfd, Windows events) for the data plane.
 - **MIDI 2.0** events on the data plane.
 - **In-process hosting** of trusted plugins.
-- **Application bridge**: connecting a project's `DeviceInstance` to a plugin instance, storing `LastSnapshot` in
-  the project, and showing status in the device strip.
+- **Audio from plugins into a mixer.** There is no audio engine: plugin instances process blocks when asked (as the
+  tests do), but nothing drives them from playback yet, and a plugin MIDI effect's output does not reach the plan.
+- **Scanning from the UI.** The app scans `<application data>/Cadence/plugins` once at start; rescanning and
+  clearing quarantine are API calls (`PluginScanner.RescanAsync`) without a menu yet.
