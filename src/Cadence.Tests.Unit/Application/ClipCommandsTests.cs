@@ -90,18 +90,63 @@ public sealed class ClipCommandsTests
     }
 
     [Fact]
-    public void Record_Overdub_JoinsTheClipsTheTakeOverlaps()
+    public void EditEvents_BetweenClips_GoToTheEditedClipOnlyNextToIt()
+    {
+        var edited = Clip(0, 1920);
+        var project = With(edited, Clip(3840, 1920));
+        var id = TrackOf(project).Id;
+
+        // Past the next clip: a new clip in that gap, not hidden content of the edited clip.
+        var far = ProjectCommands.AddEvent(id, edited.Id, Note(8000)).Apply(project);
+        Assert.Equal([(0L, 1920L), (3840L, 5760L), (7680L, 9600L)], Bounds(far));
+        Assert.Equal([8000L], TrackOf(far).ArrangedEvents.Select(e => e.Position.Value));
+        Assert.NotEqual(edited.Id, TrackOf(far).Clips[2].Id);
+    }
+
+    [Fact]
+    public void EditEvents_MovingAnEventIntoAnotherClip_MovesItThere()
+    {
+        var note = Note(100);
+        var from = Clip(0, 1920, note);
+        var into = Clip(3840, 1920);
+        var project = With(from, into);
+
+        var moved = ProjectCommands.ReplaceEvent(TrackOf(project).Id, from.Id, note with { Position = new Tick(4000) }).Apply(project);
+
+        Assert.Empty(((NoteClip)TrackOf(moved).Clips[0]).Content.Items);
+        Assert.Equal(note.Id, Assert.Single(((NoteClip)TrackOf(moved).Clips[1]).Content.Items).Id);
+        Assert.Equal([4000L], TrackOf(moved).ArrangedEvents.Select(e => e.Position.Value));
+    }
+
+    [Fact]
+    public void EditEvents_ThatNeedANewClipAndGrowAnother_DoNotOverlap()
+    {
+        // The first note grows its clip to the bar line; the second starts a clip in the gap it grew into.
+        var clip = Clip(0, 1000);
+        var project = With(clip);
+
+        var edited = ProjectCommands.AddEvents(TrackOf(project).Id, ClipId.New(), "Paste", [Note(500, length: 1000), Note(1200)]).Apply(project);
+
+        Assert.Equal([(0L, 1000L), (1000L, 1920L)], Bounds(edited));
+        Assert.Equal(2, TrackOf(edited).ArrangedEvents.Length);
+    }
+
+    [Fact]
+    public void Record_Overdub_AddsEachEventToTheClipWhereItStarts()
     {
         var a = Note(100);
         var b = Note(100);
         var project = With(Clip(0, 1920, a), Clip(1920, 1920, b), Clip(5760, 1920));
         var take = Note(1800, length: 400);
+        var late = Note(4000);
 
-        var recorded = ProjectCommands.Record(TrackOf(project).Id, [take], null).Apply(project);
+        var recorded = ProjectCommands.Record(TrackOf(project).Id, [take, late], null).Apply(project);
 
-        Assert.Equal([(0L, 3840L), (5760L, 7680L)], Bounds(recorded));
-        Assert.Equal([a.Id, take.Id, b.Id], TrackOf(recorded).ArrangedEvents.Select(e => e.Id));
-        Assert.Equal(TrackOf(project).Clips[0].Id, TrackOf(recorded).Clips[0].Id);
+        // Nothing is joined or trimmed. The late event starts in a gap the take's first clip does not
+        // border, so it gets a clip of its own there.
+        Assert.Equal([(0L, 1920L), (1920L, 3840L), (3840L, 5760L), (5760L, 7680L)], Bounds(recorded));
+        Assert.Equal([a.Id, take.Id, b.Id, late.Id], TrackOf(recorded).ArrangedEvents.Select(e => e.Id));
+        Assert.Equal(400, ((NoteEvent)((NoteClip)TrackOf(recorded).Clips[0]).Content.Items[1]).Duration.Value);
     }
 
     [Fact]
@@ -115,29 +160,29 @@ public sealed class ClipCommandsTests
     }
 
     [Fact]
-    public void Record_Replace_ClearsTheRangeAndJoinsPickupNotes()
+    public void Record_Replace_RemovesWhatPlaysInTheRange_ButKeepsMetaEvents()
     {
         var before = Note(100);
         var inside = Note(2000);
-        var project = With(Clip(0, 3840, before, inside));
+        var meta = new MetaEvent(EventId.New(), new Tick(2500), 0x06, ByteBlock.Copy("Chorus"u8));
+        var project = With(Clip(0, 3840, before, inside, meta));
         var pickup = Note(1900, length: 200);
         var take = Note(2100);
 
         var recorded = ProjectCommands.Record(TrackOf(project).Id, [pickup, take], new TickRange(new Tick(1920), new Tick(3840))).Apply(project);
 
-        // The pickup note starts before the range, so the take joins the clip it reaches into.
         Assert.Equal([(0L, 3840L)], Bounds(recorded));
-        Assert.Equal([before.Id, pickup.Id, take.Id], TrackOf(recorded).ArrangedEvents.Select(e => e.Id));
+        Assert.Equal([before.Id, pickup.Id, take.Id, meta.Id], TrackOf(recorded).ArrangedEvents.Select(e => e.Id));
     }
 
     [Fact]
-    public void Record_ReplaceWithNothing_StillClearsTheRange()
+    public void Record_ReplaceWithNothing_StillEmptiesTheRange()
     {
         var project = With(Clip(0, 3840, Note(100), Note(2000)));
 
         var recorded = ProjectCommands.Record(TrackOf(project).Id, [], new TickRange(new Tick(1920), new Tick(3840))).Apply(project);
 
-        Assert.Equal([(0L, 1920L)], Bounds(recorded));
+        Assert.Equal([(0L, 3840L)], Bounds(recorded));
         Assert.Single(TrackOf(recorded).ArrangedEvents);
     }
 

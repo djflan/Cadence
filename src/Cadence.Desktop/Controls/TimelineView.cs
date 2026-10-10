@@ -293,12 +293,27 @@ public sealed class TimelineView : Control
         var notes = track.ArrangedEvents.OfType<NoteEvent>().ToList();
         var low = notes.Count == 0 ? 0 : notes.Min(n => n.Note.Value);
         var high = Math.Max(low + 12, notes.Count == 0 ? 0 : notes.Max(n => n.Note.Value));
+        var first = 0;
         foreach (var clip in track.Clips)
         {
-            DrawClip(context, track, clip, notes, (low, high), lane, left, right, offset);
+            // Notes are in timeline order and clips do not overlap, so each clip's notes follow the last clip's.
+            while (first < notes.Count && notes[first].Position < clip.Start)
+            {
+                first++;
+            }
+
+            var end = first;
+            while (end < notes.Count && notes[end].Position < clip.End)
+            {
+                end++;
+            }
+
+            DrawClip(context, track, clip, notes.GetRange(first, end - first), (low, high), lane, left, right, offset);
+            first = end;
         }
     }
 
+    // The notes given are this clip's, in timeline order.
     private void DrawClip(DrawingContext context, Track track, Clip clip, List<NoteEvent> notes, (int Low, int High) range, int lane, double left, double right, long offset)
     {
         var shift = TickToX(offset);
@@ -357,7 +372,7 @@ public sealed class TimelineView : Control
                     break;
                 }
 
-                if (note.EndPosition.Value < firstTick || !clip.Contains(note.Position))
+                if (note.EndPosition.Value < firstTick)
                 {
                     continue;
                 }

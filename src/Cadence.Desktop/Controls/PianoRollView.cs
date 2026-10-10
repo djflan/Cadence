@@ -184,7 +184,7 @@ public sealed class PianoRollView : Control
     public double GridHeight => Math.Max(0, Bounds.Height - RulerHeight - LaneHeight);
 
     public double ExtentWidth => Project is { } p && _editor is { } e
-        ? TimeGrid.TickToX(Math.Max(p.Sequence.EndPosition.Value, _editor.Track?.EndPosition.Value ?? 0) + (32L * p.Sequence.Ppqn.TicksPerQuarterNote), p.Sequence, e.Zoom)
+        ? TimeGrid.TickToX(Math.Max(p.Sequence.EndPosition.Value, _editor.Clip is { } clip ? clip.Origin + clip.Content.EndPosition.Value : 0) + (32L * p.Sequence.Ppqn.TicksPerQuarterNote), p.Sequence, e.Zoom)
         : 0;
 
     public double ExtentHeight => 128 * KeyHeight;

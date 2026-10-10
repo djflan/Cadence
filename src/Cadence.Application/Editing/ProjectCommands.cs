@@ -38,15 +38,16 @@ public static class ProjectCommands
         EditEvents(track, clip, "Edit Event", [], [trackEvent]);
 
     /// <summary>
-    /// Removes <paramref name="remove"/> from one clip and adds <paramref name="add"/> (at timeline
-    /// positions) to it in a single step. An event in both is replaced; events not in the clip are
-    /// ignored when removing.
+    /// Removes <paramref name="remove"/> and adds <paramref name="add"/> (at timeline positions) in a single
+    /// step, for an editor working on <paramref name="clip"/>. An event in both is replaced; removing finds
+    /// events in whichever clip holds them, and ignores events not on the track.
     /// </summary>
     /// <remarks>
-    /// The clip grows, to bar lines, to show what was added, but never into a neighbouring clip or before
-    /// tick 0; anything still outside it is kept hidden. If the track has no clip with that ID, one is
-    /// created around the added events in the gap where they start (or, if a clip is already there,
-    /// they go into that clip).
+    /// Each added event goes to the note clip where it starts. One that starts between clips goes to
+    /// <paramref name="clip"/> when that clip borders the same gap, or else to a new clip in its gap (the
+    /// first new clip takes <paramref name="clip"/>'s ID if the track has no such clip yet). Clips grow, to
+    /// bar lines, to show what they receive, but never into a neighbouring clip or before tick 0; a note
+    /// reaching past that is kept whole but plays only to the clip's end.
     /// </remarks>
     public static IProjectCommand EditEvents(TrackId track, ClipId clip, string label, IEnumerable<EventId> remove, IEnumerable<TrackEvent> add)
     {
@@ -55,25 +56,8 @@ public static class ProjectCommands
         removed.UnionWith(added.Select(e => e.Id));
         return EditTrack(label, track, (t, meter) =>
         {
-            switch (t.FindClip(clip))
-            {
-                case NoteClip target:
-                    if (added.Count == 0 && !target.Content.Items.Any(e => removed.Contains(e.Id)))
-                    {
-                        return t;
-                    }
-
-                    return t.WithClip(GrowToShow(target.EditTimeline(removed, added), added, t, meter));
-                case null when added.Count > 0 && t.ClipAt(added.Min(e => e.Position)) is NoteClip existing:
-                    // Something already sits where the new clip would start; add to that clip instead.
-                    return t.WithClip(GrowToShow(existing.EditTimeline(removed, added), added, t, meter));
-                case null when added.Count > 0:
-                    var created = NoteClip.Enclosing(added, meter, clip)!;
-                    var (from, until) = Gap(t, created.Start, created.End, added.Min(e => e.Position));
-                    return t.WithClip(created.WithBounds(from, until));
-                default:
-                    return t;
-            }
+            var without = Without(t, removed);
+            return added.Count == 0 && ReferenceEquals(without, t) ? t : Route(without, clip, added, meter);
         });
     }
 
@@ -85,48 +69,38 @@ public static class ProjectCommands
         EditEvents(track, clip, label, [], events);
 
     /// <summary>Removes events from whichever of the track's clips hold them.</summary>
-    public static IProjectCommand RemoveEvents(TrackId track, IReadOnlyCollection<EventId> events) =>
-        EditTrack(events.Count == 1 ? "Delete Event" : "Delete Events", track, (t, _) =>
-        {
-            var ids = events.ToHashSet();
-            var clips = t.Clips.Select(c => c is NoteClip notes && notes.Content.Items.Any(e => ids.Contains(e.Id))
-                ? notes.EditTimeline(ids, [])
-                : c).ToList();
-            return clips.SequenceEqual(t.Clips) ? t : t.WithClips(clips);
-        });
+    public static IProjectCommand RemoveEvents(TrackId track, IReadOnlyCollection<EventId> events, string? label = null) =>
+        EditTrack(label ?? (events.Count == 1 ? "Delete Event" : "Delete Events"), track, (t, _) => Without(t, events.ToHashSet()));
 
     /// <summary>
-    /// Adds a recorded take to a track as a clip. With <paramref name="replaceRange"/>, that range is cleared
-    /// first (replace recording). The take's clip then joins any clips it overlaps, keeping their visible
-    /// events, so overdubbing never loses anything.
+    /// Adds a recorded take. With <paramref name="replaceRange"/>, the events that play starting inside that
+    /// range are removed first, except meta events (replace recording); otherwise the take is merged
+    /// (overdub). The take's events go into clips as <see cref="EditEvents"/> places them, starting from the
+    /// clip where the take starts, so nothing already on the track is lost.
     /// </summary>
     public static IProjectCommand Record(TrackId track, IReadOnlyCollection<TrackEvent> take, TickRange? replaceRange) =>
         EditTrack("Record", track, (t, meter) =>
         {
-            var cleared = replaceRange is { } range ? t.ClearRange(range.Start, range.End) : t;
+            var cleared = t;
+            if (replaceRange is { } range)
+            {
+                var replaced = t.Clips.OfType<NoteClip>()
+                    .SelectMany(c => c.Arrange())
+                    .Where(e => e.Position >= range.Start && e.Position < range.End && e is not MetaEvent)
+                    .Select(e => e.Id)
+                    .ToHashSet();
+                cleared = Without(t, replaced);
+            }
+
             if (take.Count == 0)
             {
                 return cleared;
             }
 
-            var first = take.Min(e => e.Position.Value);
-            var reach = Math.Max(take.Max(e => e.EndPosition.Value), take.Max(e => e.Position.Value) + 1);
-            var (from, until) = replaceRange is { } r
-                ? (Math.Min(first, r.Start.Value), Math.Max(reach, r.End.Value))
-                : Bars(NoteClip.EnclosingBounds(first, reach - 1, reach, meter));
-            var joined = cleared.Clips.OfType<NoteClip>().Where(c => c.Overlaps(new Tick(from), new Tick(until))).ToList();
-            if (joined.Count > 0)
-            {
-                from = Math.Min(from, joined[0].Start.Value);
-                until = Math.Max(until, joined[^1].End.Value);
-            }
-
-            var events = joined.SelectMany(c => c.Arrange()).Concat(take).Select(e => e with { Position = new Tick(e.Position.Value - from) });
-            var clip = new NoteClip(joined.Count > 0 ? joined[0].Id : ClipId.New(), new Tick(from), new TickSpan(until - from), TickSpan.Zero, new EventList(events));
-            return cleared.PlaceClip(clip);
+            var start = cleared.ClipAt(take.Min(e => e.Position))?.Id ?? ClipId.New();
+            return Route(cleared, start, [.. take], meter);
         });
 
-    /// <summary>Sets a route, replacing any existing route for the same track.</summary>
     /// <summary>Sets a route, replacing any existing route for the same track.</summary>
     public static IProjectCommand SetRoute(TrackRoute route) =>
         new ProjectCommand("Change Routing", p => Equals(p.Routing.Find(route.Track), route) ? p : p with { Routing = p.Routing.With(route) });
@@ -215,14 +189,85 @@ public static class ProjectCommands
             return ReferenceEquals(edited, track) ? p : p with { Sequence = p.Sequence.WithTrack(edited) };
         });
 
-    /// <summary>Grows <paramref name="clip"/> to bar lines around <paramref name="added"/>, within its gap on <paramref name="track"/>.</summary>
-    private static NoteClip GrowToShow(NoteClip clip, List<TrackEvent> added, Track track, MeterMap meter)
+    /// <summary>The track with <paramref name="ids"/> removed from every clip holding them, or the same track if none does.</summary>
+    private static Track Without(Track track, HashSet<EventId> ids)
+    {
+        var changed = false;
+        var clips = track.Clips.Select(c =>
+        {
+            if (c is NoteClip notes && notes.Content.Items.Any(e => ids.Contains(e.Id)))
+            {
+                changed = true;
+                return notes.EditTimeline(ids, []);
+            }
+
+            return c;
+        }).ToList();
+        return changed ? track.WithClips(clips) : track;
+    }
+
+    /// <summary>Adds events (at timeline positions) to clips as <see cref="EditEvents"/> describes.</summary>
+    private static Track Route(Track track, ClipId preferred, List<TrackEvent> added, MeterMap meter)
     {
         if (added.Count == 0)
         {
-            return clip;
+            return track;
         }
 
+        var target = track.FindClip(preferred) as NoteClip;
+        var firstGap = target is null ? GapAround(track, added.Min(e => e.Position)).From : (Tick?)null;
+        var groups = new Dictionary<ClipId, List<TrackEvent>>();
+        var created = new Dictionary<Tick, ClipId>();
+        foreach (var e in added)
+        {
+            ClipId destination;
+            if (track.ClipAt(e.Position) is NoteClip at)
+            {
+                destination = at.Id;
+            }
+            else if (target is not null && GapAround(track, e.Position) is var (from, until) && (from == target.End || until == target.Start))
+            {
+                destination = target.Id;
+            }
+            else
+            {
+                var gap = GapAround(track, e.Position).From;
+                if (!created.TryGetValue(gap, out destination))
+                {
+                    destination = gap == firstGap ? preferred : ClipId.New();
+                    created.Add(gap, destination);
+                }
+            }
+
+            if (!groups.TryGetValue(destination, out var list))
+            {
+                groups.Add(destination, list = []);
+            }
+
+            list.Add(e);
+        }
+
+        // New clips first, in the gaps as they were; existing clips then grow only into what is left.
+        var result = track;
+        foreach (var (id, events) in groups.Where(g => created.ContainsValue(g.Key)))
+        {
+            var clip = NoteClip.Enclosing(events, meter, id)!;
+            var (gapStart, gapEnd) = GapAround(track, events.Min(e => e.Position));
+            result = result.WithClip(clip.WithBounds(Tick.Max(clip.Start, gapStart), gapEnd is { } end ? Tick.Min(clip.End, end) : clip.End));
+        }
+
+        foreach (var (id, events) in groups.Where(g => !created.ContainsValue(g.Key)))
+        {
+            var existing = (NoteClip)result.FindClip(id)!;
+            result = result.WithClip(GrowToShow(existing.EditTimeline([], events), events, result, meter));
+        }
+
+        return result;
+    }
+
+    /// <summary>Grows <paramref name="clip"/> to bar lines around <paramref name="added"/>, within its gap on <paramref name="track"/>.</summary>
+    private static NoteClip GrowToShow(NoteClip clip, List<TrackEvent> added, Track track, MeterMap meter)
+    {
         var first = added.Min(e => e.Position.Value);
         var last = added.Max(e => e.Position.Value);
         var reach = Math.Max(added.Max(e => e.EndPosition.Value), last + 1);
@@ -232,27 +277,30 @@ public static class ProjectCommands
         }
 
         var (barStart, barEnd) = NoteClip.EnclosingBounds(first, last, reach, meter);
-        var (from, until) = Gap(track.RemoveClip(clip.Id), Tick.Min(clip.Start, barStart), Tick.Max(clip.End, barEnd), clip.Start);
-        return clip.WithBounds(from, until);
+        var others = track.RemoveClip(clip.Id);
+        var before = others.Clips.Where(c => c.End <= clip.Start).Select(c => c.End).DefaultIfEmpty(Tick.Zero).Max();
+        var after = others.Clips.Where(c => c.Start >= clip.End).Select(c => (Tick?)c.Start).Min();
+        var until = Tick.Max(clip.End, barEnd);
+        return clip.WithBounds(Tick.Max(before, Tick.Min(clip.Start, barStart)), after is { } next ? Tick.Min(until, next) : until);
     }
 
-    /// <summary>[<paramref name="from"/>, <paramref name="until"/>) narrowed to the free space on <paramref name="track"/> around <paramref name="anchor"/>.</summary>
-    private static (Tick From, Tick Until) Gap(Track track, Tick from, Tick until, Tick anchor)
+    /// <summary>The free space around <paramref name="position"/>, which no clip covers: from the end of the clip before it, to the start of the clip after it (null if none).</summary>
+    private static (Tick From, Tick? Until) GapAround(Track track, Tick position)
     {
-        foreach (var other in track.Clips)
+        var from = Tick.Zero;
+        Tick? until = null;
+        foreach (var clip in track.Clips)
         {
-            if (other.End <= anchor)
+            if (clip.End <= position)
             {
-                from = Tick.Max(from, other.End);
+                from = Tick.Max(from, clip.End);
             }
-            else if (other.Start > anchor)
+            else if (clip.Start > position)
             {
-                until = Tick.Min(until, other.Start);
+                until = until is { } u ? Tick.Min(u, clip.Start) : clip.Start;
             }
         }
 
         return (from, until);
     }
-
-    private static (long From, long Until) Bars((Tick Start, Tick End) bounds) => (bounds.Start.Value, bounds.End.Value);
 }

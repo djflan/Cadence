@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using Cadence.Domain.Sequencing;
-using Cadence.Domain.Time;
 using static Cadence.Infrastructure.Projects.NodeReader;
 
 namespace Cadence.Infrastructure.Projects;
@@ -20,7 +19,7 @@ internal sealed class Format2To3Migration : IProjectMigration
     public void Migrate(JsonObject root)
     {
         var sequence = Object(Object(root, "project", "$"), "sequence", "$.project");
-        var meter = ReadMeter(sequence);
+        var meter = ProjectSerializer.ReadMeterMap(sequence, SequencePath, ProjectSerializer.ReadPpqn(sequence, SequencePath));
         var tracks = Array(sequence, "tracks", SequencePath, int.MaxValue);
         for (var t = 0; t < tracks.Count; t++)
         {
@@ -63,26 +62,6 @@ internal sealed class Format2To3Migration : IProjectMigration
                 ["offset"] = 0L,
                 ["events"] = events,
             });
-        }
-    }
-
-    private static MeterMap ReadMeter(JsonObject sequence)
-    {
-        var ppqn = Int(sequence, "ppqn", SequencePath, 1, Ppqn.MaxValue);
-        var changes = Array(sequence, "meter", SequencePath, int.MaxValue).Select((node, i) =>
-        {
-            var at = $"{SequencePath}.meter[{i}]";
-            var item = Object(node, at);
-            return (Tick: Long(item, "tick", at, 0, long.MaxValue), Numerator: Int(item, "numerator", at, 1, 255), Denominator: Int(item, "denominator", at, 1, TimeSignature.MaxDenominator));
-        }).ToList();
-
-        try
-        {
-            return new MeterMap(new Ppqn(ppqn), changes.Select(c => new MeterChange(new Tick(c.Tick), new TimeSignature(c.Numerator, c.Denominator))));
-        }
-        catch (ArgumentException ex)
-        {
-            throw new ProjectFormatException($"{SequencePath}.meter", ex.Message, ex);
         }
     }
 }

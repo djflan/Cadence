@@ -37,11 +37,14 @@ clips. Cadence has no track types yet, so it can go hybrid from the start withou
   that start before the window do not play, and nothing is retriggered. A clip's length never
   changes on its own when its events change.
 - **Clips on a track never overlap.** The `Track` constructor refuses overlaps. Placing a clip
-  (moving, copying, recording a replacing take) lets the placed clip win: clips it covers are
-  removed, trimmed, or split. Undo restores them. This keeps a track's arranged events a plain
-  concatenation, with no merge rule.
-- **Overdubbing is the exception: it adds, so it joins.** An overdubbed take and every clip it
-  overlaps become one clip holding all of their visible events, so overdubbing never loses content.
+  (moving or copying) lets the placed clip win: clips it covers are removed, trimmed, or split. Undo
+  restores them. This keeps a track's arranged events a plain concatenation, with no merge rule.
+- **Added events go to the clip where they start.** This covers editing, pasting, and recording. An
+  event that starts between clips goes to the clip being edited (or where a take started) if that
+  clip borders the same gap, or else to a new clip in the gap. Clips grow to bar lines to show what
+  they receive, but never into a neighbour, so a note reaching into the next clip is kept whole but
+  plays only to its clip's end. Recording therefore never joins, trims, or removes clips; a replacing
+  take first removes the events that play starting in its range, except meta events.
 - **Event IDs stay unique across all clips on a track.** Copying a clip gives the copy a new `ClipId`
   and new `EventId`s. Splitting divides events by timeline position; events keep their `EventId`s
   and the right half gets a new `ClipId`. A note held across the split stays in the left half and is
@@ -90,8 +93,8 @@ guards this with fixtures written by the format 2 serializer.
 - Splitting, trimming, copying, and moving parts of a track become possible, and a later audio clip
   needs no new track type.
 - Everything that read `Track.Events` changes: the plan compiler, SMF import and export, recording,
-  the piano roll, and the event list. The piano roll edits one clip at a time. Recording a take
-  creates a clip, and overdubbing joins the clips it overlaps.
+  the piano roll, and the event list. The piano roll edits one clip at a time and follows added
+  events into the clip they land in. A take recorded into empty space becomes a new clip.
 - **Loop wraps do not chase** (ADR 0006): a held automation value at the loop start is not resent
   when the loop wraps, only at the next point. Clip controller events already behave this way, but
   automation makes it far more noticeable. A chase state computed with the plan and sent at the wrap

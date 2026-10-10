@@ -194,7 +194,7 @@ public sealed partial class TrackViewModel : ObservableObject
             1 => string.Create(CultureInfo.InvariantCulture, $"ch {channels[0]}"),
             _ => string.Create(CultureInfo.InvariantCulture, $"ch {string.Join(", ", channels.Take(4))}{(channels.Count > 4 ? "…" : string.Empty)}"),
         };
-        var clips = track.Clips.Length == 1 ? string.Empty : string.Create(CultureInfo.InvariantCulture, $" · {track.Clips.Length} clips");
+        var clips = track.Clips.Length <= 1 ? string.Empty : string.Create(CultureInfo.InvariantCulture, $" · {track.Clips.Length} clips");
         return string.Create(CultureInfo.InvariantCulture, $"{notes.Count} notes · {channelText}{clips}");
     }
 }

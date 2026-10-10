@@ -122,8 +122,8 @@ public sealed record GridOption(GridDivision Division, string Name)
 /// <remarks>
 /// The edited clip stays the same across edits while it exists. Otherwise it is the clip under the
 /// playhead, or the track's first note clip. Events are shown at timeline positions, hidden content
-/// included, so views need not know about clips. Added events go to the clip where they start, or to
-/// the edited clip (which grows) when they start between clips; a track with no clips gets a new one.
+/// included, so views need not know about clips. Added events go where
+/// <see cref="ProjectCommands.EditEvents"/> puts them, and the editor follows them to their clip.
 /// </remarks>
 public sealed partial class EditorViewModel : ObservableObject
 {
@@ -564,7 +564,7 @@ public sealed partial class EditorViewModel : ObservableObject
         }
 
         var replaced = LaneEvents().Where(e => e.Position.Value >= fromTick && e.Position.Value <= toTick).Select(e => e.Id).ToList();
-        _owner.Execute(ProjectCommands.EditEvents(track.Id, TargetFor(track, points), $"Draw {Lane.Name}", replaced, points));
+        _owner.Execute(ProjectCommands.EditEvents(track.Id, EditedClipId, $"Draw {Lane.Name}", replaced, points));
         FollowClipOf(points);
     }
 
@@ -600,7 +600,7 @@ public sealed partial class EditorViewModel : ObservableObject
         Copy();
         if (Track is { } track && _selected.Count > 0)
         {
-            _owner.Execute(ProjectCommands.Batch("Cut", [ProjectCommands.RemoveEvents(track.Id, [.. _selected])]));
+            _owner.Execute(ProjectCommands.RemoveEvents(track.Id, [.. _selected], "Cut"));
         }
     }
 
@@ -710,21 +710,13 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         if (added.Count > 0)
         {
-            _owner.Execute(ProjectCommands.AddEvents(track.Id, TargetFor(track, added), label, added));
+            _owner.Execute(ProjectCommands.AddEvents(track.Id, EditedClipId, label, added));
             FollowClipOf(added);
         }
     }
 
-    /// <summary>The clip new events go to: the one where they start, else the edited clip, else a new one.</summary>
-    private ClipId TargetFor(Track track, IReadOnlyCollection<TrackEvent> added)
-    {
-        if (added.Count > 0 && track.ClipAt(added.Min(e => e.Position)) is NoteClip at)
-        {
-            return at.Id;
-        }
-
-        return _clipId ??= ClipId.New();
-    }
+    /// <summary>The edited clip's ID, or a new one for the clip the next added events will create.</summary>
+    private ClipId EditedClipId => _clipId ??= ClipId.New();
 
     /// <summary>Switches to the clip that received <paramref name="added"/>, if it is not the edited one.</summary>
     private void FollowClipOf(IReadOnlyCollection<TrackEvent> added)

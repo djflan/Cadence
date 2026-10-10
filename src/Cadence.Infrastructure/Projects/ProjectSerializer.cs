@@ -412,23 +412,13 @@ public sealed class ProjectSerializer
     private static Sequence ReadSequence(JsonObject json)
     {
         const string path = "$.project.sequence";
-        var ppqn = new Ppqn(Int(json, "ppqn", path, 1, Ppqn.MaxValue));
+        var ppqn = ReadPpqn(json, path);
 
         var tempo = Array(json, "tempo", path, 1_000_000).Select((node, i) =>
         {
             var at = $"{path}.tempo[{i}]";
             var item = Object(node, at);
             return new TempoChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), new Tempo(Int(item, "microsecondsPerQuarter", at, 1, Tempo.MaxMicrosecondsPerQuarterNote)));
-        }).ToList();
-
-        var meter = Array(json, "meter", path, 1_000_000).Select((node, i) =>
-        {
-            var at = $"{path}.meter[{i}]";
-            var item = Object(node, at);
-            var numerator = Int(item, "numerator", at, 1, 255);
-            var denominator = Int(item, "denominator", at, 1, TimeSignature.MaxDenominator);
-            var signature = Guard(at, () => new TimeSignature(numerator, denominator));
-            return new MeterChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), signature);
         }).ToList();
 
         var markers = Array(json, "markers", path, 1_000_000).Select((node, i) =>
@@ -441,8 +431,24 @@ public sealed class ProjectSerializer
         var tracks = Array(json, "tracks", path, MaxTracks).Select((node, i) => ReadTrack(Object(node, $"{path}.tracks[{i}]"), $"{path}.tracks[{i}]")).ToList();
 
         var tempoMap = new TempoMap(ppqn, tempo);
-        var meterMap = Guard($"{path}.meter", () => new MeterMap(ppqn, meter));
+        var meterMap = ReadMeterMap(json, path, ppqn);
         return Guard($"{path}.tracks", () => new Sequence(tempoMap, meterMap, tracks, markers));
+    }
+
+    internal static Ppqn ReadPpqn(JsonObject sequence, string path) => new(Int(sequence, "ppqn", path, 1, Ppqn.MaxValue));
+
+    internal static MeterMap ReadMeterMap(JsonObject sequence, string path, Ppqn ppqn)
+    {
+        var meter = Array(sequence, "meter", path, 1_000_000).Select((node, i) =>
+        {
+            var at = $"{path}.meter[{i}]";
+            var item = Object(node, at);
+            var numerator = Int(item, "numerator", at, 1, 255);
+            var denominator = Int(item, "denominator", at, 1, TimeSignature.MaxDenominator);
+            var signature = Guard(at, () => new TimeSignature(numerator, denominator));
+            return new MeterChange(new Tick(Long(item, "tick", at, 0, long.MaxValue)), signature);
+        }).ToList();
+        return Guard($"{path}.meter", () => new MeterMap(ppqn, meter));
     }
 
     private static Track ReadTrack(JsonObject json, string path)
