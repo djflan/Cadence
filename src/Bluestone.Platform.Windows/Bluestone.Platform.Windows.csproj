@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows platform services. Managed P/Invoke only; see docs/adr/0013-windows-playback-timing.md
+       and docs/adr/0014-winmm-adapter.md. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Platform.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
+  </ItemGroup>
+</Project>

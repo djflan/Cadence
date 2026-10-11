@@ -4,7 +4,7 @@
 - Date: 2026-10-04
 
 ## Context
-Cadence could play and route, but not record or edit notes. A sequencer needs both. Three forces
+Bluestone could play and route, but not record or edit notes. A sequencer needs both. Three forces
 shape the design:
 
 - **Timing.** A recorded note must land where it was played, not where the UI happened to notice it.
@@ -45,7 +45,7 @@ shape the design:
   ends the note at the loop end. Notes are paired in the order they were played, not by position,
   because positions repeat across passes. Cycle recording merges every pass, and the loop is the
   take's range only if playback actually wrapped. By default, inputs that share a name with an
-  output being played to are not listened to, so an IAC bus used both ways does not record Cadence's
+  output being played to are not listened to, so an IAC bus used both ways does not record Bluestone's
   own playback. A take is one `Record` command,
   merged by default or replacing what starts in the recorded range. A live preview is computed from
   the same capture for display. System messages are not recorded.

@@ -18,7 +18,7 @@ and play exactly as before.
   `docs/project-format.md`.
 - Everything is stored whether or not it can be resolved now: missing profiles, endpoints, plugins,
   devices, and connections that do not validate are kept and reported, never dropped on load.
-- Plugin state is stored as base64 with its format string; Cadence never interprets it.
+- Plugin state is stored as base64 with its format string; Bluestone never interprets it.
 - `Format3To4Migration` converts each format 3 route with `TrackOutputs.Write`, the same code the
   inspector uses: one external instrument per distinct endpoint and profile (named after the endpoint,
   or "Unassigned" for a route with settings and no endpoint), a connection forcing the route's channel
@@ -26,7 +26,7 @@ and play exactly as before.
   `instrument` role; the mixer starts empty.
 - On load, `TrackRoleConversion.Reconcile` widens any role that cannot show the track's clips and
   reports the change (`ProjectDocument.Notes`).
-- Chain presets have their own file format, `cadence-chain-preset` version 1, without identities or
+- Chain presets have their own file format, `bluestone-chain-preset` version 1, without identities or
   connections (ADR 0022).
 
 ## Consequences

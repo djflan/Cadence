@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- View models and presentation services. No UI framework types: everything here is unit-testable. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Presentation</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Application/Bluestone.Application.csproj" />
+  </ItemGroup>
+</Project>

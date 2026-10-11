@@ -5,12 +5,12 @@
 
 ## Context
 
-Real MIDI files and instruments carry SysEx that Cadence will never fully understand: other
-manufacturers, other models, bulk dumps, and damaged messages. Cadence also wants to understand
+Real MIDI files and instruments carry SysEx that Bluestone will never fully understand: other
+manufacturers, other models, bulk dumps, and damaged messages. Bluestone also wants to understand
 the SysEx that matters most to its users, which is Universal SysEx, Yamaha XG, and Roland GS. XG and
 GS look similar but have different address maps, part numbering, and checksums.
 
-Before this decision Cadence preserved SysEx (`SysExEvent`, `RawMidiEvent`) but did not
+Before this decision Bluestone preserved SysEx (`SysExEvent`, `RawMidiEvent`) but did not
 interpret it. The monitor showed only a manufacturer byte.
 
 ## Decision
@@ -19,7 +19,7 @@ interpret it. The monitor showed only a manufacturer byte.
   escaped, or malformed bytes are `RawMidiEvent`s. Both survive SMF import and export, project files,
   and playback byte for byte. Unknown SysEx is not invalid SysEx.
 - **Interpretation is derived and optional.** `SysExInterpreter.Interpret` (in
-  `Cadence.Midi/SysEx`) dispatches on the manufacturer ID to a dialect and returns a
+  `Bluestone.Midi/SysEx`) dispatches on the manufacturer ID to a dialect and returns a
   `SysExInterpretation`, or `null` when it does not recognize the message. Interpretations are not
   stored, so they cannot replace or corrupt the original bytes. A bad checksum is reported, not
   repaired.
@@ -36,7 +36,7 @@ interpret it. The monitor showed only a manufacturer byte.
 - Adding a dialect is one file and one `switch` case, plus tests. Deeper XG and GS knowledge
   (parameter names, QY100-specific blocks, requests) can grow inside each dialect without touching
   the others.
-- Descriptions are English strings on the interpretation records. If Cadence is localized, they
+- Descriptions are English strings on the interpretation records. If Bluestone is localized, they
   move to the presentation layer and the records keep only structured data.
 - Rendering checksummed messages from profiles (ADR 0007) can reuse `GsDialect.Checksum`, but
   still needs a profile schema change.

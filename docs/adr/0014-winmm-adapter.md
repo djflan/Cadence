@@ -5,7 +5,7 @@
 
 ## Context
 
-Cadence had no MIDI adapter on Windows, so only the built-in monitor output was available. The
+Bluestone had no MIDI adapter on Windows, so only the built-in monitor output was available. The
 brief names Windows MIDI Services as the primary Windows adapter, with WinMM as the fallback.
 
 - **Windows MIDI Services** schedules messages and supports MIDI 2.0. It needs its own runtime
@@ -20,7 +20,7 @@ when due is now usable.
 
 ## Decision
 
-- **Ship WinMM first**, as `WinMmProvider` in `Cadence.Platform.Windows`: managed `LibraryImport`
+- **Ship WinMM first**, as `WinMmProvider` in `Bluestone.Platform.Windows`: managed `LibraryImport`
   only, behind `IMidiEndpointProvider`, with no new package dependencies. Windows MIDI Services
   follows as its own adapter and becomes the preferred provider when its runtime is present.
 - **Delivery class `None`.** Every WinMM endpoint reports `EndpointCapabilities.None`, so the

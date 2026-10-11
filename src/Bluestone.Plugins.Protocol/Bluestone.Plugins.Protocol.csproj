@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Wire contract shared by the plugin host (Bluestone.Plugins) and the plugin worker process: control-plane frames
+       and the memory-mapped data-plane block exchange. BCL only; see docs/plugin-hosting.md. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Plugins.Protocol</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Only Exchange/MappedRegion.cs uses pointers; see the comment there. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Integration" />
+  </ItemGroup>
+</Project>

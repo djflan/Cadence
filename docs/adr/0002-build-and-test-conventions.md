@@ -5,7 +5,7 @@
 
 ## Context
 
-Cadence needs reproducible builds across macOS, Windows, and Linux, strict compiler feedback, and a
+Bluestone needs reproducible builds across macOS, Windows, and Linux, strict compiler feedback, and a
 default test suite that never depends on MIDI hardware or wall-clock timing.
 
 ## Decision
@@ -20,12 +20,12 @@ default test suite that never depends on MIDI hardware or wall-clock timing.
 - **Tests:** xUnit v3 on Microsoft.Testing.Platform (opted in via `global.json`, required by xUnit v3 4.x on
   the .NET 10 SDK). CsCheck provides property-based and fuzz-style tests; it is framework-agnostic and has
   no F# runtime dependency, unlike FsCheck.
-- **Test projects:** `Cadence.Tests.Unit` is fast and deterministic. Tests that touch the real file system
-  or OS services go in `Cadence.Tests.Integration` once needed. Tests of the Avalonia views go in
-  `Cadence.Tests.Ui`, on Avalonia's headless platform, so they need no display. Hardware-dependent checks are
+- **Test projects:** `Bluestone.Tests.Unit` is fast and deterministic. Tests that touch the real file system
+  or OS services go in `Bluestone.Tests.Integration` once needed. Tests of the Avalonia views go in
+  `Bluestone.Tests.Ui`, on Avalonia's headless platform, so they need no display. Hardware-dependent checks are
   opt-in and never part of the default suite.
 - **Boundaries:** architecture tests assert project dependency direction (for example, that
-  `Cadence.Domain` references only the base class library).
+  `Bluestone.Domain` references only the base class library).
 
 ## Consequences
 

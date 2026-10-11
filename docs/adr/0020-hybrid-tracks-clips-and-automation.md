@@ -11,11 +11,11 @@ Moving a region moves every event on the track. There is nothing to split, trim,
 "Automation" means controller, pitch bend, and pressure events on that same list, so there is no way
 to draw a curve over the arrangement without it being part of the notes.
 
-Cadence will eventually play audio and hosted instruments as well as MIDI. Many DAWs separate these
+Bluestone will eventually play audio and hosted instruments as well as MIDI. Many DAWs separate these
 with track types (MIDI, instrument, audio), and converting between types later is awkward. Bitwig
 Studio has a single hybrid track type instead: the clip's type decides what it holds (notes or audio),
 any clip type can sit on any track, and automation lives on the track's timeline as well as inside
-clips. Cadence has no track types yet, so it can go hybrid from the start without merging anything.
+clips. Bluestone has no track types yet, so it can go hybrid from the start without merging anything.
 
 ## Decision
 

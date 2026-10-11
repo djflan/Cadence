@@ -1,0 +1,21 @@
+<Solution>
+  <Project Path="Bluestone.Desktop/Bluestone.Desktop.csproj" />
+  <Project Path="Bluestone.Application/Bluestone.Application.csproj" />
+  <Project Path="Bluestone.Benchmarks/Bluestone.Benchmarks.csproj" />
+  <Project Path="Bluestone.Domain/Bluestone.Domain.csproj" />
+  <Project Path="Bluestone.Infrastructure/Bluestone.Infrastructure.csproj" />
+  <Project Path="Bluestone.Midi/Bluestone.Midi.csproj" />
+  <Project Path="Bluestone.Platform.Alsa/Bluestone.Platform.Alsa.csproj" />
+  <Project Path="Bluestone.Platform.CoreMidi/Bluestone.Platform.CoreMidi.csproj" />
+  <Project Path="Bluestone.Platform.Windows/Bluestone.Platform.Windows.csproj" />
+  <Project Path="Bluestone.Playback/Bluestone.Playback.csproj" />
+  <Project Path="Bluestone.PluginWorker/Bluestone.PluginWorker.csproj" />
+  <Project Path="Bluestone.Plugins/Bluestone.Plugins.csproj" />
+  <Project Path="Bluestone.Plugins.Protocol/Bluestone.Plugins.Protocol.csproj" />
+  <Project Path="Bluestone.Presentation/Bluestone.Presentation.csproj" />
+  <Project Path="Bluestone.Profiles/Bluestone.Profiles.csproj" />
+  <Project Path="Bluestone.Signal/Bluestone.Signal.csproj" />
+  <Project Path="Bluestone.Tests.Integration/Bluestone.Tests.Integration.csproj" />
+  <Project Path="Bluestone.Tests.Ui/Bluestone.Tests.Ui.csproj" />
+  <Project Path="Bluestone.Tests.Unit/Bluestone.Tests.Unit.csproj" />
+</Solution>

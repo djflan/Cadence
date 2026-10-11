@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Prepared playback plans, the real-time scheduler, transport, panic, and timing diagnostics. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Playback</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
+    <ProjectReference Include="../Bluestone.Signal/Bluestone.Signal.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- macOS CoreMIDI endpoint adapter. Managed P/Invoke only; see docs/adr/0011-coremidi-adapter.md. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Platform.CoreMidi</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Integration" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
+  </ItemGroup>
+</Project>

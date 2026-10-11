@@ -1,11 +1,11 @@
 # Device profile format (schema version 1)
 
-A device profile is a JSON file named `<name>.cadence-profile.json` that describes what an
+A device profile is a JSON file named `<name>.bluestone-profile.json` that describes what an
 instrument understands. Profiles never say where an instrument is connected: the same profile can
 drive a physical instrument, a compatible software synth, or a virtual port. Comments and trailing
 commas are allowed.
 
-Profiles are untrusted input. Cadence rejects any profile with an error and reports every problem
+Profiles are untrusted input. Bluestone rejects any profile with an error and reports every problem
 with its JSON path, for example `$.banks[0].programs[3].number: must be between 1 and 128 (found 0)`.
 Warnings (unknown properties, unused template parameters) do not block loading.
 
@@ -13,7 +13,7 @@ Warnings (unknown properties, unused template parameters) do not block loading.
 
 | Property | Required | Description |
 | -------- | -------- | ----------- |
-| `format` | yes | Always `"cadence-device-profile"`. |
+| `format` | yes | Always `"bluestone-device-profile"`. |
 | `schemaVersion` | yes | `1`. Newer versions are refused with a clear message. |
 | `id` | yes | Stable identifier: lowercase letters and digits separated by `.` or `-`, e.g. `community.vendor.model`. Projects refer to profiles by this ID. |
 | `version` | yes | The profile content's own version, e.g. `"1.2.0"`. |
@@ -52,7 +52,7 @@ Warnings (unknown properties, unused template parameters) do not block loading.
 ```
 
 `msb` and `lsb` are the bank select values (0–127); omit them for instruments without banks.
-Program `number` is **one-based (1–128)**, as printed in most voice lists; Cadence sends
+Program `number` is **one-based (1–128)**, as printed in most voice lists; Bluestone sends
 `number − 1` on the wire. Selecting a program over MIDI 1.0 sends bank select MSB, then LSB, then the program change.
 
 ## SysEx templates

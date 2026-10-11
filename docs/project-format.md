@@ -1,12 +1,12 @@
-# Cadence project format
+# Bluestone project format
 
-A Cadence project (`.cadence`) is a single UTF-8 JSON document. It is meant to be readable, to diff
+A Bluestone project (`.bluestone`) is a single UTF-8 JSON document. It is meant to be readable, to diff
 cleanly in version control, and to stay portable: it contains no machine-local paths and no port
 indices, only stable identifiers and identity hints.
 
 ```json
 {
-  "format": "cadence-project",
+  "format": "bluestone-project",
   "formatVersion": 4,
   "project": {
     "id": "0199b0f2-…",
@@ -38,7 +38,7 @@ indices, only stable identifiers and identity hints.
       ]
     },
     "instruments": [
-      { "id": "…", "name": "QY Out", "profile": { "id": "cadence.generic.xg", "name": "Generic XG" },
+      { "id": "…", "name": "QY Out", "profile": { "id": "bluestone.generic.xg", "name": "Generic XG" },
         "operatingMode": "XG",
         "ports": [ { "id": "A", "name": "Port A",
                      "endpoint": { "provider": "coremidi", "key": "-12345", "name": "QY Out" } } ] }
@@ -46,7 +46,7 @@ indices, only stable identifiers and identity hints.
     "chains": [
       { "id": "…", "owner": { "type": "track", "track": "…" },
         "devices": [
-          { "id": "…", "definition": { "id": "cadence.midi.transpose", "name": "Transpose", "version": "1" },
+          { "id": "…", "definition": { "id": "bluestone.midi.transpose", "name": "Transpose", "version": "1" },
             "parameters": [ { "id": 1, "value": 1610612735 } ] } ] },
       { "id": "…", "owner": { "type": "rack" }, "name": "Shared synth",
         "devices": [
@@ -120,7 +120,7 @@ indices, only stable identifiers and identity hints.
 
 `formatVersion` increases whenever the structure changes. Older files are upgraded in memory by a
 chain of migrations before they are read; saving always writes the current version. A file from a
-newer Cadence is refused with an explanation and never overwritten.
+newer Bluestone is refused with an explanation and never overwritten.
 
 Format 4 replaced the per-track `routing` with `instruments`, `chains`, `connections`, and `mixer`,
 and added track `role`, `group`, audio clips, and device automation targets (ADR 0027). Each format 3
@@ -142,8 +142,8 @@ above. Format 1 files are not migrated; import the original MIDI file again inst
 
 1. The whole file is written to a hidden temporary file beside the project, flushed to disk, and
    read back to verify it.
-2. The previous project file is copied to `<name>.cadence.bak`.
+2. The previous project file is copied to `<name>.bluestone.bak`.
 3. The temporary file is renamed over the project (an atomic replace on the same volume).
 
-If the project file is damaged or missing, Cadence opens the backup and says so. Autosaves go to
-`<name>.cadence.recovery`; when that file is newer than the project, Cadence offers to restore it.
+If the project file is damaged or missing, Bluestone opens the backup and says so. Autosaves go to
+`<name>.bluestone.recovery`; when that file is newer than the project, Bluestone offers to restore it.

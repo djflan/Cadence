@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure musical and sequencing model. Must not reference UI, platform, native, or vendor-profile code. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Domain</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+  </ItemGroup>
+</Project>

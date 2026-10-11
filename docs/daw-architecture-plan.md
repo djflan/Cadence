@@ -1,7 +1,7 @@
 # DAW architecture modernization: implementation plan
 
 Status: implemented (see `docs/daw-epic-handoff.md` for what is left). The architecture pages and ADRs 0021 to
-0028 now describe the result; this plan is kept as the record of the assessment. This page is the working plan for the epic that moves Cadence from "a MIDI
+0028 now describe the result; this plan is kept as the record of the assessment. This page is the working plan for the epic that moves Bluestone from "a MIDI
 sequencer with one output per track" to a device-chain and routing architecture that can host
 instruments, effects, and out-of-process plugins. When the work is finished it is replaced by the
 architecture pages and ADRs it points to; until then it records what was found and what was decided.
@@ -21,7 +21,7 @@ platform-skipped, all passing).
 | Devices | None. `DeviceProfile` describes what an instrument understands, not a processing device. | New: definitions, instances, chains. |
 | Persistence | Format 3 JSON, versioned migrations (`IProjectMigration`), atomic saves, preserved unknown properties. | Format 4 with a 3 to 4 migration. |
 | MIDI | Domain events at MIDI 2.0 value resolution; MIDI 1.0 encoding at the edge; SysEx kept byte for byte. | Unchanged. Processing works on these events, not on wire bytes. |
-| UI | Avalonia, compiled bindings; a framework-free `Cadence.Presentation`. Per-track routing is edited in the inspector (`SelectionViewModel`). | Keep the inspector workflow working through the new model; add a device strip and routing inspector. |
+| UI | Avalonia, compiled bindings; a framework-free `Bluestone.Presentation`. Per-track routing is edited in the inspector (`SelectionViewModel`). | Keep the inspector workflow working through the new model; add a device strip and routing inspector. |
 | Guards | `MidiOneOutputGoldenTests` and `PlanEquivalenceTests` pin the exact MIDI 1.0 bytes. `DependencyDirectionTests` pin project references. | These are the regression net for the refactor. |
 
 ADR 0020 says "there is no track kind" and limits automation targets to MIDI parameters. Both
@@ -66,9 +66,9 @@ Each phase leaves the solution building with every test passing.
 | ----- | ---- | -------- |
 | 0 | Freeze format 3 fixtures and plan hashes from the *current* code. | New fixtures plus hashes computed before the refactor. |
 | 1 | Domain: roles, `AudioClip`, devices, chains, external instruments, connections, mixer, device automation targets, routing validation. | Domain unit tests. |
-| 2 | `Cadence.Signal`: signal buffers, event classes, chain runner with passthrough, device catalog, built-in processors (Transpose, Event Filter, Arpeggiator), graph evaluation. | Unit tests for scenarios 2 to 6, 10. |
+| 2 | `Bluestone.Signal`: signal buffers, event classes, chain runner with passthrough, device catalog, built-in processors (Transpose, Event Filter, Arpeggiator), graph evaluation. | Unit tests for scenarios 2 to 6, 10. |
 | 3 | Replace `TrackRoute` and `RoutingTable`: compiler, resolver, controller, serializer, migration, commands. | Golden and equivalence hashes unchanged; format 3 fixtures reproduce the same MIDI bytes. |
-| 4 and 5 | Plugin hosting: protocol, shared-memory exchange, supervisor, scanner, reference worker. Built in parallel in `Cadence.Plugins.*`, merged here. | Tests that spawn and kill real worker processes. |
+| 4 and 5 | Plugin hosting: protocol, shared-memory exchange, supervisor, scanner, reference worker. Built in parallel in `Bluestone.Plugins.*`, merged here. | Tests that spawn and kill real worker processes. |
 | 6 | Application and UI: role conversion commands, chain commands and presets, device strip, routing inspector. | View model tests; the Avalonia project builds with compiled bindings. |
 | 7 | Chain preset persistence. | Round-trip and independence tests. |
 | 8 | Acceptance scenarios as tests, documentation, ADRs, README, CI. | Full build and test run. |
@@ -76,7 +76,7 @@ Each phase leaves the solution building with every test passing.
 ### Phase 0 baseline (captured from the code before the refactor)
 
 Two format 3 projects were written by the format 3 serializer and are committed as fixtures
-(`src/Cadence.Tests.Unit/Infrastructure/Fixtures/format3-*.cadence`). They are never regenerated. The
+(`src/Bluestone.Tests.Unit/Infrastructure/Fixtures/format3-*.bluestone`). They are never regenerated. The
 hashes below are what the *old* pipeline (route resolution, output preparation, plan compilation)
 sent, with each endpoint present except `gone-*` (missing) and `old-*` (present under a new key, so
 bound by name), and the profiles shipped in `/profiles`. After the refactor the migrated projects

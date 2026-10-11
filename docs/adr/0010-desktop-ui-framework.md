@@ -36,8 +36,8 @@ toolchain and a WinUI-shaped API surface.
 
 ## Decision
 
-Use **Avalonia 12** with **CommunityToolkit.Mvvm**, plus a Cadence design system: a custom dark
-theme layered on Fluent, with Cadence-owned resources (colour, type, spacing, radii) and custom
+Use **Avalonia 12** with **CommunityToolkit.Mvvm**, plus a Bluestone design system: a custom dark
+theme layered on Fluent, with Bluestone-owned resources (colour, type, spacing, radii) and custom
 controls for the timeline. The maintainer's independent research also preferred Avalonia.
 
 - View models are plain classes over `ProjectSession` and `PlaybackController`, with no Avalonia
@@ -48,8 +48,8 @@ controls for the timeline. The maintainer's independent research also preferred 
 
 ## Consequences
 
-- Linux screen-reader support must be verified on target distributions before Cadence claims it.
+- Linux screen-reader support must be verified on target distributions before Bluestone claims it.
 - `Avalonia.Headless.XUnit` 12.1 is built against xUnit v3 3.x and fails test discovery on xUnit v3
   4.x. Headless UI tests are deferred until it catches up; view-model tests cover behavior meanwhile.
-- A custom theme means Cadence owns focus visuals, contrast, and states for every control it
+- A custom theme means Bluestone owns focus visuals, contrast, and states for every control it
   restyles; these are part of review.

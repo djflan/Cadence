@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Use cases and orchestration: routing resolution, playback preparation, editing commands. UI-free. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
+    <ProjectReference Include="../Bluestone.Infrastructure/Bluestone.Infrastructure.csproj" />
+    <ProjectReference Include="../Bluestone.Midi/Bluestone.Midi.csproj" />
+    <ProjectReference Include="../Bluestone.Playback/Bluestone.Playback.csproj" />
+    <ProjectReference Include="../Bluestone.Plugins/Bluestone.Plugins.csproj" />
+    <ProjectReference Include="../Bluestone.Profiles/Bluestone.Profiles.csproj" />
+    <ProjectReference Include="../Bluestone.Signal/Bluestone.Signal.csproj" />
+  </ItemGroup>
+</Project>

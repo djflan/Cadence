@@ -5,7 +5,7 @@
 
 ## Context
 
-Cadence makes several decisions that are expensive to reverse: project-file and profile schema shapes,
+Bluestone makes several decisions that are expensive to reverse: project-file and profile schema shapes,
 timing and scheduling strategy, whether to introduce native code, and which UI framework to adopt.
 Contributors need to understand why those choices were made, not only what the code does.
 

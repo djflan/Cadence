@@ -5,14 +5,14 @@
 
 ## Context
 
-Third-party plugins (VST3 instruments and effects, MIDI plugins) are native code Cadence did not write and
-cannot fix. Loaded into Cadence's process, a plugin that crashes takes the application and the musician's
+Third-party plugins (VST3 instruments and effects, MIDI plugins) are native code Bluestone did not write and
+cannot fix. Loaded into Bluestone's process, a plugin that crashes takes the application and the musician's
 unsaved work with it; one that hangs freezes it. Scanning a malformed plugin can crash a host before it has
 shown a window.
 
 ## Decision
 
-- **Plugins never run in Cadence's process.** Each runs in a worker process (`Cadence.PluginWorker`). There is
+- **Plugins never run in Bluestone's process.** Each runs in a worker process (`Bluestone.PluginWorker`). There is
   no in-process fallback: if a worker cannot start or hand-shake, the instance is `Unavailable(FailedToStart)`.
   An in-process policy exists only as a value that is refused (and unsupported even when explicitly allowed).
 - **Isolation policies:** one worker per instance (default), per module, or shared by trusted instances.
@@ -35,13 +35,13 @@ shown a window.
 - **Scanning** runs one scanner process per module with a timeout; modules that crash or hang are quarantined
   and skipped until a rescan is asked for; results are cached by path, size, and modification time.
 - **Security.** Process isolation is crash isolation only. A worker runs with the same user permissions as
-  Cadence and can read and write the same files and use the network. Operating-system sandboxing is deferred.
-- **No VST3 support is claimed.** The worker hosts Cadence's reference plugins behind `IHostedPlugin`, the seam
+  Bluestone and can read and write the same files and use the network. Operating-system sandboxing is deferred.
+- **No VST3 support is claimed.** The worker hosts Bluestone's reference plugins behind `IHostedPlugin`, the seam
   where a native hosting layer will go (Rust, per ADR 0026, given the native-binary reason).
 
 ## Consequences
 
-- A plugin crash, hang, or misbehaving worker cannot terminate Cadence or corrupt the project; tests kill real
+- A plugin crash, hang, or misbehaving worker cannot terminate Bluestone or corrupt the project; tests kill real
   worker processes to prove it (scenarios 11, 12, 13, 15; see docs/plugin-hosting.md).
 - Out-of-process audio adds at least *(depth − 1)* blocks of latency plus scheduling jitter; no zero-latency
   claim is made. Measured real-time behaviour under an audio device awaits an audio engine.

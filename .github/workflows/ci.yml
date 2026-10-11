@@ -33,16 +33,16 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore src/Cadence.slnx
+        run: dotnet restore src/Bluestone.slnx
 
       - name: Build
-        run: dotnet build src/Cadence.slnx --no-restore --configuration Release
+        run: dotnet build src/Bluestone.slnx --no-restore --configuration Release
 
       # CoreMIDI on hosted macOS runners is unreliable (the MIDI server may not start and virtual
       # ports can time out), so those tests run only on developer machines.
       - name: Test
-        run: dotnet test src/Cadence.slnx --no-build --configuration Release --filter-not-class Cadence.Tests.Integration.Platform.CoreMidiProviderTests
+        run: dotnet test src/Bluestone.slnx --no-build --configuration Release --filter-not-class Bluestone.Tests.Integration.Platform.CoreMidiProviderTests
 
       - name: Check formatting
         if: matrix.os == 'ubuntu-latest'
-        run: dotnet format src/Cadence.slnx --no-restore --verify-no-changes
+        run: dotnet format src/Bluestone.slnx --no-restore --verify-no-changes

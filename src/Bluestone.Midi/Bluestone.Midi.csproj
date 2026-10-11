@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MIDI interchange and transport contracts: Standard MIDI Files, endpoints, wire encoding. No vendor knowledge. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Midi</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
+  </ItemGroup>
+</Project>

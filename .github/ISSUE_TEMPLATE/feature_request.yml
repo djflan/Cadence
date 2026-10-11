@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea or improvement for Cadence.
+description: Suggest an idea or improvement for Bluestone.
 labels: [enhancement]
 body:
   - type: textarea

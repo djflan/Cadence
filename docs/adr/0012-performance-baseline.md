@@ -9,7 +9,7 @@ The brief allows native scheduling only if measurements show it is needed. This 
 first measurements and the decision they support.
 
 **Machine:** Apple M5 Max (18 cores), 64 GB, macOS 27.0.1, .NET 10.0.8, Release build.
-**Tools:** `src/Cadence.Benchmarks` (BenchmarkDotNet 0.15.8, ShortRun, so indicative rather than
+**Tools:** `src/Bluestone.Benchmarks` (BenchmarkDotNet 0.15.8, ShortRun, so indicative rather than
 precise) and its `--jitter` probe, which plays dense material on the real playback thread with the
 system clock: 16 tracks of sixteenth notes plus controller automation, about 385 messages/s.
 

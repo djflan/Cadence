@@ -1,27 +1,27 @@
-# Cadence
+# Bluestone
 
-[![CI](https://github.com/djflan/Cadence/actions/workflows/ci.yml/badge.svg)](https://github.com/djflan/Cadence/actions/workflows/ci.yml)
+[![CI](https://github.com/djflan/Bluestone/actions/workflows/ci.yml/badge.svg)](https://github.com/djflan/Bluestone/actions/workflows/ci.yml)
 
-Cadence is a modern, open-source, cross-platform MIDI workstation built for musicians who use real instruments.
+Bluestone is a modern, open-source, cross-platform MIDI workstation built for musicians who use real instruments.
 
-It is initially focused on excellent Yamaha XG and QY100 workflows, while its architecture is deliberately broader: Cadence can describe what an instrument understands independently from where MIDI is sent. A track can therefore use a device profile with physical hardware, a virtual MIDI port, a network destination, or a compatible software instrument.
+It is initially focused on excellent Yamaha XG and QY100 workflows, while its architecture is deliberately broader: Bluestone can describe what an instrument understands independently from where MIDI is sent. A track can therefore use a device profile with physical hardware, a virtual MIDI port, a network destination, or a compatible software instrument.
 
 > [!NOTE]
-> Cadence is an independent open-source project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. Yamaha, XG, QY100, and other product names and trademarks belong to their respective owners and are used solely to describe compatibility.
+> Bluestone is an independent open-source project and is not affiliated with, authorized, sponsored, or endorsed by Yamaha Corporation. Yamaha, XG, QY100, and other product names and trademarks belong to their respective owners and are used solely to describe compatibility.
 
-![Cadence main window](docs/images/cadence-sequencer.png)
+![Bluestone main window](docs/images/bluestone-sequencer.png)
 
 ## Status
 
-Cadence can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); arrange tracks as clips that can be moved, copied, trimmed, and split; draw automation lanes for controllers, pitch bend, and pressure; edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
+Bluestone can import and export Standard MIDI Files; play tracks to CoreMIDI on macOS, WinMM on Windows (with measured timing), or the ALSA sequencer on Linux (not yet tested on Linux); record MIDI input with count-in, metronome, punch in and out, and cycle recording (macOS for now); arrange tracks as clips that can be moved, copied, trimmed, and split; draw automation lanes for controllers, pitch bend, and pressure; edit notes in a piano roll with velocity and controller lanes, or in an event list; show what was sent in a built-in MIDI monitor; and save and reopen projects safely. MIDI input on Windows and Linux, and Windows MIDI Services, are next.
 
-Cadence is becoming a DAW without giving up MIDI depth. **Working today:** track roles (instrument, audio, hybrid, effect, group) that convert safely; device chains on tracks and shared racks with built-in Transpose, Event Filter, and Arpeggiator devices, bypass, reordering, parameters, and chain presets; one routing model (connections from a track or from after any device to other tracks, racks, external instruments by port and channel, and mixer channels) with feedback detection; external MIDI instruments as project entities; device parameter automation; project format 4 with a migration that plays older projects byte for byte. **Modelled but not yet sounding:** audio clips, software instruments, and the mixer (there is no audio engine yet). **Plugins:** an out-of-process hosting foundation (worker processes, crash detection and recovery, state persistence, crash-isolated scanning) tested by killing real worker processes, using Cadence's own reference plugins; plugin MIDI effects run in their worker when the plan is compiled, so their output is routed like any device's; third-party plugin formats such as VST3 are not supported yet. See [docs/architecture.md](docs/architecture.md) and [docs/plugin-hosting.md](docs/plugin-hosting.md).
+Bluestone is becoming a DAW without giving up MIDI depth. **Working today:** track roles (instrument, audio, hybrid, effect, group) that convert safely; device chains on tracks and shared racks with built-in Transpose, Event Filter, and Arpeggiator devices, bypass, reordering, parameters, and chain presets; one routing model (connections from a track or from after any device to other tracks, racks, external instruments by port and channel, and mixer channels) with feedback detection; external MIDI instruments as project entities; device parameter automation; project format 4 with a migration that plays older projects byte for byte. **Modelled but not yet sounding:** audio clips, software instruments, and the mixer (there is no audio engine yet). **Plugins:** an out-of-process hosting foundation (worker processes, crash detection and recovery, state persistence, crash-isolated scanning) tested by killing real worker processes, using Bluestone's own reference plugins; plugin MIDI effects run in their worker when the plan is compiled, so their output is routed like any device's; third-party plugin formats such as VST3 are not supported yet. See [docs/architecture.md](docs/architecture.md) and [docs/plugin-hosting.md](docs/plugin-hosting.md).
 
 ### Platform support
 
 | Platform | App | MIDI output | MIDI input (recording, thru) | Notes |
 | -------- | --- | ----------- | ---------------------------- | ----- |
-| macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Cadence's own virtual port | CoreMIDI, with adapter timestamps | Development platform; native menu bar; real-time playback thread |
+| macOS (Apple Silicon) | Yes | CoreMIDI: hardware, IAC, network, and Bluestone's own virtual port | CoreMIDI, with adapter timestamps | Development platform; native menu bar; real-time playback thread |
 | Windows (ARM64 and x64 tested) | Yes | WinMM: hardware ports and software synths, including SysEx | Computer keyboard only; WinMM input not yet |
 untested on Linux | Computer keyboard only; ALSA input not yet |
 
@@ -38,7 +38,7 @@ untested on Linux | Computer keyboard only; ALSA input not yet |
 
 ## Architectural principle
 
-Cadence separates a **device profile** from a **MIDI endpoint**:
+Bluestone separates a **device profile** from a **MIDI endpoint**:
 
 ```text
 Track / logical part
@@ -62,18 +62,18 @@ Custom profile      -> virtual MIDI port
 
 Profiles are not ports, and ports are not instruments. Projects retain their musical intent even when a previously selected endpoint is unavailable. An external instrument states its profile once and has ports bound to endpoints; tracks reach its parts (a port and a channel) through connections, so one MU2000 can play sixteen tracks without each track repeating it.
 
-In the same way, Cadence models music, not a MIDI wire format. MIDI 1.0 is fully supported, MIDI 2.0/UMP is a planned protocol beside it, and SysEx is always preserved byte for byte whether or not Cadence understands it. Universal SysEx, Yamaha XG, and Roland GS are recognized by separate dialect interpreters. [docs/architecture.md](docs/architecture.md) shows the layers, which project each concern belongs in, and the MIDI strategy.
+In the same way, Bluestone models music, not a MIDI wire format. MIDI 1.0 is fully supported, MIDI 2.0/UMP is a planned protocol beside it, and SysEx is always preserved byte for byte whether or not Bluestone understands it. Universal SysEx, Yamaha XG, and Roland GS are recognized by separate dialect interpreters. [docs/architecture.md](docs/architecture.md) shows the layers, which project each concern belongs in, and the MIDI strategy.
 
 ## Technology direction
 
-C# and .NET are the default for all of Cadence: domain, sequencing, MIDI processing, routing, device chains, persistence, plugin supervision, and the cross-platform UI. Platform adapters call operating-system MIDI services from C#.
+C# and .NET are the default for all of Bluestone: domain, sequencing, MIDI processing, routing, device chains, persistence, plugin supervision, and the cross-platform UI. Platform adapters call operating-system MIDI services from C#.
 
-Rust is used for a component only when a measurement shows managed code cannot meet a real-time or throughput requirement after tuning (allocation on the real-time path, callback deadlines, garbage collection pauses), or when a native interface such as plugin binaries requires it. It replaces C and C++ for new Cadence-owned native code; C and C++ appear only as third-party libraries, vendor SDK requirements, or thin ABI shims. Native components sit behind a small, versioned C ABI, and vendor knowledge and domain rules stay in managed code. There is no native Cadence code today. See [ADR 0026](docs/adr/0026-native-technology-policy.md).
+Rust is used for a component only when a measurement shows managed code cannot meet a real-time or throughput requirement after tuning (allocation on the real-time path, callback deadlines, garbage collection pauses), or when a native interface such as plugin binaries requires it. It replaces C and C++ for new Bluestone-owned native code; C and C++ appear only as third-party libraries, vendor SDK requirements, or thin ABI shims. Native components sit behind a small, versioned C ABI, and vendor knowledge and domain rules stay in managed code. There is no native Bluestone code today. See [ADR 0026](docs/adr/0026-native-technology-policy.md).
 
 ## Repository layout
 
 ```text
-Cadence/
+Bluestone/
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
@@ -84,16 +84,16 @@ Cadence/
 │   ├── midi-files.md   Standard MIDI File behavior and diagnostics
 │   ├── plugin-hosting.md  Out-of-process plugin hosting, crash recovery, and its limits
 │   ├── profiles.md     Device profile format
-│   └── project-format.md  Cadence project files, saving, and recovery
+│   └── project-format.md  Bluestone project files, saving, and recovery
 ├── profiles/           Shipped device profiles (data, not code)
 ├── samples/            Redistributable demo and fixture files
 └── src/
-    ├── Cadence.slnx
+    ├── Bluestone.slnx
     ├── SubModules/
     └── <ProjectFolder>/
 ```
 
-- `src/Cadence.slnx` is the solution entry point.
+- `src/Bluestone.slnx` is the solution entry point.
 - `src/SubModules/` is reserved for shared source submodules.
 - Each normal project belongs in its own direct child folder under `src/`.
 - `docs/adr/` records consequential architecture decisions.
@@ -103,33 +103,33 @@ The repository is intentionally minimal while the first vertical slice is design
 
 ## Building
 
-Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (10.0.300 or a later 10.0 feature band; see `global.json`). Any editor works; in Visual Studio, use a version that supports .NET 10 and opens `src/Cadence.slnx`. From the repository root run:
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (10.0.300 or a later 10.0 feature band; see `global.json`). Any editor works; in Visual Studio, use a version that supports .NET 10 and opens `src/Bluestone.slnx`. From the repository root run:
 
 ```sh
-dotnet restore src/Cadence.slnx
-dotnet build src/Cadence.slnx
-dotnet test src/Cadence.slnx
-dotnet format src/Cadence.slnx --verify-no-changes
+dotnet restore src/Bluestone.slnx
+dotnet build src/Bluestone.slnx
+dotnet test src/Bluestone.slnx
+dotnet format src/Bluestone.slnx --verify-no-changes
 ```
 
-Benchmarks and a real-time jitter probe live in `src/Cadence.Benchmarks`:
+Benchmarks and a real-time jitter probe live in `src/Bluestone.Benchmarks`:
 
 ```sh
-dotnet run -c Release --project src/Cadence.Benchmarks -- --filter '*' --job Short
-dotnet run -c Release --project src/Cadence.Benchmarks -- --jitter 10 --realtime
+dotnet run -c Release --project src/Bluestone.Benchmarks -- --filter '*' --job Short
+dotnet run -c Release --project src/Bluestone.Benchmarks -- --jitter 10 --realtime
 ```
 
 Warnings are treated as errors and code style is enforced during build. Tests run on Microsoft.Testing.Platform; the default suite needs no MIDI hardware. Platform MIDI adapters may require their target operating system.
 
-## Running Cadence
+## Running Bluestone
 
 ```sh
-dotnet run --project src/Cadence.Desktop
+dotnet run --project src/Bluestone.Desktop
 ```
 
-Without any hardware, route tracks to **Cadence Monitor** and watch the messages in the MIDI
-monitor panel, or route to **Cadence Out** (macOS and Linux) and select it as the input of a software synth or DAW.
-A demo song is included in `samples/cadence-demo.mid`; drag it (or any `.mid` or `.cadence` file)
+Without any hardware, route tracks to **Bluestone Monitor** and watch the messages in the MIDI
+monitor panel, or route to **Bluestone Out** (macOS and Linux) and select it as the input of a software synth or DAW.
+A demo song is included in `samples/bluestone-demo.mid`; drag it (or any `.mid` or `.bluestone` file)
 onto the window to open it. Hardware checks are listed in
 [docs/hardware-test-plan.md](docs/hardware-test-plan.md).
 
@@ -189,7 +189,7 @@ length, filtered by kind, and shares its selection with the piano roll. Every ed
 ### Recording
 
 Arm a track with its red button (or record into the selected track), then press R. From a stop,
-Cadence counts in (one or two bars) and starts recording; while playing, R punches in and out.
+Bluestone counts in (one or two bars) and starts recording; while playing, R punches in and out.
 Space stops and adds the take as one undo step. Takes merge with what is there, or replace it
 (**Recording ▸ Takes** in the inspector). With a cycle set, every pass is merged. MIDI thru plays
 what you play through the armed or selected track's output, and the metronome clicks on that output
@@ -207,14 +207,14 @@ channel (the channel its output forces, else the channel of its first event), an
 the channel it started on. Keys are matched by position, so the layout works on any keyboard
 language; other shortcuts are unavailable for the mapped keys while it is on.
 
-While stopped, Cadence sends each track's bank, program, and controller state at the playhead, so
+While stopped, Bluestone sends each track's bank, program, and controller state at the playhead, so
 what you play through thru uses the track's instrument without pressing play first.
 
 With several tracks selected, the inspector changes
 for all of them at once (one undo step); values that differ show *Mixed*.
 
 On macOS, all commands are also in the standard menu bar (File, Edit, Track, MIDI, Transport,
-View, Window, Help, and *About Cadence* in the application menu).
+View, Window, Help, and *About Bluestone* in the application menu).
 
 Accessibility: every control has a screen-reader name, status is always shown with an icon and a
 word as well as colour, and all transport and file actions have keyboard shortcuts. Linux
@@ -222,14 +222,14 @@ screen-reader support has not yet been verified.
 
 ## Contributing
 
-Cadence welcomes focused contributions to sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
+Bluestone welcomes focused contributions to sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 Compatibility names must be used factually and must not imply vendor affiliation, certification, sponsorship, or endorsement.
 
-## Supporting Cadence
+## Supporting Bluestone
 
-If Cadence is useful to you, you can support its development through [Ko-fi](https://ko-fi.com/djflan) or [GitHub Sponsors](https://github.com/sponsors/djflan).
+If Bluestone is useful to you, you can support its development through [Ko-fi](https://ko-fi.com/djflan) or [GitHub Sponsors](https://github.com/sponsors/djflan).
 
 ## License
 
-Cadence is licensed under the [MIT License](LICENSE).
+Bluestone is licensed under the [MIT License](LICENSE).

@@ -33,5 +33,5 @@ musical data or configuration.
 ## Consequences
 
 Name-based rebinding is a convenience with a visible status, not a silent rewrite: the stored
-reference changes only when the user confirms. Architecture tests enforce that `Cadence.Midi` and
-`Cadence.Profiles` never reference each other.
+reference changes only when the user confirms. Architecture tests enforce that `Bluestone.Midi` and
+`Bluestone.Profiles` never reference each other.

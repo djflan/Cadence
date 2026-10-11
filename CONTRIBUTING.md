@@ -1,6 +1,6 @@
-# Contributing to Cadence
+# Contributing to Bluestone
 
-Thanks for your interest in Cadence. Contributions are welcome in sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing.
+Thanks for your interest in Bluestone. Contributions are welcome in sequencing, MIDI interoperability, device profiles, platform adapters, accessibility, documentation, and testing.
 
 By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -17,10 +17,10 @@ Read the [architectural principle](README.md#architectural-principle), the [arch
 Install the [.NET 10 SDK](https://dotnet.microsoft.com/download) (see `global.json` for the required feature band), then from the repository root:
 
 ```sh
-dotnet restore src/Cadence.slnx
-dotnet build src/Cadence.slnx
-dotnet test src/Cadence.slnx
-dotnet format src/Cadence.slnx --verify-no-changes
+dotnet restore src/Bluestone.slnx
+dotnet build src/Bluestone.slnx
+dotnet test src/Bluestone.slnx
+dotnet format src/Bluestone.slnx --verify-no-changes
 ```
 
 Packages are restored only from nuget.org: the repository's `nuget.config` clears inherited sources and maps every package to it, as central package management requires. Add a mapping there if a package ever needs another source.
@@ -50,4 +50,4 @@ Compatibility names must be used factually and must not imply vendor affiliation
 
 ## License
 
-Cadence is licensed under the [MIT License](LICENSE). By submitting a contribution you agree that it is licensed under the same terms.
+Bluestone is licensed under the [MIT License](LICENSE). By submitting a contribution you agree that it is licensed under the same terms.

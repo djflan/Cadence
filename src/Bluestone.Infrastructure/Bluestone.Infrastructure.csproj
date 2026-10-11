@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Persistence and shared adapters: the Bluestone project file format and its storage. -->
+  <PropertyGroup>
+    <RootNamespace>Bluestone.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bluestone.Tests.Unit" />
+    <InternalsVisibleTo Include="Bluestone.Tests.Integration" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bluestone.Domain/Bluestone.Domain.csproj" />
+  </ItemGroup>
+</Project>

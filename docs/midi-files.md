@@ -1,7 +1,7 @@
 # Standard MIDI File support
 
-Cadence reads and writes Standard MIDI Files (SMF) formats 0, 1, and 2. A MIDI file is an interchange
-format, not a Cadence project: importing turns it into a sequence, and exporting writes a sequence
+Bluestone reads and writes Standard MIDI Files (SMF) formats 0, 1, and 2. A MIDI file is an interchange
+format, not a Bluestone project: importing turns it into a sequence, and exporting writes a sequence
 back out. Both steps report anything that could not be carried over exactly.
 
 ## Reading
@@ -41,7 +41,7 @@ that track only; the events read before the damage are kept, and a diagnostic sa
 - **Tempo, time signature, and markers** from any track become the sequence's tempo map, meter map,
   and markers. Track names at tick 0 become track names. In a format 1 file, a first track that
   holds only conductor data is absorbed and its name becomes the title.
-- **SMPTE-timed files** keep one tick per file tick; Cadence picks a resolution and a constant tempo
+- **SMPTE-timed files** keep one tick per file tick; Bluestone picks a resolution and a constant tempo
   that reproduce the original timing (29.97 fps drop-frame included).
 - **SysEx**: complete messages become SysEx events. Packets split across several events, `F7` escape
   events, and malformed SysEx are kept as raw bytes with their original timing.
@@ -53,7 +53,7 @@ that track only; the events read before the damage are kept, and a diagnostic sa
 
 Export always writes format 1 with running status: a conductor track (title, time signatures,
 tempo changes, markers) followed by one track per sequence track. Simultaneous events are written in
-Cadence's canonical order (ADR 0003), so a release always precedes a retrigger on the same tick.
+Bluestone's canonical order (ADR 0003), so a release always precedes a retrigger on the same tick.
 Text is written as UTF-8.
 
 Each file track holds what its sequence track plays: the events its clips show (notes cut at clip
